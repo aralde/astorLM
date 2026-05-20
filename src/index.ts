@@ -3,6 +3,8 @@ export { createAgentSession } from './agent/session.js'
 export type { AgentSession, CreateAgentSessionOptions } from './agent/session.js'
 export { SessionManager, InMemorySessionManager, FileSessionManager } from './agent/sessionManager.js'
 export type { SessionState, CreateSessionOptions } from './agent/sessionManager.js'
+export { AstorAgent } from './agent/facade.js'
+export type { AstorAgentOptions, AstorOutputMode } from './agent/facade.js'
 
 export {
   defineTool,
