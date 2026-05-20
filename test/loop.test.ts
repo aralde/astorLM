@@ -95,4 +95,48 @@ describe('agent loop', () => {
     expect(errEv.isError).toBe(true)
     expect(errEv.output).toContain('kaboom')
   })
+
+  it('session.abort() cancela el prompt en vuelo', async () => {
+    const slow = defineTool({
+      name: 'slow',
+      description: 'demora',
+      schema: z.object({}),
+      execute: async (_input, ctx) => {
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, 500)
+          ctx.abortSignal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(t)
+              resolve()
+            },
+            { once: true },
+          )
+        })
+        return 'done'
+      },
+    })
+    const provider = new MockProvider([
+      { toolCalls: [{ id: 't1', name: 'slow', input: {} }] },
+      { text: 'no debería llegar acá' },
+    ])
+    const events: AgentEvent[] = []
+    const session = createAgentSession({ provider, tools: [slow] })
+    session.subscribe((e) => events.push(e))
+
+    const pending = session.prompt('go')
+    setTimeout(() => session.abort(), 20)
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+
+    const last = events[events.length - 1]
+    expect(last?.type).toBe('session_end')
+    expect((last as Extract<AgentEvent, { type: 'session_end' }>).reason).toBe('aborted')
+  })
+
+  it('session.abort() sin prompt en vuelo es no-op', () => {
+    const provider = new MockProvider([])
+    const session = createAgentSession({ provider })
+    expect(() => session.abort()).not.toThrow()
+  })
 })

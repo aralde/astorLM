@@ -1,6 +1,8 @@
 // API pública del SDK.
 export { createAgentSession } from './agent/session.js'
 export type { AgentSession, CreateAgentSessionOptions } from './agent/session.js'
+export { SessionManager, InMemorySessionManager, FileSessionManager } from './agent/sessionManager.js'
+export type { SessionState, CreateSessionOptions } from './agent/sessionManager.js'
 
 export {
   defineTool,
