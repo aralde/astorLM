@@ -12,7 +12,7 @@ Las piezas que componen un coding agent:
 | ---------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
 | **Tipos núcleo**       | `src/types.ts`                       | `Message`, `ContentBlock`, `Tool`, `Provider`, `AgentEvent`                      |
 | **Agent loop**         | `src/agent/loop.ts`                  | Bucle `provider → tools → provider` hasta `end_turn`                             |
-| **AgentSession**       | `src/agent/session.ts`               | API pública: `prompt()`, `subscribe()`, `registerTool()`                         |
+| **AgentSession**       | `src/agent/session.ts`               | API pública: `prompt()`, `abort()`, `subscribe()`, `registerTool()`              |
 | **Event bus**          | `src/agent/events.ts`                | Pub/sub para eventos del stream                                                  |
 | **Provider Anthropic** | `src/provider/anthropic.ts`          | Streaming Anthropic → `ProviderEvent`s                                           |
 | **Provider OpenAI**    | `src/provider/openai.ts`             | Chat Completions + tool_calls (también sirve para Groq/OpenRouter via `baseURL`) |
@@ -39,6 +39,24 @@ session.subscribe((e) => {
 
 await session.prompt('Listá los archivos .ts del proyecto.')
 ```
+
+## Cancelación
+
+Hay dos formas equivalentes de cancelar un `prompt()` en vuelo:
+
+```ts
+// 1. Método de la sesión (ergonómico para botones "Stop", shutdown, timeouts):
+const p = session.prompt('hacé algo largo...')
+session.abort()
+await p.catch((e) => { if (e.name !== 'AbortError') throw e })
+
+// 2. AbortSignal externo (útil si ya tenés un AbortController propio):
+const ctrl = new AbortController()
+session.prompt('...', { abortSignal: ctrl.signal })
+ctrl.abort()
+```
+
+`session.abort()` es no-op si no hay prompt en vuelo. El loop propaga la cancelación al provider y al `bash` tool, y emite `session_end` con `reason: 'aborted'`.
 
 ## Tools custom
 

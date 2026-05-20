@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { EventBus } from './events.js'
 import type { ToolRegistry } from '../tools/registry.js'
 import type {
@@ -66,6 +67,9 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       throw new Error('Provider terminó sin emitir message_end')
     }
 
+    if (!assistantMessage.id) {
+      assistantMessage.id = randomUUID()
+    }
     opts.messages.push(assistantMessage)
     lastAssistant = assistantMessage
     opts.bus.emit({ type: 'assistant_message', message: assistantMessage })
@@ -110,7 +114,11 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       }),
     )
 
-    opts.messages.push({ role: 'user', content: results as ContentBlock[] })
+    opts.messages.push({
+      id: randomUUID(),
+      role: 'user',
+      content: results as ContentBlock[],
+    })
     opts.bus.emit({ type: 'turn_end', turn, stopReason })
   }
 

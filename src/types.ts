@@ -26,6 +26,7 @@ export type ToolResultBlock = {
 export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock
 
 export interface Message {
+  id?: string
   role: Role
   content: ContentBlock[]
 }
