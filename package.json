@@ -19,10 +19,7 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "example:basic": "tsx examples/embed-basic.ts",
-    "example:openai": "tsx examples/openai-custom/index.ts",
-    "example:mcp": "tsx examples/with-mcp.ts"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": ["agent", "llm", "anthropic", "mcp", "coding-agent", "sdk"],
   "license": "MIT",

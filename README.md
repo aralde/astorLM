@@ -8,19 +8,19 @@ Librería agéntica embebible en TypeScript. Inspirada en [`@earendil-works/pi-c
 
 Las piezas que componen un coding agent:
 
-| Pieza | Archivo | Qué hace |
-|---|---|---|
-| **Tipos núcleo** | `src/types.ts` | `Message`, `ContentBlock`, `Tool`, `Provider`, `AgentEvent` |
-| **Agent loop** | `src/agent/loop.ts` | Bucle `provider → tools → provider` hasta `end_turn` |
-| **AgentSession** | `src/agent/session.ts` | API pública: `prompt()`, `subscribe()`, `registerTool()` |
-| **Event bus** | `src/agent/events.ts` | Pub/sub para eventos del stream |
-| **Provider Anthropic** | `src/provider/anthropic.ts` | Streaming Anthropic → `ProviderEvent`s |
-| **Provider OpenAI** | `src/provider/openai.ts` | Chat Completions + tool_calls (también sirve para Groq/OpenRouter via `baseURL`) |
-| **Tools** | `src/tools/define.ts`, `registry.ts` | `defineTool()` tipado con Zod + JSON Schema + registry |
-| **Built-in tools** | `src/tools/builtin/*` | `read`, `write`, `edit`, `bash`, `grep`, `ls`, `glob` |
-| **MCP client** | `src/mcp/client.ts`, `adapter.ts` | Stdio + HTTP. Cada MCP tool se prefija con `<server>__` |
-| **System prompt** | `src/prompt/system.ts` | Prompt base + carga de `AGENTS.md` / `CLAUDE.md` |
-| **Auth** | `src/auth/storage.ts` | Resolución `override → env` |
+| Pieza                  | Archivo                              | Qué hace                                                                         |
+| ---------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
+| **Tipos núcleo**       | `src/types.ts`                       | `Message`, `ContentBlock`, `Tool`, `Provider`, `AgentEvent`                      |
+| **Agent loop**         | `src/agent/loop.ts`                  | Bucle `provider → tools → provider` hasta `end_turn`                             |
+| **AgentSession**       | `src/agent/session.ts`               | API pública: `prompt()`, `subscribe()`, `registerTool()`                         |
+| **Event bus**          | `src/agent/events.ts`                | Pub/sub para eventos del stream                                                  |
+| **Provider Anthropic** | `src/provider/anthropic.ts`          | Streaming Anthropic → `ProviderEvent`s                                           |
+| **Provider OpenAI**    | `src/provider/openai.ts`             | Chat Completions + tool_calls (también sirve para Groq/OpenRouter via `baseURL`) |
+| **Tools**              | `src/tools/define.ts`, `registry.ts` | `defineTool()` tipado con Zod + JSON Schema + registry                           |
+| **Built-in tools**     | `src/tools/builtin/*`                | `read`, `write`, `edit`, `bash`, `grep`, `ls`, `glob`                            |
+| **MCP client**         | `src/mcp/client.ts`, `adapter.ts`    | Stdio + HTTP. Cada MCP tool se prefija con `<server>__`                          |
+| **System prompt**      | `src/prompt/system.ts`               | Prompt base + carga de `AGENTS.md` / `CLAUDE.md`                                 |
+| **Auth**               | `src/auth/storage.ts`                | Resolución `override → env`                                                      |
 
 ## Uso mínimo
 
@@ -99,7 +99,7 @@ ANTHROPIC_API_KEY=... pnpm example:mcp
 - Persistencia JSONL de sesiones con branching (id/parentId).
 - Compaction automática del historial al acercarse al límite.
 - Extensions/Skills cargables desde FS.
-- Segundo provider (OpenAI).
+- 
 - Modos `print`/`rpc` sobre el SDK.
 - Steering / queueing durante el stream.
 - Settings global + por proyecto.
