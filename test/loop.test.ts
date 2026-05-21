@@ -49,6 +49,51 @@ describe('agent loop', () => {
     expect(types[types.length - 1]).toBe('session_end')
   })
 
+  it('agrega token usage por turno y lo acumula a nivel sesión', async () => {
+    const echo = defineTool({
+      name: 'echo',
+      description: '',
+      schema: z.object({ s: z.string() }),
+      execute: async ({ s }) => `echo:${s}`,
+    })
+    const provider = new MockProvider([
+      {
+        toolCalls: [{ id: 't1', name: 'echo', input: { s: 'foo' } }],
+        usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 50 },
+      },
+      {
+        text: 'ok',
+        usage: { inputTokens: 130, outputTokens: 5 },
+      },
+    ])
+
+    const turnUsages: Array<{ turn: number; usage?: unknown }> = []
+    const session = await createAgentSession({ provider, tools: [echo] })
+    session.subscribe((e) => {
+      if (e.type === 'turn_end') turnUsages.push({ turn: e.turn, usage: e.usage })
+    })
+
+    await session.prompt('go')
+
+    expect(turnUsages).toEqual([
+      { turn: 1, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 50 } },
+      { turn: 2, usage: { inputTokens: 130, outputTokens: 5 } },
+    ])
+
+    expect(session.getUsage()).toEqual({
+      inputTokens: 230,
+      outputTokens: 25,
+      cacheReadTokens: 50,
+    })
+  })
+
+  it('getUsage devuelve ceros si el provider no reporta usage', async () => {
+    const provider = new MockProvider([{ text: 'hola' }])
+    const session = await createAgentSession({ provider })
+    await session.prompt('hi')
+    expect(session.getUsage()).toEqual({ inputTokens: 0, outputTokens: 0 })
+  })
+
   it('tool_result se reinyecta como mensaje user', async () => {
     const echo = defineTool({
       name: 'echo',

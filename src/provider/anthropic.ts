@@ -7,6 +7,7 @@ import type {
   ProviderEvent,
   ProviderStreamOptions,
   StopReason,
+  TokenUsage,
   ToolUseBlock,
 } from '../types.js'
 
@@ -116,12 +117,29 @@ export class AnthropicProvider implements Provider {
       role: 'assistant',
       content: finalMsg.content.map(blockFromAnthropic),
     }
+    const usage = mapUsage(finalMsg.usage)
     yield {
       type: 'message_end',
       stopReason: mapStopReason(finalMsg.stop_reason),
       assistantMessage,
+      ...(usage ? { usage } : {}),
     }
   }
+}
+
+function mapUsage(u: Anthropic.Message['usage'] | undefined | null): TokenUsage | undefined {
+  if (!u) return undefined
+  const usage: TokenUsage = {
+    inputTokens: u.input_tokens ?? 0,
+    outputTokens: u.output_tokens ?? 0,
+  }
+  if (typeof u.cache_read_input_tokens === 'number') {
+    usage.cacheReadTokens = u.cache_read_input_tokens
+  }
+  if (typeof u.cache_creation_input_tokens === 'number') {
+    usage.cacheCreationTokens = u.cache_creation_input_tokens
+  }
+  return usage
 }
 
 function safeJson(s: string): unknown {

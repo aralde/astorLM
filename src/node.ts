@@ -3,6 +3,7 @@ import type { CreateAgentSessionOptions, AgentSession } from './agent/session.js
 import { SessionManager } from './agent/sessionManager.js'
 import type { SessionState } from './agent/sessionManager.js'
 import type { Message } from './types.js'
+import { LocalExecutor } from './executor/local.js'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
@@ -129,6 +130,7 @@ export function createNodeAgentSession(opts: CreateNodeAgentSessionOptions): Pro
     ...opts,
     cwd,
     fileReader,
+    executor: opts.executor ?? new LocalExecutor(),
   })
 }
 
@@ -139,3 +141,8 @@ export type { MountMcpServerOptions, MountedMcpServer, McpTransportConfig } from
 // Re-exportar AstorAgent
 export { AstorAgent } from './agent/facade.js'
 export type { AstorAgentOptions, AstorOutputMode } from './agent/facade.js'
+
+// Executors específicos de Node
+export { LocalExecutor } from './executor/local.js'
+export { DockerExecutor } from './executor/docker.js'
+export type { DockerExecutorOptions } from './executor/docker.js'
