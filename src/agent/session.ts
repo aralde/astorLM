@@ -4,6 +4,8 @@ import { runLoop } from './loop.js'
 import { EventBus } from './events.js'
 import { noopLogger } from '../types.js'
 import { SessionManager } from './sessionManager.js'
+import { createNoopExecutor } from '../executor/types.js'
+import type { Executor } from '../executor/types.js'
 import type {
   AgentEventListener,
   Logger,
@@ -13,6 +15,7 @@ import type {
   SessionHooks,
   ContextOptimizerOptions,
   RetryPolicy,
+  TokenUsage,
 } from '../types.js'
 
 export interface CreateAgentSessionOptions {
@@ -35,6 +38,13 @@ export interface CreateAgentSessionOptions {
    * omite, los errores propagan y la sesión cierra con `session_end: error`.
    */
   retry?: RetryPolicy
+  /**
+   * Backend de ejecución de comandos shell para el bashTool (y derivados).
+   * Default: un executor noop que falla con error claro si una tool intenta
+   * usarlo. En Node, `createNodeAgentSession` lo override por LocalExecutor.
+   * Para ejecución aislada usá `DockerExecutor` o pasá uno custom.
+   */
+  executor?: Executor
 }
 
 export interface AgentSession {
@@ -43,6 +53,12 @@ export interface AgentSession {
   readonly registry: ToolRegistry
   readonly cwd: string
   getMessages(): Message[]
+  /**
+   * Devuelve el acumulado de tokens consumidos por esta sesión a lo largo
+   * de todos los turnos. Sin pricing — sólo conteo crudo. Si ningún provider
+   * reportó usage todavía, devuelve ceros.
+   */
+  getUsage(): TokenUsage
   subscribe(listener: AgentEventListener): () => void
   registerTool(tool: Tool): void
   prompt(text: string, opts?: { abortSignal?: AbortSignal }): Promise<Message>
@@ -114,6 +130,23 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
     }
   }
 
+  // Acumulador de tokens por sesión. Se alimenta de los `turn_end` que
+  // emite el loop con el usage reportado por el provider. Mantener acá
+  // (y no en el loop) permite que sobreviva entre `prompt()` sucesivos.
+  const sessionUsage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
+  bus.subscribe((event) => {
+    if (event.type === 'turn_end' && event.usage) {
+      sessionUsage.inputTokens += event.usage.inputTokens
+      sessionUsage.outputTokens += event.usage.outputTokens
+      if (typeof event.usage.cacheReadTokens === 'number') {
+        sessionUsage.cacheReadTokens = (sessionUsage.cacheReadTokens ?? 0) + event.usage.cacheReadTokens
+      }
+      if (typeof event.usage.cacheCreationTokens === 'number') {
+        sessionUsage.cacheCreationTokens = (sessionUsage.cacheCreationTokens ?? 0) + event.usage.cacheCreationTokens
+      }
+    }
+  })
+
   // Subscribe to the bus to auto-save state
   bus.subscribe((event) => {
     if (
@@ -125,6 +158,8 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
       saveState()
     }
   })
+
+  const executor: Executor = opts.executor ?? createNoopExecutor()
 
   let activeCtrl: AbortController | null = null
   let systemPromptCache: string | null = null
@@ -146,6 +181,7 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
     registry,
     cwd,
     getMessages: () => messages.slice(),
+    getUsage: () => ({ ...sessionUsage }),
     subscribe: (l) => bus.subscribe(l),
     registerTool: (t) => registry.register(t),
     abort(reason) {
@@ -182,6 +218,7 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
           hooks: opts.hooks,
           contextOptimizer,
           retry: opts.retry,
+          executor,
         })
         bus.emit({ type: 'session_end', reason: 'completed' })
         await saveState()
