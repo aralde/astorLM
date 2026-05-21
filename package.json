@@ -11,6 +11,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    },
+    "./tools/node": {
+      "types": "./dist/tools/node.d.ts",
+      "import": "./dist/tools/node.js",
+      "require": "./dist/tools/node.cjs"
     }
   },
   "files": ["dist", "README.md"],

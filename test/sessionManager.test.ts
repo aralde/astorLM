@@ -4,10 +4,10 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createAgentSession } from '../src/agent/session.js'
 import {
-  FileSessionManager,
   InMemorySessionManager,
   SessionManager,
 } from '../src/agent/sessionManager.js'
+import { FileSessionManager } from '../src/node.js'
 import { MockProvider } from './mock-provider.js'
 import type { Message } from '../src/types.js'
 
@@ -96,7 +96,7 @@ describe('SessionManager & Persistence', () => {
   describe('FileSessionManager', () => {
     it('persistencia en archivos JSONL y meta.json', async () => {
       const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-sessions-'))
-      const manager = SessionManager.fileSystem({ dir })
+      const manager = new FileSessionManager({ dir })
 
       // Create
       const state = await manager.create({
@@ -147,7 +147,7 @@ describe('SessionManager & Persistence', () => {
 
     it('branching de sesión persiste correctamente', async () => {
       const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-branching-'))
-      const manager = SessionManager.fileSystem({ dir })
+      const manager = new FileSessionManager({ dir })
 
       const parent = await manager.create()
       parent.messages = [
@@ -182,14 +182,11 @@ describe('SessionManager & Persistence', () => {
 
       // 1. Create a session with manager
       const sessionId = 'session-test-integration'
-      const session = createAgentSession({
+      const session = await createAgentSession({
         provider,
         sessionId,
         sessionManager: manager,
       })
-
-      // Wait for initialization to complete
-      await session.initPromise
 
       // Session list should show the created session
       const list = await manager.list()
@@ -216,13 +213,12 @@ describe('SessionManager & Persistence', () => {
       expect(savedState!.messages[1]!.id).toBe(msgs[1]!.id)
 
       // 3. Create a brand new session using the same ID to verify loading
-      const resumedSession = createAgentSession({
+      const resumedSession = await createAgentSession({
         provider,
         sessionId,
         sessionManager: manager,
       })
 
-      await resumedSession.initPromise
       expect(resumedSession.getMessages()).toHaveLength(2)
       expect(resumedSession.getMessages()[0]!.id).toBe(msgs[0]!.id)
     })
