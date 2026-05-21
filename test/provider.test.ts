@@ -112,6 +112,111 @@ describe('OpenAIProvider - thinking blocks', () => {
     expect(assistantMessageParam.reasoning_content).toBe('internal logic')
     expect(assistantMessageParam.content).toBe('external response')
   })
+
+  it('streams inline <think> tags in content as thinking_delta and strips them', async () => {
+    const provider = new OpenAIProvider({ apiKey: 'fake-key', model: 'my-reasoning-model' })
+
+    const fakeStream = {
+      async *[Symbol.asyncIterator]() {
+        yield {
+          choices: [
+            {
+              delta: { content: 'Intro text. <th' },
+              finish_reason: null,
+            },
+          ],
+        }
+        yield {
+          choices: [
+            {
+              delta: { content: 'ink>Internal thought process' },
+              finish_reason: null,
+            },
+          ],
+        }
+        yield {
+          choices: [
+            {
+              delta: { content: '</think>Final answer here.' },
+              finish_reason: 'stop',
+            },
+          ],
+        }
+      },
+    }
+
+    vi.spyOn(provider['client'].chat.completions, 'create').mockResolvedValue(fakeStream as any)
+
+    const events: ProviderEvent[] = []
+    const stream = provider.stream({
+      systemPrompt: 'System',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hola' }] }],
+      tools: [],
+      abortSignal: new AbortController().signal,
+    })
+
+    for await (const ev of stream) {
+      events.push(ev)
+    }
+
+    // Verify thinking_delta events
+    const thinkingDeltas = events.filter((e) => e.type === 'thinking_delta')
+    expect(thinkingDeltas).toEqual([
+      { type: 'thinking_delta', thinking: 'Internal thought process' },
+    ])
+
+    // Verify text_delta events
+    const textDeltas = events.filter((e) => e.type === 'text_delta')
+    expect(textDeltas).toEqual([
+      { type: 'text_delta', text: 'Intro text. ' },
+      { type: 'text_delta', text: 'Final answer here.' },
+    ])
+
+    // Verify message_end event contains the thinking block followed by the text block
+    const endEvent = events.find((e) => e.type === 'message_end')
+    expect(endEvent).toBeDefined()
+    const assistantMsg = (endEvent as any).assistantMessage as Message
+    expect(assistantMsg.content).toEqual([
+      { type: 'thinking', thinking: 'Internal thought process' },
+      { type: 'text', text: 'Intro text. Final answer here.' },
+    ])
+  })
+
+  it('correctly flushes remaining buffer at the end of the stream', async () => {
+    const provider = new OpenAIProvider({ apiKey: 'fake-key', model: 'my-reasoning-model' })
+
+    const fakeStream = {
+      async *[Symbol.asyncIterator]() {
+        yield {
+          choices: [
+            {
+              delta: { content: 'Text with stray < char' },
+              finish_reason: 'stop',
+            },
+          ],
+        }
+      },
+    }
+
+    vi.spyOn(provider['client'].chat.completions, 'create').mockResolvedValue(fakeStream as any)
+
+    const events: ProviderEvent[] = []
+    const stream = provider.stream({
+      systemPrompt: 'System',
+      messages: [],
+      tools: [],
+      abortSignal: new AbortController().signal,
+    })
+
+    for await (const ev of stream) {
+      events.push(ev)
+    }
+
+    const textDeltas = events.filter((e) => e.type === 'text_delta')
+    expect(textDeltas).toEqual([
+      { type: 'text_delta', text: 'Text with stray < char' },
+    ])
+  })
 })
 
 describe('AnthropicProvider - thinking blocks mapping', () => {

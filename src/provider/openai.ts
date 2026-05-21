@@ -79,6 +79,14 @@ export class OpenAIProvider implements Provider {
     const toolCalls: Record<number, ToolCallBuf> = {}
     let finishReason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] = null
 
+    // Parser de tags de pensamiento para modelos/proxies que devuelven <think>...</think> en content
+    let inThinkingTag = false
+    let tagBuffer = ''
+    const startTag = '<think>'
+    const endTag = '</think>'
+    const startPrefixes = ['<think', '<thin', '<thi', '<th', '<t', '<']
+    const endPrefixes = ['</think', '</thin', '</thi', '</th', '</t', '</', '<']
+
     for await (const chunk of stream) {
       const choice = chunk.choices[0]
       if (!choice) continue
@@ -91,8 +99,62 @@ export class OpenAIProvider implements Provider {
       }
 
       if (d.content) {
-        textAcc += d.content
-        yield { type: 'text_delta', text: d.content }
+        tagBuffer += d.content
+        
+        let changed = true
+        while (changed) {
+          changed = false
+          if (!inThinkingTag) {
+            const idx = tagBuffer.indexOf(startTag)
+            if (idx !== -1) {
+              const textPart = tagBuffer.slice(0, idx)
+              if (textPart.length > 0) {
+                textAcc += textPart
+                yield { type: 'text_delta', text: textPart }
+              }
+              inThinkingTag = true
+              tagBuffer = tagBuffer.slice(idx + startTag.length)
+              changed = true
+            }
+          } else {
+            const idx = tagBuffer.indexOf(endTag)
+            if (idx !== -1) {
+              const thinkingPart = tagBuffer.slice(0, idx)
+              if (thinkingPart.length > 0) {
+                reasoningAcc += thinkingPart
+                yield { type: 'thinking_delta', thinking: thinkingPart }
+              }
+              inThinkingTag = false
+              tagBuffer = tagBuffer.slice(idx + endTag.length)
+              changed = true
+            }
+          }
+        }
+
+        // Determinar si al final del buffer queda un prefijo del tag que estamos buscando
+        if (tagBuffer.length > 0) {
+          const prefixes = inThinkingTag ? endPrefixes : startPrefixes
+          let matchedPrefixLen = 0
+          for (const prefix of prefixes) {
+            if (tagBuffer.endsWith(prefix)) {
+              matchedPrefixLen = prefix.length
+              break
+            }
+          }
+
+          const yieldLen = tagBuffer.length - matchedPrefixLen
+          if (yieldLen > 0) {
+            const yieldText = tagBuffer.slice(0, yieldLen)
+            if (inThinkingTag) {
+              reasoningAcc += yieldText
+              yield { type: 'thinking_delta', thinking: yieldText }
+            } else {
+              textAcc += yieldText
+              yield { type: 'text_delta', text: yieldText }
+            }
+            tagBuffer = tagBuffer.slice(yieldLen)
+          }
+        }
       }
 
       if (d.tool_calls) {
@@ -119,6 +181,18 @@ export class OpenAIProvider implements Provider {
       }
 
       if (choice.finish_reason) finishReason = choice.finish_reason
+    }
+
+    // Flush del buffer del tag parser al terminar el stream
+    if (tagBuffer.length > 0) {
+      if (inThinkingTag) {
+        reasoningAcc += tagBuffer
+        yield { type: 'thinking_delta', thinking: tagBuffer }
+      } else {
+        textAcc += tagBuffer
+        yield { type: 'text_delta', text: tagBuffer }
+      }
+      tagBuffer = ''
     }
 
     // Cerrar tool_uses pendientes con su input parseado.

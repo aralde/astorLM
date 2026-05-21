@@ -16,6 +16,17 @@ export interface ScriptedTurn {
   thinking?: string
   toolCalls?: Array<{ id: string; name: string; input: unknown }>
   stopReason?: StopReason
+  /**
+   * Si está presente, el turno tira este error **antes** de emitir cualquier
+   * evento (simula HTTP fail al iniciar el stream). Usado por los tests de retry.
+   */
+  failBeforeStream?: unknown
+  /**
+   * Si está presente, emite los eventos normales hasta acá y luego tira
+   * (simula stream interrumpido a mitad). Usado para validar que NO se
+   * reintenta cuando ya se emitió algo.
+   */
+  failAfterPartial?: unknown
 }
 
 export class MockProvider implements Provider {
@@ -31,6 +42,10 @@ export class MockProvider implements Provider {
     const turn = this.turns[this.index++]
     if (!turn) throw new Error('MockProvider: no quedan turnos scripteados')
 
+    if (turn.failBeforeStream !== undefined) {
+      throw turn.failBeforeStream
+    }
+
     const content: Message['content'] = []
     if (turn.thinking) {
       yield { type: 'thinking_delta', thinking: turn.thinking }
@@ -39,6 +54,9 @@ export class MockProvider implements Provider {
     if (turn.text) {
       yield { type: 'text_delta', text: turn.text }
       content.push({ type: 'text', text: turn.text })
+    }
+    if (turn.failAfterPartial !== undefined) {
+      throw turn.failAfterPartial
     }
     for (const tc of turn.toolCalls ?? []) {
       yield { type: 'tool_use_start', id: tc.id, name: tc.name }
