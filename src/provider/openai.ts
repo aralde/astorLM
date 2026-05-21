@@ -7,6 +7,7 @@ import type {
   ProviderEvent,
   ProviderStreamOptions,
   StopReason,
+  TokenUsage,
 } from '../types.js'
 
 export interface OpenAIProviderOptions {
@@ -65,6 +66,9 @@ export class OpenAIProvider implements Provider {
       {
         model: this.model,
         stream: true,
+        // Pedimos usage en el último chunk (OpenAI y la mayoría de los compat lo soportan;
+        // los que no, simplemente devuelven `chunk.usage = null` y lo ignoramos).
+        stream_options: { include_usage: true },
         messages,
         ...(tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
         ...(opts.maxTokens ?? this.maxTokens ? { max_tokens: opts.maxTokens ?? this.maxTokens } : {}),
@@ -78,6 +82,7 @@ export class OpenAIProvider implements Provider {
     type ToolCallBuf = { id: string; name: string; argsAcc: string; emittedStart: boolean }
     const toolCalls: Record<number, ToolCallBuf> = {}
     let finishReason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] = null
+    let usageRaw: OpenAI.Completions.CompletionUsage | null = null
 
     // Parser de tags de pensamiento para modelos/proxies que devuelven <think>...</think> en content
     let inThinkingTag = false
@@ -88,6 +93,9 @@ export class OpenAIProvider implements Provider {
     const endPrefixes = ['</think', '</thin', '</thi', '</th', '</t', '</', '<']
 
     for await (const chunk of stream) {
+      // Con stream_options.include_usage, el último chunk trae `usage` y
+      // viene típicamente con `choices: []` — lo capturamos antes de saltarlo.
+      if (chunk.usage) usageRaw = chunk.usage
       const choice = chunk.choices[0]
       if (!choice) continue
       const d = choice.delta
@@ -215,12 +223,28 @@ export class OpenAIProvider implements Provider {
             ? 'end_turn'
             : 'end_turn'
 
+    const usage = mapUsage(usageRaw)
     yield {
       type: 'message_end',
       stopReason,
       assistantMessage: { role: 'assistant', content },
+      ...(usage ? { usage } : {}),
     }
   }
+}
+
+function mapUsage(u: OpenAI.Completions.CompletionUsage | null | undefined): TokenUsage | undefined {
+  if (!u) return undefined
+  const usage: TokenUsage = {
+    inputTokens: u.prompt_tokens ?? 0,
+    outputTokens: u.completion_tokens ?? 0,
+  }
+  // OpenAI expone `prompt_tokens_details.cached_tokens` cuando el modelo usa
+  // automatic prompt caching. No hay equivalente claro a "cache creation"
+  // en la API de OpenAI — se omite.
+  const cached = (u as any).prompt_tokens_details?.cached_tokens
+  if (typeof cached === 'number') usage.cacheReadTokens = cached
+  return usage
 }
 
 function safeJson(s: string): unknown {

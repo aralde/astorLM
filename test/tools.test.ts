@@ -7,9 +7,15 @@ import { defineTool } from '../src/tools/define.js'
 import { ToolRegistry } from '../src/tools/registry.js'
 import { editTool, readTool, writeTool } from '../src/tools/index.js'
 import { noopLogger } from '../src/types.js'
+import { createNoopExecutor } from '../src/executor/types.js'
 
 function makeCtx(cwd: string) {
-  return { cwd, abortSignal: new AbortController().signal, logger: noopLogger }
+  return {
+    cwd,
+    abortSignal: new AbortController().signal,
+    logger: noopLogger,
+    executor: createNoopExecutor(),
+  }
 }
 
 describe('defineTool', () => {

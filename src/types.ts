@@ -7,6 +7,8 @@
  * sin perder información intermedia.
  */
 
+import type { Executor } from './executor/types.js'
+
 export type Role = 'user' | 'assistant' | 'system'
 
 export type TextBlock = { type: 'text'; text: string }
@@ -42,6 +44,13 @@ export interface ToolContext {
   cwd: string
   abortSignal: AbortSignal
   logger: Logger
+  /**
+   * Backend de ejecución de comandos shell. Inyectado por la sesión. El bashTool
+   * (y derivados: bash_spawn, bash_get_output, bash_kill) delegan acá en vez de
+   * hablar con `child_process` directo, lo que permite swappear el backend
+   * (local, container, remoto) sin tocar las tools.
+   */
+  executor: Executor
 }
 
 /**
@@ -89,13 +98,27 @@ export interface ProviderStreamOptions {
   maxTokens?: number
 }
 
+/**
+ * Conteo de tokens crudo reportado por el provider para una llamada.
+ * Sin pricing ni conversión a USD — el consumidor calcula costo si quiere.
+ * `cacheReadTokens` / `cacheCreationTokens` quedan opcionales porque no todos
+ * los providers los exponen (Anthropic sí; OpenAI sólo `cached_tokens` cuando
+ * el modelo cachea automáticamente; muchos OpenAI-compat no devuelven nada).
+ */
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
+}
+
 export type ProviderEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'thinking_delta'; thinking: string }
   | { type: 'tool_use_start'; id: string; name: string }
   | { type: 'tool_use_input'; id: string; inputJsonDelta: string }
   | { type: 'tool_use_end'; id: string; name: string; input: unknown }
-  | { type: 'message_end'; stopReason: StopReason; assistantMessage: Message }
+  | { type: 'message_end'; stopReason: StopReason; assistantMessage: Message; usage?: TokenUsage }
 
 export interface Provider {
   readonly name: string
@@ -137,7 +160,7 @@ export type AgentEvent =
   | { type: 'tool_execution_start'; toolUseId: string; name: string; input: unknown }
   | { type: 'tool_execution_end'; toolUseId: string; name: string; output: string; isError: boolean; durationMs: number }
   | { type: 'provider_retry'; attempt: number; maxAttempts: number; delayMs: number; error: unknown }
-  | { type: 'turn_end'; turn: number; stopReason: StopReason }
+  | { type: 'turn_end'; turn: number; stopReason: StopReason; usage?: TokenUsage }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
 
 export type AgentEventListener = (event: AgentEvent) => void
