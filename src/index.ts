@@ -15,6 +15,7 @@ export type { OpenAIProviderOptions } from './provider/openai.js'
 export { AuthStorage } from './auth/storage.js'
 export { buildSystemPrompt, DEFAULT_SYSTEM_PROMPT } from './prompt/system.js'
 export { EventBus } from './agent/events.js'
+export { estimateTokens, optimizeContext } from './agent/optimizer.js'
 
 export type {
   Tool,
@@ -33,4 +34,5 @@ export type {
   Logger,
   Role,
   SessionHooks,
+  ContextOptimizerOptions,
 } from './types.js'

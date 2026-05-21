@@ -10,6 +10,8 @@
 export type Role = 'user' | 'assistant' | 'system'
 
 export type TextBlock = { type: 'text'; text: string }
+export type ThinkingBlock = { type: 'thinking'; thinking: string; signature?: string }
+export type RedactedThinkingBlock = { type: 'redacted_thinking'; signature: string }
 export type ToolUseBlock = {
   type: 'tool_use'
   id: string
@@ -23,7 +25,7 @@ export type ToolResultBlock = {
   is_error?: boolean
 }
 
-export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock
+export type ContentBlock = TextBlock | ThinkingBlock | RedactedThinkingBlock | ToolUseBlock | ToolResultBlock
 
 export interface Message {
   id?: string
@@ -68,6 +70,15 @@ export interface SessionHooks {
   afterTurn?: (context: { turn: number; lastMessage: Message }) => Promise<void>
 }
 
+// ---------- Context Optimizer ----------
+
+export interface ContextOptimizerOptions {
+  maxTokens: number
+  compressThreshold?: number
+  keepRecentTurns?: number
+  tokenCounter?: (messages: Message[], systemPrompt: string) => number
+}
+
 // ---------- Provider ----------
 
 export interface ProviderStreamOptions {
@@ -80,6 +91,7 @@ export interface ProviderStreamOptions {
 
 export type ProviderEvent =
   | { type: 'text_delta'; text: string }
+  | { type: 'thinking_delta'; thinking: string }
   | { type: 'tool_use_start'; id: string; name: string }
   | { type: 'tool_use_input'; id: string; inputJsonDelta: string }
   | { type: 'tool_use_end'; id: string; name: string; input: unknown }
@@ -88,6 +100,7 @@ export type ProviderEvent =
 export interface Provider {
   readonly name: string
   readonly model: string
+  readonly contextLimit?: number
   stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent>
 }
 
@@ -96,6 +109,7 @@ export interface Provider {
 export type AgentEvent =
   | { type: 'turn_start'; turn: number }
   | { type: 'text_delta'; text: string }
+  | { type: 'thinking_delta'; thinking: string }
   | { type: 'assistant_message'; message: Message }
   | { type: 'tool_execution_start'; toolUseId: string; name: string; input: unknown }
   | { type: 'tool_execution_end'; toolUseId: string; name: string; output: string; isError: boolean; durationMs: number }

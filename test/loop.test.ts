@@ -263,4 +263,35 @@ describe('agent loop', () => {
       },
     ])
   })
+
+  it('emite thinking_delta y guarda thinking blocks', async () => {
+    const provider = new MockProvider([
+      {
+        thinking: 'Pienso luego existo.',
+        text: 'La respuesta es 42.',
+        stopReason: 'end_turn',
+      },
+    ])
+
+    const events: AgentEvent[] = []
+    const session = await createAgentSession({ provider })
+    session.subscribe((e) => events.push(e))
+
+    const final = await session.prompt('¿Cuál es el sentido de la vida?')
+
+    // Verificar que se guardó el bloque de thinking
+    expect(final.content[0]).toEqual({
+      type: 'thinking',
+      thinking: 'Pienso luego existo.',
+    })
+    expect(final.content[1]).toEqual({
+      type: 'text',
+      text: 'La respuesta es 42.',
+    })
+
+    // Verificar que se emitió el evento thinking_delta
+    const thinkingDeltas = events.filter((e) => e.type === 'thinking_delta')
+    expect(thinkingDeltas).toHaveLength(1)
+    expect((thinkingDeltas[0] as any).thinking).toBe('Pienso luego existo.')
+  })
 })
