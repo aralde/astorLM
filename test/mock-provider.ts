@@ -13,6 +13,7 @@ import type {
  */
 export interface ScriptedTurn {
   text?: string
+  thinking?: string
   toolCalls?: Array<{ id: string; name: string; input: unknown }>
   stopReason?: StopReason
 }
@@ -31,6 +32,10 @@ export class MockProvider implements Provider {
     if (!turn) throw new Error('MockProvider: no quedan turnos scripteados')
 
     const content: Message['content'] = []
+    if (turn.thinking) {
+      yield { type: 'thinking_delta', thinking: turn.thinking }
+      content.push({ type: 'thinking', thinking: turn.thinking })
+    }
     if (turn.text) {
       yield { type: 'text_delta', text: turn.text }
       content.push({ type: 'text', text: turn.text })

@@ -32,6 +32,7 @@ export interface OpenAIProviderOptions {
 export class OpenAIProvider implements Provider {
   readonly name = 'openai'
   readonly model: string
+  readonly contextLimit: number
   private readonly client: OpenAI
   private readonly maxTokens?: number
 
@@ -42,6 +43,7 @@ export class OpenAIProvider implements Provider {
     this.client = new OpenAI({ apiKey, baseURL: opts.baseURL })
     this.model = opts.model
     this.maxTokens = opts.maxTokens
+    this.contextLimit = opts.model.includes('gpt-3.5') ? 16385 : 128000
   }
 
   async *stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent> {
@@ -72,6 +74,7 @@ export class OpenAIProvider implements Provider {
 
     // Buffers para reconstruir el mensaje final.
     let textAcc = ''
+    let reasoningAcc = ''
     type ToolCallBuf = { id: string; name: string; argsAcc: string; emittedStart: boolean }
     const toolCalls: Record<number, ToolCallBuf> = {}
     let finishReason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] = null
@@ -80,6 +83,12 @@ export class OpenAIProvider implements Provider {
       const choice = chunk.choices[0]
       if (!choice) continue
       const d = choice.delta
+
+      const reasoning = (d as any).reasoning_content || (d as any).reasoning
+      if (reasoning) {
+        reasoningAcc += reasoning
+        yield { type: 'thinking_delta', thinking: reasoning }
+      }
 
       if (d.content) {
         textAcc += d.content
@@ -114,6 +123,7 @@ export class OpenAIProvider implements Provider {
 
     // Cerrar tool_uses pendientes con su input parseado.
     const content: ContentBlock[] = []
+    if (reasoningAcc.length) content.push({ type: 'thinking', thinking: reasoningAcc })
     if (textAcc.length) content.push({ type: 'text', text: textAcc })
     for (const idx of Object.keys(toolCalls).map(Number).sort((a, b) => a - b)) {
       const buf = toolCalls[idx]!
@@ -165,10 +175,13 @@ function flattenMessages(msgs: Message[]): OpenAI.Chat.ChatCompletionMessagePara
     }
     if (m.role === 'assistant') {
       let text = ''
+      let reasoning = ''
       const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = []
       for (const b of m.content) {
         if (b.type === 'text') text += b.text
-        else if (b.type === 'tool_use') {
+        else if (b.type === 'thinking') {
+          reasoning += b.thinking
+        } else if (b.type === 'tool_use') {
           toolCalls.push({
             id: b.id,
             type: 'function',
@@ -179,6 +192,9 @@ function flattenMessages(msgs: Message[]): OpenAI.Chat.ChatCompletionMessagePara
       const msg: OpenAI.Chat.ChatCompletionAssistantMessageParam = {
         role: 'assistant',
         content: text || null,
+      }
+      if (reasoning) {
+        (msg as any).reasoning_content = reasoning
       }
       if (toolCalls.length) msg.tool_calls = toolCalls
       out.push(msg)

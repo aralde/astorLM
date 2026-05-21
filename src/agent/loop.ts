@@ -8,7 +8,9 @@ import type {
   ToolResultBlock,
   ToolUseBlock,
   SessionHooks,
+  ContextOptimizerOptions,
 } from '../types.js'
+import { optimizeContext, estimateTokens } from './optimizer.js'
 
 export interface RunLoopOptions {
   provider: Provider
@@ -21,6 +23,7 @@ export interface RunLoopOptions {
   maxTurns?: number
   logger: ToolContext['logger']
   hooks?: SessionHooks
+  contextOptimizer?: ContextOptimizerOptions
 }
 
 const DEFAULT_MAX_TURNS = 25
@@ -36,6 +39,24 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     if (opts.abortSignal.aborted) throw new DOMException('Aborted', 'AbortError')
+
+    if (opts.contextOptimizer) {
+      const { messages: optimizedMessages, optimized } = optimizeContext(
+        opts.messages,
+        opts.systemPrompt,
+        {
+          maxTokens: opts.contextOptimizer.maxTokens,
+          compressThreshold: opts.contextOptimizer.compressThreshold ?? 0.8,
+          keepRecentTurns: opts.contextOptimizer.keepRecentTurns ?? 3,
+          tokenCounter: opts.contextOptimizer.tokenCounter ?? estimateTokens,
+        }
+      )
+      if (optimized) {
+        opts.logger.info('Context optimized. Pruned/condensed messages to save tokens.')
+        opts.messages.length = 0
+        opts.messages.push(...optimizedMessages)
+      }
+    }
 
     if (opts.hooks?.beforeTurn) {
       await opts.hooks.beforeTurn({ turn, messages: opts.messages })
@@ -69,6 +90,9 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       switch (ev.type) {
         case 'text_delta':
           opts.bus.emit({ type: 'text_delta', text: ev.text })
+          break
+        case 'thinking_delta':
+          opts.bus.emit({ type: 'thinking_delta', thinking: ev.thinking })
           break
         case 'message_end':
           assistantMessage = ev.assistantMessage

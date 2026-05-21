@@ -11,6 +11,7 @@ import type {
   Provider,
   Tool,
   SessionHooks,
+  ContextOptimizerOptions,
 } from '../types.js'
 
 export interface CreateAgentSessionOptions {
@@ -26,6 +27,7 @@ export interface CreateAgentSessionOptions {
   sessionManager?: SessionManager
   hooks?: SessionHooks
   fileReader?: (path: string) => Promise<string | null>
+  contextOptimizer?: ContextOptimizerOptions | boolean
 }
 
 export interface AgentSession {
@@ -52,6 +54,18 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
   const cwd = opts.cwd ?? (typeof process !== 'undefined' ? process.cwd() : '/')
   const registry = new ToolRegistry()
   if (opts.tools) registry.registerMany(opts.tools)
+
+  const useOptimizer = opts.contextOptimizer !== false
+  let contextOptimizer: ContextOptimizerOptions | undefined = undefined
+  if (useOptimizer) {
+    if (typeof opts.contextOptimizer === 'object') {
+      contextOptimizer = opts.contextOptimizer
+    } else if (opts.provider.contextLimit) {
+      contextOptimizer = {
+        maxTokens: opts.provider.contextLimit,
+      }
+    }
+  }
 
   const bus = new EventBus()
   const messages: Message[] = []
@@ -159,6 +173,7 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
           maxTurns: opts.maxTurns,
           logger,
           hooks: opts.hooks,
+          contextOptimizer,
         })
         bus.emit({ type: 'session_end', reason: 'completed' })
         await saveState()
