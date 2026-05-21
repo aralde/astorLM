@@ -10,6 +10,8 @@
 export type Role = 'user' | 'assistant' | 'system'
 
 export type TextBlock = { type: 'text'; text: string }
+export type ThinkingBlock = { type: 'thinking'; thinking: string; signature?: string }
+export type RedactedThinkingBlock = { type: 'redacted_thinking'; signature: string }
 export type ToolUseBlock = {
   type: 'tool_use'
   id: string
@@ -23,9 +25,10 @@ export type ToolResultBlock = {
   is_error?: boolean
 }
 
-export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock
+export type ContentBlock = TextBlock | ThinkingBlock | RedactedThinkingBlock | ToolUseBlock | ToolResultBlock
 
 export interface Message {
+  id?: string
   role: Role
   content: ContentBlock[]
 }
@@ -57,6 +60,25 @@ export interface Tool {
   execute: (input: unknown, ctx: ToolContext) => Promise<string>
 }
 
+// ---------- Session Hooks ----------
+
+export interface SessionHooks {
+  beforeTurn?: (context: { turn: number; messages: Message[] }) => Promise<void>
+  beforeProviderCall?: (context: { messages: Message[]; systemPrompt: string }) => Promise<{ messages: Message[]; systemPrompt: string }>
+  beforeToolExecution?: (context: { toolName: string; input: unknown; toolUseId: string }) => Promise<{ authorize: boolean; mockResult?: string }>
+  afterToolExecution?: (context: { toolName: string; input: unknown; output: string; durationMs: number }) => Promise<string>
+  afterTurn?: (context: { turn: number; lastMessage: Message }) => Promise<void>
+}
+
+// ---------- Context Optimizer ----------
+
+export interface ContextOptimizerOptions {
+  maxTokens: number
+  compressThreshold?: number
+  keepRecentTurns?: number
+  tokenCounter?: (messages: Message[], systemPrompt: string) => number
+}
+
 // ---------- Provider ----------
 
 export interface ProviderStreamOptions {
@@ -69,6 +91,7 @@ export interface ProviderStreamOptions {
 
 export type ProviderEvent =
   | { type: 'text_delta'; text: string }
+  | { type: 'thinking_delta'; thinking: string }
   | { type: 'tool_use_start'; id: string; name: string }
   | { type: 'tool_use_input'; id: string; inputJsonDelta: string }
   | { type: 'tool_use_end'; id: string; name: string; input: unknown }
@@ -77,7 +100,31 @@ export type ProviderEvent =
 export interface Provider {
   readonly name: string
   readonly model: string
+  readonly contextLimit?: number
   stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent>
+}
+
+// ---------- Retry ----------
+
+/**
+ * Política opcional de reintentos para llamadas al provider.
+ * Sólo reintenta errores transientes clasificables (HTTP 429, 5xx, timeouts
+ * de red, streams cortados antes de cualquier chunk). Si el provider ya
+ * emitió eventos en el intento actual, no se reintenta (evitamos duplicar
+ * texto streameado al consumidor).
+ *
+ * Default cuando se omite la opción: no hay reintentos — los errores
+ * propagan y la sesión cierra con `session_end: error`.
+ */
+export interface RetryPolicy {
+  /** Cantidad total de intentos (incluye el primero). `1` o `<=1` deshabilita reintentos. */
+  maxAttempts: number
+  /** Delay base en ms para backoff exponencial. Default: 500. */
+  baseDelayMs?: number
+  /** Tope máximo del delay por intento. Default: 10_000. */
+  maxDelayMs?: number
+  /** Si suma jitter aleatorio al delay (recomendado). Default: true. */
+  jitter?: boolean
 }
 
 // ---------- Agent events (bus) ----------
@@ -85,9 +132,11 @@ export interface Provider {
 export type AgentEvent =
   | { type: 'turn_start'; turn: number }
   | { type: 'text_delta'; text: string }
+  | { type: 'thinking_delta'; thinking: string }
   | { type: 'assistant_message'; message: Message }
   | { type: 'tool_execution_start'; toolUseId: string; name: string; input: unknown }
   | { type: 'tool_execution_end'; toolUseId: string; name: string; output: string; isError: boolean; durationMs: number }
+  | { type: 'provider_retry'; attempt: number; maxAttempts: number; delayMs: number; error: unknown }
   | { type: 'turn_end'; turn: number; stopReason: StopReason }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
 
