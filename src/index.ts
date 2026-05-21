@@ -35,4 +35,7 @@ export type {
   Role,
   SessionHooks,
   ContextOptimizerOptions,
+  RetryPolicy,
 } from './types.js'
+
+export { isTransientError, computeBackoffDelay } from './agent/retry.js'

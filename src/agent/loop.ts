@@ -9,8 +9,10 @@ import type {
   ToolUseBlock,
   SessionHooks,
   ContextOptimizerOptions,
+  RetryPolicy,
 } from '../types.js'
 import { optimizeContext, estimateTokens } from './optimizer.js'
+import { streamWithRetry } from './retry.js'
 
 export interface RunLoopOptions {
   provider: Provider
@@ -24,6 +26,7 @@ export interface RunLoopOptions {
   logger: ToolContext['logger']
   hooks?: SessionHooks
   contextOptimizer?: ContextOptimizerOptions
+  retry?: RetryPolicy
 }
 
 const DEFAULT_MAX_TURNS = 25
@@ -79,10 +82,16 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       providerSystemPrompt = hookRes.systemPrompt
     }
 
-    const stream = opts.provider.stream({
-      systemPrompt: providerSystemPrompt,
-      messages: providerMessages,
-      tools: opts.registry.toSchemas(),
+    const stream = streamWithRetry({
+      provider: opts.provider,
+      streamOpts: {
+        systemPrompt: providerSystemPrompt,
+        messages: providerMessages,
+        tools: opts.registry.toSchemas(),
+        abortSignal: opts.abortSignal,
+      },
+      policy: opts.retry,
+      bus: opts.bus,
       abortSignal: opts.abortSignal,
     })
 

@@ -104,6 +104,29 @@ export interface Provider {
   stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent>
 }
 
+// ---------- Retry ----------
+
+/**
+ * Política opcional de reintentos para llamadas al provider.
+ * Sólo reintenta errores transientes clasificables (HTTP 429, 5xx, timeouts
+ * de red, streams cortados antes de cualquier chunk). Si el provider ya
+ * emitió eventos en el intento actual, no se reintenta (evitamos duplicar
+ * texto streameado al consumidor).
+ *
+ * Default cuando se omite la opción: no hay reintentos — los errores
+ * propagan y la sesión cierra con `session_end: error`.
+ */
+export interface RetryPolicy {
+  /** Cantidad total de intentos (incluye el primero). `1` o `<=1` deshabilita reintentos. */
+  maxAttempts: number
+  /** Delay base en ms para backoff exponencial. Default: 500. */
+  baseDelayMs?: number
+  /** Tope máximo del delay por intento. Default: 10_000. */
+  maxDelayMs?: number
+  /** Si suma jitter aleatorio al delay (recomendado). Default: true. */
+  jitter?: boolean
+}
+
 // ---------- Agent events (bus) ----------
 
 export type AgentEvent =
@@ -113,6 +136,7 @@ export type AgentEvent =
   | { type: 'assistant_message'; message: Message }
   | { type: 'tool_execution_start'; toolUseId: string; name: string; input: unknown }
   | { type: 'tool_execution_end'; toolUseId: string; name: string; output: string; isError: boolean; durationMs: number }
+  | { type: 'provider_retry'; attempt: number; maxAttempts: number; delayMs: number; error: unknown }
   | { type: 'turn_end'; turn: number; stopReason: StopReason }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
 

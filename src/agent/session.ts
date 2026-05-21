@@ -12,6 +12,7 @@ import type {
   Tool,
   SessionHooks,
   ContextOptimizerOptions,
+  RetryPolicy,
 } from '../types.js'
 
 export interface CreateAgentSessionOptions {
@@ -28,6 +29,12 @@ export interface CreateAgentSessionOptions {
   hooks?: SessionHooks
   fileReader?: (path: string) => Promise<string | null>
   contextOptimizer?: ContextOptimizerOptions | boolean
+  /**
+   * Política opcional de reintentos para errores transientes del provider
+   * (HTTP 429, 5xx, timeouts de red, streams sin chunks). Opt-in: si se
+   * omite, los errores propagan y la sesión cierra con `session_end: error`.
+   */
+  retry?: RetryPolicy
 }
 
 export interface AgentSession {
@@ -174,6 +181,7 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
           logger,
           hooks: opts.hooks,
           contextOptimizer,
+          retry: opts.retry,
         })
         bus.emit({ type: 'session_end', reason: 'completed' })
         await saveState()
