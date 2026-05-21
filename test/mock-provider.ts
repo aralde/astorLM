@@ -4,6 +4,7 @@ import type {
   ProviderEvent,
   ProviderStreamOptions,
   StopReason,
+  TokenUsage,
 } from '../src/types.js'
 
 /**
@@ -27,6 +28,8 @@ export interface ScriptedTurn {
    * reintenta cuando ya se emitió algo.
    */
   failAfterPartial?: unknown
+  /** Usage reportado por este turno (incluido en `message_end`). */
+  usage?: TokenUsage
 }
 
 export class MockProvider implements Provider {
@@ -69,6 +72,7 @@ export class MockProvider implements Provider {
       type: 'message_end',
       stopReason,
       assistantMessage: { role: 'assistant', content },
+      ...(turn.usage ? { usage: turn.usage } : {}),
     }
   }
 }

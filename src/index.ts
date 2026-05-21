@@ -36,6 +36,17 @@ export type {
   SessionHooks,
   ContextOptimizerOptions,
   RetryPolicy,
+  TokenUsage,
 } from './types.js'
 
 export { isTransientError, computeBackoffDelay } from './agent/retry.js'
+
+export { createNoopExecutor } from './executor/types.js'
+export type {
+  Executor,
+  ExecResult,
+  ExecOptions,
+  SpawnOptions,
+  SpawnHandle,
+  ProcessStatus,
+} from './executor/types.js'

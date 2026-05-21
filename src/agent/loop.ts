@@ -1,5 +1,6 @@
 import type { EventBus } from './events.js'
 import type { ToolRegistry } from '../tools/registry.js'
+import type { Executor } from '../executor/types.js'
 import type {
   ContentBlock,
   Message,
@@ -10,6 +11,7 @@ import type {
   SessionHooks,
   ContextOptimizerOptions,
   RetryPolicy,
+  TokenUsage,
 } from '../types.js'
 import { optimizeContext, estimateTokens } from './optimizer.js'
 import { streamWithRetry } from './retry.js'
@@ -27,6 +29,7 @@ export interface RunLoopOptions {
   hooks?: SessionHooks
   contextOptimizer?: ContextOptimizerOptions
   retry?: RetryPolicy
+  executor: Executor
 }
 
 const DEFAULT_MAX_TURNS = 25
@@ -69,6 +72,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     let assistantMessage: Message | null = null
     let stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence' = 'end_turn'
+    let turnUsage: TokenUsage | undefined = undefined
 
     let providerMessages = opts.messages
     let providerSystemPrompt = opts.systemPrompt
@@ -106,6 +110,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         case 'message_end':
           assistantMessage = ev.assistantMessage
           stopReason = ev.stopReason
+          turnUsage = ev.usage
           break
         default:
           break
@@ -125,7 +130,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     const toolUses = assistantMessage.content.filter(isToolUse)
     if (toolUses.length === 0 || stopReason === 'end_turn') {
-      opts.bus.emit({ type: 'turn_end', turn, stopReason })
+      opts.bus.emit({ type: 'turn_end', turn, stopReason, ...(turnUsage ? { usage: turnUsage } : {}) })
       if (opts.hooks?.afterTurn) {
         await opts.hooks.afterTurn({ turn, lastMessage: assistantMessage })
       }
@@ -137,6 +142,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       cwd: opts.cwd,
       abortSignal: opts.abortSignal,
       logger: opts.logger,
+      executor: opts.executor,
     }
 
     const results = await Promise.all(
@@ -210,7 +216,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       role: 'user',
       content: results as ContentBlock[],
     })
-    opts.bus.emit({ type: 'turn_end', turn, stopReason })
+    opts.bus.emit({ type: 'turn_end', turn, stopReason, ...(turnUsage ? { usage: turnUsage } : {}) })
 
     if (opts.hooks?.afterTurn) {
       await opts.hooks.afterTurn({ turn, lastMessage: assistantMessage })
