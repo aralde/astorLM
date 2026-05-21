@@ -1,7 +1,9 @@
 import { createAgentSession } from './session.js'
 import { SessionManager } from './sessionManager.js'
-import { createCodingTools } from '../tools/index.js'
+import { createCodingTools } from '../tools/node.js'
 import type { Provider, Tool, AgentEvent } from '../types.js'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 
 export type AstorOutputMode = 'silent' | 'console' | 'verbose' | ((event: AgentEvent) => void)
 
@@ -62,15 +64,18 @@ export class AstorAgent {
     promptText: string,
     opts?: { sessionId?: string; outputMode?: AstorOutputMode }
   ): Promise<{ sessionId: string; text: string }> {
-    const session = createAgentSession({
+    const session = await createAgentSession({
       provider: this.provider,
       sessionManager: this.sessionManager,
       sessionId: opts?.sessionId,
       tools: this.tools,
       cwd: this.cwd,
+      fileReader: async (relPath: string) => {
+        const abs = path.join(this.cwd, relPath)
+        return readFile(abs, 'utf8')
+      }
     })
 
-    await session.initPromise
     setupOutputMode(session, opts?.outputMode ?? this.defaultOutputMode)
 
     const result = await session.prompt(promptText)

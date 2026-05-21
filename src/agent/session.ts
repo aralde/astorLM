@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { ToolRegistry } from '../tools/registry.js'
 import { buildSystemPrompt } from '../prompt/system.js'
 import { runLoop } from './loop.js'
@@ -11,6 +10,7 @@ import type {
   Message,
   Provider,
   Tool,
+  SessionHooks,
 } from '../types.js'
 
 export interface CreateAgentSessionOptions {
@@ -24,11 +24,12 @@ export interface CreateAgentSessionOptions {
   maxTurns?: number
   sessionId?: string
   sessionManager?: SessionManager
+  hooks?: SessionHooks
+  fileReader?: (path: string) => Promise<string | null>
 }
 
 export interface AgentSession {
   readonly id: string
-  readonly initPromise: Promise<void>
   readonly provider: Provider
   readonly registry: ToolRegistry
   readonly cwd: string
@@ -41,10 +42,14 @@ export interface AgentSession {
 
 /**
  * Crea una sesión del agente. Esta es la API pública principal del SDK.
+ * Es async porque carga el estado persistido del `sessionManager` (si hay)
+ * antes de devolver la sesión: al `await` esta función ya podés `subscribe`,
+ * `getMessages` y `prompt` sin sorpresas.
+ *
  * No es un singleton: podés tener múltiples sesiones independientes en paralelo.
  */
-export function createAgentSession(opts: CreateAgentSessionOptions): AgentSession {
-  const cwd = opts.cwd ?? process.cwd()
+export async function createAgentSession(opts: CreateAgentSessionOptions): Promise<AgentSession> {
+  const cwd = opts.cwd ?? (typeof process !== 'undefined' ? process.cwd() : '/')
   const registry = new ToolRegistry()
   if (opts.tools) registry.registerMany(opts.tools)
 
@@ -53,27 +58,25 @@ export function createAgentSession(opts: CreateAgentSessionOptions): AgentSessio
   const logger = opts.logger ?? noopLogger
 
   const manager = opts.sessionManager ?? SessionManager.inMemory()
-  const id = opts.sessionId ?? randomUUID()
+  const id = opts.sessionId ?? crypto.randomUUID()
 
   let parentId: string | undefined = undefined
   let metadata: Record<string, unknown> = {}
   let createdAt = Date.now()
 
-  // Initialize asynchronously in the background
-  const initPromise = (async () => {
-    try {
-      let state = await manager.get(id)
-      if (!state) {
-        state = await manager.create({ id })
-      }
-      parentId = state.parentId
-      metadata = state.metadata ?? {}
-      createdAt = state.createdAt
-      messages.push(...state.messages)
-    } catch (err) {
-      logger.error('Failed to initialize session from manager:', err)
+  // Inicialización: cargar (o crear) el estado del manager antes de devolver la sesión.
+  try {
+    let state = await manager.get(id)
+    if (!state) {
+      state = await manager.create({ id })
     }
-  })()
+    parentId = state.parentId
+    metadata = state.metadata ?? {}
+    createdAt = state.createdAt
+    messages.push(...state.messages)
+  } catch (err) {
+    logger.error('Failed to initialize session from manager:', err)
+  }
 
   const saveState = async () => {
     try {
@@ -111,13 +114,13 @@ export function createAgentSession(opts: CreateAgentSessionOptions): AgentSessio
       systemPrompt: opts.systemPrompt,
       appendSystemPrompt: opts.appendSystemPrompt,
       contextFiles: opts.contextFiles,
+      fileReader: opts.fileReader,
     })
     return systemPromptCache
   }
 
   return {
     id,
-    initPromise,
     provider: opts.provider,
     registry,
     cwd,
@@ -128,8 +131,6 @@ export function createAgentSession(opts: CreateAgentSessionOptions): AgentSessio
       activeCtrl?.abort(reason)
     },
     async prompt(text, promptOpts) {
-      await initPromise
-
       const externalSignal = promptOpts?.abortSignal
       const ctrl = new AbortController()
       activeCtrl = ctrl
@@ -140,7 +141,7 @@ export function createAgentSession(opts: CreateAgentSessionOptions): AgentSessio
       }
 
       messages.push({
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         role: 'user',
         content: [{ type: 'text', text }],
       })
@@ -157,6 +158,7 @@ export function createAgentSession(opts: CreateAgentSessionOptions): AgentSessio
           abortSignal: ctrl.signal,
           maxTurns: opts.maxTurns,
           logger,
+          hooks: opts.hooks,
         })
         bus.emit({ type: 'session_end', reason: 'completed' })
         await saveState()
