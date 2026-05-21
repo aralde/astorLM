@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-
 const DEFAULT_SYSTEM_PROMPT = `Sos un agente de coding embebido. Trabajás dentro de un cwd dado.
 - Usá las herramientas para inspeccionar y modificar el filesystem; no inventes contenido de archivos.
 - Antes de editar un archivo, leelo si no lo viste antes.
@@ -15,6 +12,8 @@ export interface BuildSystemPromptOptions {
   appendSystemPrompt?: string
   /** Archivos de contexto a cargar desde cwd. Por defecto AGENTS.md y CLAUDE.md. */
   contextFiles?: string[]
+  /** Cargador de archivos asíncrono para leer archivos de contexto. */
+  fileReader?: (path: string) => Promise<string | null>
 }
 
 export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise<string> {
@@ -22,11 +21,12 @@ export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise
   parts.push(`\n\n<cwd>${opts.cwd}</cwd>`)
 
   const files = opts.contextFiles ?? ['AGENTS.md', 'CLAUDE.md']
-  for (const f of files) {
-    const abs = path.join(opts.cwd, f)
-    const content = await readFile(abs, 'utf8').catch(() => null)
-    if (content) {
-      parts.push(`\n\n<context file="${f}">\n${content}\n</context>`)
+  if (opts.fileReader) {
+    for (const f of files) {
+      const content = await opts.fileReader(f).catch(() => null)
+      if (content) {
+        parts.push(`\n\n<context file="${f}">\n${content}\n</context>`)
+      }
     }
   }
 
