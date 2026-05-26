@@ -1,65 +1,65 @@
 # astorlm 🚀
 
-Librería agéntica embebible en TypeScript. Diseñada bajo un enfoque **SDK-first** (sin CLI ni TUI acoplados), permitiendo integrar un coding agent de forma nativa en cualquier aplicación TypeScript.
+Embeddable agentic library in TypeScript. Designed with an **SDK-first** approach (no coupled CLI or TUI), letting you integrate a coding agent natively into any TypeScript application.
 
-AstorLM es modular y **runtime-agnostic** por defecto, separando las capacidades del núcleo de los adaptadores de entorno y herramientas nativas del sistema operativo.
+AstorLM is modular and **runtime-agnostic** by default, separating the core capabilities from environment adapters and OS-native tooling.
 
 ---
 
-## 📦 Estructura de Módulos (Entrypoints)
+## 📦 Module Layout (Entrypoints)
 
-AstorLM expone tres entrypoints bien diferenciados en su empaquetado para evitar arrastrar dependencias orientadas a Node.js cuando se despliega en entornos Edge, Cloudflare Workers o navegadores:
+AstorLM ships three clearly separated entrypoints so you do not drag Node.js-only dependencies into Edge, Cloudflare Workers, or browser deployments:
 
 ```mermaid
 graph TD
-    subgraph Core ["Módulo Core: 'astorlm' (Agnóstico)"]
+    subgraph Core ["Core module: 'astorlm' (agnostic)"]
         A[createAgentSession]
         B[InMemorySessionManager]
         C[AnthropicProvider / OpenAIProvider]
         D[SessionHooks / ToolRegistry]
     end
 
-    subgraph NodeExt ["Módulo Node: 'astorlm/node'"]
+    subgraph NodeExt ["Node module: 'astorlm/node'"]
         E[createNodeAgentSession]
         F[FileSessionManager]
-        G[AstorAgent - Fachada]
+        G[AstorAgent - facade]
         H[mountMcpServer]
     end
 
-    subgraph NodeTools ["Módulo Tools: 'astorlm/tools/node'"]
+    subgraph NodeTools ["Tools module: 'astorlm/tools/node'"]
         I[createCodingTools / createReadOnlyTools]
         J[read, write, edit, bash, ls, grep, glob]
     end
 
-    NodeExt -->|Inicializa| Core
-    NodeTools -->|Inyecta Tools en| Core
+    NodeExt -->|Initializes| Core
+    NodeTools -->|Injects tools into| Core
 ```
 
 ### 1. `astorlm` (Core Runtime-Agnostic)
-* **Descripción**: El núcleo del framework. Contiene el bucle del agente (`loop.ts`), el bus de eventos, los proveedores de LLM y la abstracción base de sesiones y herramientas.
-* **Entorno**: Funciona en cualquier runtime de JavaScript (Node.js, Deno, Bun, Cloudflare Workers, Edge Runtimes, Navegador).
-* **Exportaciones clave**:
+* **Description**: The framework core. Contains the agent loop (`loop.ts`), the event bus, the LLM providers, and the base abstractions for sessions and tools.
+* **Runtime**: Works in any JavaScript runtime (Node.js, Deno, Bun, Cloudflare Workers, Edge runtimes, browsers).
+* **Key exports**:
   - `createAgentSession`
   - `InMemorySessionManager`
   - `AnthropicProvider`, `OpenAIProvider`
   - `defineTool`, `ToolRegistry`
   - `EventBus`
-  - Tipos base: `AgentSession`, `SessionHooks`, `Message`, `ContentBlock`, `AgentEvent`, etc.
+  - Base types: `AgentSession`, `SessionHooks`, `Message`, `ContentBlock`, `AgentEvent`, etc.
 
-### 2. `astorlm/node` (Extensiones para Node.js)
-* **Descripción**: Extensiones y utilidades que requieren APIs nativas del sistema operativo en Node.js (como `node:fs`, `node:path`, `node:child_process`).
-* **Exportaciones clave**:
-  - `createNodeAgentSession` (creador de sesiones configurado con lector de archivos local por defecto).
-  - `FileSessionManager` (persistencia del historial en formato JSONL y metadatos en JSON).
-  - `mountMcpServer` (adaptador y transport Stdio/HTTP para clientes de Model Context Protocol).
-  - `AstorAgent` (fachada simplificada de ejecución y branching).
+### 2. `astorlm/node` (Node.js extensions)
+* **Description**: Extensions and utilities that require Node.js OS-native APIs (`node:fs`, `node:path`, `node:child_process`).
+* **Key exports**:
+  - `createNodeAgentSession` (session factory wired with a local file reader by default).
+  - `FileSessionManager` (history persistence as JSONL plus JSON metadata).
+  - `mountMcpServer` (adapter and Stdio/HTTP transports for Model Context Protocol clients).
+  - `AstorAgent` (simplified execution and branching facade).
 
-### 3. `astorlm/tools/node` (Herramientas Built-in para Node.js)
-* **Descripción**: Conjunto de herramientas de manipulación y análisis del filesystem optimizadas para agentes de coding, con resguardo anti-path-traversal.
-* **Exportaciones clave**:
-  - `createCodingTools()` (devuelve un array con `read`, `write`, `edit`, `bash`, `ls`, `grep`, `glob`).
-  - `createReadOnlyTools()` (versión segura sin escritura ni ejecución: `read`, `ls`, `grep`, `glob`).
-  - Herramientas individuales exportadas directamente: `readTool`, `writeTool`, `editTool`, `bashTool`, `lsTool`, `grepTool`, `globTool`.
+### 3. `astorlm/tools/node` (Built-in tools for Node.js)
+* **Description**: A bundle of filesystem-manipulation and analysis tools tuned for coding agents, with path-traversal protection.
+* **Key exports**:
+  - `createCodingTools()` (returns an array with `read`, `write`, `edit`, `bash`, `ls`, `grep`, `glob`).
+  - `createReadOnlyTools()` (safe variant — no writes or execution: `read`, `ls`, `grep`, `glob`).
+  - Individual tools exported directly: `readTool`, `writeTool`, `editTool`, `bashTool`, `lsTool`, `grepTool`, `globTool`.
 
 ### 4. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
 > ⚠️ **Experimental**. Lives under a dedicated subpath, not the main barrel. The import path itself is the signal that the API is volatile and may change between minor releases.
@@ -100,44 +100,44 @@ A human approves pending resolutions asynchronously (programmatically via `regis
 
 ---
 
-## 🚀 Guías de Uso Rápido (Quick Use Examples)
+## 🚀 Quick Use Examples
 
-### 🔌 1. Uso Mínimo y Agnóstico (Core)
-Ideal para ejecutar en navegadores o Edge Workers, usando herramientas personalizadas y persistencia en memoria.
+### 🔌 1. Minimal Agnostic Usage (Core)
+Ideal for running in browsers or Edge workers, with custom tools and in-memory persistence.
 
 ```typescript
 import { createAgentSession, AnthropicProvider, defineTool } from 'astorlm'
 import { z } from 'zod'
 
-// 1. Definir una herramienta personalizada
-const obtenerClima = defineTool({
-  name: 'obtener_clima',
-  description: 'Obtiene la temperatura actual para una ciudad',
-  schema: z.object({ ciudad: z.string() }),
-  execute: async ({ ciudad }) => `El clima en ${ciudad} es de 22°C, soleado.`
+// 1. Define a custom tool
+const getWeather = defineTool({
+  name: 'get_weather',
+  description: 'Returns the current temperature for a city',
+  schema: z.object({ city: z.string() }),
+  execute: async ({ city }) => `Weather in ${city}: 22°C, sunny.`,
 })
 
-// 2. Crear sesión usando el Core Agnóstico
+// 2. Create a session backed by the agnostic core
 const session = createAgentSession({
   provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
-  tools: [obtenerClima],
+  tools: [getWeather],
 })
 
-// 3. Suscribirse al flujo de tokens
+// 3. Subscribe to the token stream
 session.subscribe((event) => {
   if (event.type === 'text_delta') {
-    console.log(event.text) // O pintar en la UI
+    console.log(event.text) // or paint into UI
   }
 })
 
-// 4. Iniciar el prompt
-await session.prompt('¿Cómo está el clima en Buenos Aires?')
+// 4. Run the prompt
+await session.prompt('How is the weather in Buenos Aires?')
 ```
 
 ---
 
-### 💻 2. Agente de Coding Completo (Node.js)
-El setup estándar para construir un agente autónomo de desarrollo en backend con acceso al sistema de archivos local.
+### 💻 2. Full Coding Agent (Node.js)
+The standard setup for building an autonomous backend coding agent with local filesystem access.
 
 ```typescript
 import { createNodeAgentSession } from 'astorlm/node'
@@ -145,9 +145,9 @@ import { createCodingTools } from 'astorlm/tools/node'
 import { AnthropicProvider } from 'astorlm'
 
 const session = createNodeAgentSession({
-  cwd: process.cwd(), // directorio de trabajo seguro
+  cwd: process.cwd(), // safe working directory
   provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
-  tools: createCodingTools(), // herramientas de lectura, escritura, edición y bash
+  tools: createCodingTools(), // read, write, edit, bash tools
 })
 
 session.subscribe((e) => {
@@ -155,46 +155,46 @@ session.subscribe((e) => {
     process.stdout.write(e.text)
   }
   if (e.type === 'tool_execution_start') {
-    console.log(`\n🛠️  [Ejecutando tool: ${e.name}] con input:`, e.input)
+    console.log(`\n🛠️  [Running tool: ${e.name}] with input:`, e.input)
   }
 })
 
-await session.prompt('Refactoriza el archivo src/utils.ts para usar funciones flecha.')
+await session.prompt('Refactor src/utils.ts to use arrow functions.')
 ```
 
 ---
 
-### 🗃️ 3. Persistencia de Sesiones e Historiales (FileSessionManager)
-Puedes guardar físicamente el historial de las conversaciones para reanudar el trabajo del agente o ramificar el proceso en cualquier momento.
+### 🗃️ 3. Session & History Persistence (FileSessionManager)
+You can persist conversation history on disk to resume the agent's work or branch it at any point.
 
 ```typescript
 import { createNodeAgentSession, FileSessionManager } from 'astorlm/node'
 import { AnthropicProvider } from 'astorlm'
 
-// 1. Inicializar el persistidor en disco (crea un archivo .jsonl de historial y .meta.json de metadatos)
+// 1. Initialize the on-disk persister (creates a .jsonl history file + .meta.json)
 const sessionManager = new FileSessionManager({ dir: './.astor-sessions' })
 
-// 2. Cargar o crear sesión persistente
+// 2. Load or create the persistent session
 const session = createNodeAgentSession({
-  sessionId: 'mi-sesion-de-refactor',
+  sessionId: 'my-refactor-session',
   sessionManager,
   provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
 })
 
-// Importante: esperar a que termine de cargar el historial previo en memoria
+// Important: wait for prior history to finish loading into memory
 await session.initPromise
 
-await session.prompt('Escribe una función fibonacci optimizada.')
+await session.prompt('Write an optimized fibonacci function.')
 ```
 
-#### 🌿 Branching (Bifurcación de Sesiones)
-Puedes crear una sesión hija copiando los mensajes de una sesión existente (o recortando hasta cierto ID de mensaje):
+#### 🌿 Session Branching
+You can create a child session by copying the messages of an existing session (or truncating up to a given message ID):
 
 ```typescript
-// Bifurca el estado actual
+// Branch the current state
 const childState = await sessionManager.create({
-  parentId: 'mi-sesion-de-refactor',
-  branchFromMessageId: 'opcional-id-mensaje-limite', // Si se omite, clona todo
+  parentId: 'my-refactor-session',
+  branchFromMessageId: 'optional-message-id-cutoff', // if omitted, clones the full history
 })
 
 const childSession = createNodeAgentSession({
@@ -204,13 +204,13 @@ const childSession = createNodeAgentSession({
 })
 
 await childSession.initPromise
-await childSession.prompt('¿Puedes reescribirla en TypeScript con tipos estrictos?')
+await childSession.prompt('Can you rewrite it in TypeScript with strict types?')
 ```
 
 ---
 
-### 🎭 4. Fachada Simplificada con `AstorAgent`
-Para simplificar la lógica de flujos recurrentes, `AstorAgent` abstrae la gestión del ciclo de vida, la subscripción de salida de consola y el branching.
+### 🎭 4. Simplified Facade with `AstorAgent`
+To streamline recurring flows, `AstorAgent` wraps lifecycle management, console subscription, and branching.
 
 ```typescript
 import { AstorAgent, FileSessionManager } from 'astorlm/node'
@@ -222,25 +222,25 @@ const agent = new AstorAgent({
   defaultOutputMode: 'verbose', // 'silent' | 'console' | 'verbose'
 })
 
-// Ejecuta y maneja el ciclo completo del prompt
-const { sessionId, text } = await agent.runTask('Crea un script test.js que sume 2 + 2')
+// Run and manage the full prompt lifecycle
+const { sessionId, text } = await agent.runTask('Create a test.js script that adds 2 + 2')
 
-// Crea una bifurcación directamente y ejecuta una tarea derivada
+// Branch directly and run a derived task
 await agent.runBranchTask({
   parentId: sessionId,
-  promptText: 'Modifica ese script para que reste en lugar de sumar',
+  promptText: 'Change that script so it subtracts instead of adding',
   outputMode: 'console',
 })
 ```
 
 ---
 
-## 🪝 Mecanismos de Control (`SessionHooks`)
+## 🪝 Control Hooks (`SessionHooks`)
 
-Los hooks permiten interceptar el ciclo del bucle del agente. Son ideales para implementar:
-* **Human-in-the-loop (HITL)**: Confirmación humana de herramientas destructivas (ej. `bash` o modificaciones críticas).
-* **Sanitización de entradas/salidas**: Filtros de seguridad en datos de salida o inyección de prompts dinámicos.
-* **Mocking**: Simular ejecuciones de herramientas.
+Hooks let you intercept the agent loop. They are ideal for:
+* **Human-in-the-loop (HITL)**: human confirmation of destructive tools (e.g. `bash` or critical edits).
+* **Input/output sanitization**: security filters on output data or dynamic prompt injection.
+* **Mocking**: simulating tool executions.
 
 ```typescript
 import { createNodeAgentSession } from 'astorlm/node'
@@ -251,77 +251,77 @@ const session = createNodeAgentSession({
   provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
   tools: createCodingTools(),
   hooks: {
-    // 1. Intercepta llamadas antes de ir al Provider de LLM
+    // 1. Intercept calls before they reach the LLM provider
     beforeProviderCall: async ({ messages, systemPrompt }) => {
-      // Modifica o añade contexto al prompt de sistema al vuelo
-      return { messages, systemPrompt: `${systemPrompt}\nResponde siempre en español.` }
+      // Modify or append context to the system prompt on the fly
+      return { messages, systemPrompt: `${systemPrompt}\nAlways answer in English.` }
     },
 
-    // 2. Seguridad y validación de ejecución de herramientas
+    // 2. Tool-execution gatekeeping
     beforeToolExecution: async ({ toolName, input }) => {
       if (toolName === 'bash') {
         const cmd = (input as any).command
-        console.log(`\n⚠️  El agente quiere ejecutar en consola: "${cmd}"`)
+        console.log(`\n⚠️  Agent wants to run: "${cmd}"`)
         const userApproved = await askUserForPermission(cmd)
-        
-        return { 
+
+        return {
           authorize: userApproved,
-          // Si no se autoriza, opcionalmente se puede mockear un resultado para el LLM:
-          mockResult: userApproved ? undefined : 'Comando cancelado por el operador humano.'
+          // If not authorized, you can optionally hand the LLM a mock result:
+          mockResult: userApproved ? undefined : 'Command canceled by the human operator.',
         }
       }
       return { authorize: true }
     },
 
-    // 3. Transformación del resultado de las herramientas
+    // 3. Transform the tool result before the LLM consumes it
     afterToolExecution: async ({ toolName, output, durationMs }) => {
-      console.log(`[Metric] Tool ${toolName} demoró ${durationMs}ms`)
-      // Retorna el string final que consumirá el LLM
+      console.log(`[Metric] Tool ${toolName} took ${durationMs}ms`)
+      // Return the final string the LLM will see
       return output
-    }
-  }
+    },
+  },
 })
 ```
 
 ---
 
-## 🔌 Conectividad MCP (Model Context Protocol)
+## 🔌 MCP Connectivity (Model Context Protocol)
 
-Puedes montar servidores MCP externos (locales o remotos) que expongan herramientas. Las herramientas se adaptan al estándar del agente de forma automática.
+You can mount external MCP servers (local or remote) that expose tools. Tools are adapted to the agent standard automatically.
 
 ```typescript
 import { createNodeAgentSession, mountMcpServer } from 'astorlm/node'
 import { createCodingTools } from 'astorlm/tools/node'
 import { AnthropicProvider } from 'astorlm'
 
-// 1. Montar un servidor MCP de filesystem vía stdio
+// 1. Mount a filesystem MCP server via stdio
 const mcpServer = await mountMcpServer({
   name: 'local-fs',
   transport: {
     type: 'stdio',
     command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-filesystem', '/ruta/permitida'],
+    args: ['-y', '@modelcontextprotocol/server-filesystem', '/allowed/path'],
   },
 })
 
-// 2. Configurar la sesión combinando herramientas locales y de MCP
+// 2. Configure the session combining local + MCP tools
 const session = createNodeAgentSession({
   provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
   tools: [
     ...createCodingTools(),
-    ...mcpServer.tools, // Expuestas bajo el nombre "local-fs__<tool>"
+    ...mcpServer.tools, // exposed as "local-fs__<tool>"
   ],
 })
 ```
 
 ---
 
-## 🛠️ Comandos de Desarrollo
+## 🛠️ Development Commands
 
 ```bash
-pnpm install          # Instala dependencias
-pnpm build            # Compila la librería (dist/ en ESM, CJS y d.ts)
-pnpm dev              # Compilación interactiva en watch mode
-pnpm test             # Corre la suite de tests unitarios (Vitest)
-pnpm typecheck        # Ejecuta verificación de tipos de TypeScript sin emitir
+pnpm install          # install dependencies
+pnpm build            # build the library (dist/ in ESM, CJS, and d.ts)
+pnpm dev              # interactive watch-mode build
+pnpm test             # run the unit test suite (Vitest)
+pnpm typecheck        # run TypeScript type checking without emitting
 ```
