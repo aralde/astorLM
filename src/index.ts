@@ -1,7 +1,7 @@
-// API pública del SDK (Core Runtime-Agnostic)
-// Los módulos experimentales se importan desde subpaths dedicados:
+// Public SDK surface (core, runtime-agnostic).
+// Experimental modules are imported from dedicated subpaths, e.g.:
 //   import { createErrorRegistry } from 'astorlm/experimental/error-registry'
-// Nunca desde el barrel principal — eso señala su naturaleza volátil.
+// Never from this main barrel — the subpath itself signals volatility.
 
 export { createAgentSession } from './agent/session.js'
 export type { AgentSession, CreateAgentSessionOptions } from './agent/session.js'

@@ -1,25 +1,26 @@
 /**
- * Tipos públicos del módulo experimental `error-registry`.
+ * Public types of the experimental `error-registry` module.
  *
- * ⚠️ API experimental — sujeta a cambios sin warning. Vivís en
- * `experimental.*` para que sepas que esto no es estable.
+ * ⚠️ Experimental API — subject to change without warning. Lives under
+ * `astorlm/experimental/error-registry` so the import path itself
+ * signals that this is not stable.
  *
- * La idea: que múltiples sesiones del agente compartan un registro
- * federado de errores y resoluciones aprobadas por humanos. Cuando
- * el agente choca con un error que alguien ya resolvió, recibe el
- * hint y aplica la solución directamente.
+ * Idea: let multiple agent sessions share a federated registry of
+ * errors and human-approved resolutions. When an agent hits an error
+ * someone else has already solved, it receives the fix as a hint and
+ * applies it directly instead of fighting through it again.
  */
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
 export interface ErrorContext {
-  /** cwd absoluto donde ocurrió el error. Anonimizable por el caller. */
+  /** Absolute cwd where the error occurred. The caller may anonymize it. */
   cwd: string
   /** 'win32' | 'linux' | 'darwin' */
   osPlatform: string
-  /** ej. 'v20.18.0' */
+  /** e.g. 'v20.18.0' */
   nodeVersion: string
-  /** etiquetas arbitrarias del proyecto: ['terraform', 'aws', 'eu-west-3'] */
+  /** Free-form project tags: ['terraform', 'aws', 'eu-west-3'] */
   tags: string[]
 }
 
@@ -31,13 +32,13 @@ export interface ToolCallSummary {
 export interface Resolution {
   id: string
   approvalStatus: ApprovalStatus
-  /** Texto del agente explicando qué hizo (último assistant_message). */
+  /** Agent's explanation of what it did (last assistant_message text). */
   description: string
-  /** Pasos concretos: las tools que el agente invocó entre el error y la resolución. */
+  /** Concrete steps: tool calls the agent issued between the error and the fix. */
   toolCalls: ToolCallSummary[]
-  /** Cuántas veces se intentó esta resolución (aprobada o no). */
+  /** How many times this resolution was attempted (approved or not). */
   attemptCount: number
-  /** Cuántas veces, una vez aprobada, fue reutilizada con éxito. */
+  /** How many times, once approved, it was reused successfully. */
   successCount: number
   approvedBy?: string
   approvedAt?: string
@@ -47,13 +48,13 @@ export interface Resolution {
 
 export interface ErrorEntry {
   id: string
-  /** Hash determinístico de `normalizedError + toolName`. Permite dedupe O(1). */
+  /** Deterministic hash of `normalizedError + toolName`. Enables O(1) dedupe. */
   fingerprint: string
-  /** Vector de embedding del normalizedError. `null` si no hay embedder. */
+  /** Embedding vector of the normalizedError. `null` when no embedder is configured. */
   embedding: number[] | null
-  /** Texto original truncado a 4 KB. */
+  /** Original text truncated to 4 KB. */
   rawError: string
-  /** Texto sin paths/UUIDs/IPs/timestamps/etc. Sobre esto se calcula el embedding. */
+  /** Text with paths/UUIDs/IPs/timestamps/etc. stripped. The embedding is computed over this. */
   normalizedError: string
   toolName: string
   context: ErrorContext
@@ -64,22 +65,22 @@ export interface ErrorEntry {
 
 export interface RegistryHit {
   entry: ErrorEntry
-  /** Similitud coseno [0..1] si hubo embedding; ratio de Jaccard [0..1] en fallback. */
+  /** Cosine similarity [0..1] if embeddings were used; Jaccard ratio [0..1] in fallback mode. */
   score: number
-  /** Subset de `entry.resolutions` que tienen approvalStatus === 'approved', ordenadas por éxito. */
+  /** Subset of `entry.resolutions` with approvalStatus === 'approved', ranked by empirical success. */
   approvedResolutions: Resolution[]
 }
 
 export interface CreateErrorRegistryOptions {
   /**
-   * Path absoluto al JSONL persistente. Si no se pasa, el registry vive
-   * sólo en memoria (útil para tests).
+   * Absolute path of the persistent JSONL store. If omitted, the
+   * registry lives only in memory (useful for tests).
    */
   storePath?: string
   /**
-   * Configuración del embedder OpenAI-compat. Si no se pasa, el registry
-   * cae a matching fuzzy (Jaccard sobre tokens) — menos potente pero
-   * funcional para PoC.
+   * OpenAI-compatible embedder configuration. If omitted, the registry
+   * falls back to fuzzy matching (Jaccard over tokens) — less powerful
+   * but good enough for a PoC.
    */
   embeddings?: {
     baseURL: string
@@ -87,17 +88,17 @@ export interface CreateErrorRegistryOptions {
     apiKey?: string
   }
   /**
-   * Score mínimo para considerar un hit relevante. Default 0.82 para
-   * embeddings (coseno) y 0.6 para fallback fuzzy.
+   * Minimum score to count as a relevant hit. Defaults to 0.82 for
+   * embeddings (cosine) and 0.6 for the fuzzy fallback.
    */
   hitThreshold?: number
   /**
-   * Etiquetas que se anexan automáticamente a cada `ErrorEntry` registrado
-   * desde sesiones de esta instancia. Por proyecto: ['devops', 'terraform'].
+   * Tags automatically appended to every `ErrorEntry` recorded by
+   * sessions backed by this instance. Per project: ['devops', 'terraform'].
    */
   tags?: string[]
   /**
-   * Override del clock para tests determinísticos.
+   * Clock override for deterministic tests.
    */
   now?: () => Date
 }
@@ -109,7 +110,7 @@ export interface QueryInput {
 }
 
 export interface RecordResolutionInput {
-  /** entry al que se ata la resolución (devuelto por query() o por record()). */
+  /** Entry the resolution is attached to (returned by query() or ensureEntry()). */
   entryId: string
   description: string
   toolCalls: ToolCallSummary[]

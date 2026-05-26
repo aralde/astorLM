@@ -9,21 +9,21 @@ const ctx: ErrorContext = {
   tags: ['terraform'],
 }
 
-// Mismo error en dos cuentas/UUIDs/timestamps distintos pero misma forma.
-// Lo que el normalizer borra: account ID, UUID, timestamp, paths.
+// Same error shape with different account ids, UUIDs, timestamps and
+// paths. The normalizer strips all of those, so the fingerprint matches.
 const TF_ERROR_A = `Error at 2024-03-12T10:11:12Z: IAM principal 123456789012 cannot assume role (request 550e8400-e29b-41d4-a716-446655440000). PassRole permission missing in C:\\proj\\main.tf`
 const TF_ERROR_B = `Error at 2026-01-01T00:00:00Z: IAM principal 987654321098 cannot assume role (request 11111111-2222-3333-4444-555555555555). PassRole permission missing in /home/user/main.tf`
 const UNRELATED = `Error: cannot find module 'react' in /home/user/foo/bar.js`
 
 describe('createErrorRegistry (in-memory, fuzzy mode)', () => {
-  it('devuelve null si no hay entries previas', async () => {
+  it('returns null when there are no previous entries', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     const hit = await r.query({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
     expect(hit).toBeNull()
   })
 
-  it('matchea variantes del mismo error por fingerprint exacto', async () => {
+  it('matches variants of the same error via exact fingerprint', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
@@ -32,7 +32,7 @@ describe('createErrorRegistry (in-memory, fuzzy mode)', () => {
     expect(hit!.score).toBe(1)
   })
 
-  it('no matchea un error totalmente distinto', async () => {
+  it('does not match a fully unrelated error', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
@@ -40,14 +40,14 @@ describe('createErrorRegistry (in-memory, fuzzy mode)', () => {
     expect(hit).toBeNull()
   })
 
-  it('expone resoluciones aprobadas y oculta las pending/rejected', async () => {
+  it('exposes approved resolutions and hides pending/rejected ones', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     const entry = await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
 
     const pend = await r.recordResolution({
       entryId: entry.id,
-      description: 'agregar iam:PassRole al principal',
+      description: 'attach iam:PassRole to the principal',
       toolCalls: [{ name: 'edit', input: { path: 'main.tf', oldString: 'x', newString: 'y' } }],
     })
     let hit = await r.query({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
@@ -59,7 +59,7 @@ describe('createErrorRegistry (in-memory, fuzzy mode)', () => {
     expect(hit!.approvedResolutions[0].approvedBy).toBe('ariel@example.com')
   })
 
-  it('rankea por successCount desc cuando hay varias aprobadas', async () => {
+  it('ranks by successCount desc when several resolutions are approved', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     const entry = await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
@@ -77,17 +77,17 @@ describe('createErrorRegistry (in-memory, fuzzy mode)', () => {
     expect(hit!.approvedResolutions[0].successCount).toBe(2)
   })
 
-  it('rejectResolution la excluye de approvedResolutions', async () => {
+  it('rejectResolution excludes it from approvedResolutions', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     const entry = await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
-    const res = await r.recordResolution({ entryId: entry.id, description: 'mala idea', toolCalls: [] })
-    await r.rejectResolution(res.id, 'no funciona en eu-west')
+    const res = await r.recordResolution({ entryId: entry.id, description: 'bad idea', toolCalls: [] })
+    await r.rejectResolution(res.id, 'does not work in eu-west')
     const hit = await r.query({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })
     expect(hit!.approvedResolutions).toHaveLength(0)
   })
 
-  it('listPending sólo devuelve resoluciones pending', async () => {
+  it('listPending only returns pending resolutions', async () => {
     const r = createErrorRegistry({ hitThreshold: 0.6 })
     await r.init()
     const entry = await r.ensureEntry({ rawError: TF_ERROR_A, toolName: 'bash', context: ctx })

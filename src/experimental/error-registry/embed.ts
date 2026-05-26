@@ -1,10 +1,11 @@
 /**
- * Cliente mínimo de embeddings OpenAI-compat. Si el caller no configura
- * un embedder, el registry cae a matching fuzzy (Jaccard) y este archivo
- * no se usa.
+ * Minimal OpenAI-compatible embeddings client. When the caller does not
+ * configure an embedder, the registry falls back to fuzzy matching
+ * (Jaccard) and this file is unused.
  *
- * No depende del SDK de OpenAI ni del de Anthropic — usa `fetch` global
- * (Node ≥ 18) para mantener el módulo experimental liviano y aislado.
+ * Does not depend on the OpenAI or Anthropic SDKs — uses the global
+ * `fetch` (Node ≥ 18) to keep the experimental module lightweight and
+ * self-contained.
  */
 
 export interface EmbeddingClient {
@@ -38,14 +39,14 @@ export function createOpenAIEmbeddingClient(opts: OpenAIEmbeddingClientOptions):
       const json = (await res.json()) as { data?: Array<{ embedding: number[] }> }
       const vec = json.data?.[0]?.embedding
       if (!Array.isArray(vec)) {
-        throw new Error('Respuesta de embeddings sin data[0].embedding')
+        throw new Error('Embeddings response missing data[0].embedding')
       }
       return vec
     },
   }
 }
 
-/** Similitud coseno [-1..1] (clampeada a [0..1] arriba para el ranking). */
+/** Cosine similarity in [-1..1], clamped to [0..1] for ranking. */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0
   let dot = 0
@@ -60,6 +61,6 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(na) * Math.sqrt(nb)
   if (denom === 0) return 0
-  // Normalizamos a [0..1] para que sea comparable con Jaccard.
+  // Normalize to [0..1] so it is comparable with Jaccard.
   return Math.max(0, dot / denom)
 }
