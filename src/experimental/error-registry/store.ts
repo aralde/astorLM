@@ -3,15 +3,15 @@ import { dirname } from 'node:path'
 import type { ErrorEntry } from './types.js'
 
 /**
- * Store append-only en JSONL con índice in-memory.
+ * Append-only JSONL store with an in-memory index.
  *
- * Cada línea del archivo es un `ErrorEntry` serializado. Para actualizar
- * una entry (cuando se aprueba una resolución o se incrementa successCount)
- * se appendea el snapshot completo y el load() se queda con la última
- * versión por `id`. Es ineficiente para escalas grandes pero ideal para
- * PoC: cero dependencias, atómico por línea, fácil de inspeccionar.
+ * Every line in the file is a serialized `ErrorEntry`. To update an
+ * entry (when a resolution is approved or successCount changes) the
+ * full snapshot is appended and `load()` keeps the latest version per
+ * `id`. Inefficient at large scale, but ideal for a PoC: zero deps,
+ * per-line atomicity, easy to inspect.
  *
- * Para producción hay que migrar a sqlite/pgvector.
+ * For production, migrate to sqlite/pgvector.
  */
 export interface ErrorStore {
   load(): Promise<void>
@@ -49,7 +49,7 @@ export function createFileStore(storePath: string): ErrorStore {
         content = await fs.readFile(storePath, 'utf8')
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          // Crear directorio si no existe (no escribir el archivo todavía).
+          // Ensure directory exists (do not write the file yet).
           await fs.mkdir(dirname(storePath), { recursive: true }).catch(() => {})
           return
         }
@@ -60,11 +60,11 @@ export function createFileStore(storePath: string): ErrorStore {
         if (!trimmed) continue
         try {
           const entry = JSON.parse(trimmed) as ErrorEntry
-          // La última versión por id gana (append-only + replay).
+          // Last version per id wins (append-only + replay).
           byId.set(entry.id, entry)
           byFp.set(entry.fingerprint, entry)
         } catch {
-          // Ignorar líneas corruptas. PoC.
+          // Ignore corrupted lines. PoC.
         }
       }
     },
