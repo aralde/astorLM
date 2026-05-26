@@ -190,6 +190,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
             input: tu.input,
             output,
             durationMs,
+            isError,
           })
         }
 
