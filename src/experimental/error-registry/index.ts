@@ -1,11 +1,12 @@
 /**
- * Módulo experimental `error-registry`.
+ * Experimental `error-registry` module.
  *
- * ⚠️ API volátil. La firma de cualquiera de estas funciones puede cambiar
- * entre releases menores. Estable: las primitivas conceptuales (query /
- * ensureEntry / recordResolution / approve / hooks).
+ * ⚠️ Volatile API. The signature of any of these functions may change
+ * between minor releases. What is stable: the conceptual primitives
+ * (query / ensureEntry / recordResolution / approve / hooks).
  *
- * Diseño: ver propuesta en .docs (PoC de federated error registry).
+ * Design notes: see the federated-error-registry PoC proposal under
+ * .docs/.
  */
 export { createErrorRegistry } from './registry.js'
 export type { ErrorRegistry } from './registry.js'
