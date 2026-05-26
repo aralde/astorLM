@@ -13,41 +13,40 @@ import { createOpenAIEmbeddingClient, cosineSimilarity, type EmbeddingClient } f
 
 export interface ErrorRegistry {
   /**
-   * Consultar el registro buscando un error parecido. Si no hay match,
-   * devuelve `null` (el caller debe registrar la entry vía `record()`).
-   * Si hay match, devuelve el hit con la entry existente y las
-   * resoluciones aprobadas (subset ranked).
+   * Look up the registry for a similar error. Returns `null` when there
+   * is no match (the caller is expected to register a new entry via
+   * `ensureEntry()`). On match, returns the hit with the existing entry
+   * and the ranked subset of approved resolutions.
    */
   query(input: QueryInput): Promise<RegistryHit | null>
   /**
-   * Asegura que existe una `ErrorEntry` para este error. Si ya existe
-   * (mismo fingerprint), devuelve la existente. Si no, la crea.
-   * No agrega resoluciones — eso se hace en `recordResolution()`.
+   * Ensures an `ErrorEntry` exists for this error. If one already exists
+   * (same fingerprint) it is returned; otherwise a new one is created.
+   * Does not add resolutions — that is done via `recordResolution()`.
    */
   ensureEntry(input: QueryInput): Promise<ErrorEntry>
   /**
-   * Agrega una resolución `pending` a una entry. La resolución no será
-   * sugerida hasta que un humano la apruebe con `approveResolution()`.
+   * Attaches a `pending` resolution to an entry. The resolution will
+   * not be suggested until a human approves it via `approveResolution()`.
    */
   recordResolution(input: RecordResolutionInput): Promise<Resolution>
   /**
-   * Marca una resolución como aprobada. A partir de acá, futuras
-   * consultas que matcheen la entry van a recibir esta resolución
-   * como sugerencia.
+   * Marks a resolution as approved. From this point on, future queries
+   * matching the entry will receive this resolution as a hint.
    */
   approveResolution(resolutionId: string, approvedBy: string): Promise<void>
-  /** Marca una resolución como rechazada. */
+  /** Marks a resolution as rejected. */
   rejectResolution(resolutionId: string, reason: string): Promise<void>
   /**
-   * Registra que una resolución aprobada fue reutilizada con éxito.
-   * Incrementa successCount → mejora el ranking en consultas futuras.
+   * Records that an approved resolution was reused successfully.
+   * Increments successCount → improves ranking in future queries.
    */
   noteSuccessfulReuse(resolutionId: string): Promise<void>
-  /** Listado plano de pendings para UI de aprobación. */
+  /** Flat list of pending resolutions for the approval UI. */
   listPending(): Array<{ entry: ErrorEntry; resolution: Resolution }>
-  /** Devuelve todas las entries (debug / inspección). */
+  /** Returns all entries (debug / inspection). */
   listEntries(): ErrorEntry[]
-  /** Inicializa el store (load desde disco). Debe llamarse antes de usar. */
+  /** Initializes the store (load from disk). Must be called before use. */
   init(): Promise<void>
 }
 
@@ -74,8 +73,8 @@ function rankApproved(resolutions: Resolution[]): Resolution[] {
   return resolutions
     .filter((r) => r.approvalStatus === 'approved')
     .sort((a, b) => {
-      // Ranking: successCount desc, luego attemptCount desc (más datos = más
-      // confianza), luego más reciente primero (recency tie-break).
+      // Ranking: successCount desc, then attemptCount desc (more data =
+      // more confidence), then most recent first (recency tie-break).
       if (b.successCount !== a.successCount) return b.successCount - a.successCount
       if (b.attemptCount !== a.attemptCount) return b.attemptCount - a.attemptCount
       return (b.approvedAt ?? '').localeCompare(a.approvedAt ?? '')
@@ -100,8 +99,8 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
     now: opts.now ?? (() => new Date()),
   }
 
-  // Cache de fingerprint -> embedding para evitar re-embedear queries idénticas
-  // dentro de una misma corrida.
+  // Cache fingerprint -> embedding so we do not re-embed identical
+  // queries within a single run.
   const embeddingCache = new Map<string, number[]>()
 
   const embedSafe = async (text: string, fp: string): Promise<number[] | null> => {
@@ -112,7 +111,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
       embeddingCache.set(fp, vec)
       return vec
     } catch {
-      // Si el endpoint cae, degradamos a fuzzy silenciosamente.
+      // If the endpoint is down, silently degrade to fuzzy matching.
       return null
     }
   }
@@ -123,11 +122,11 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
     queryTokens: Set<string>,
     entry: ErrorEntry,
   ): number => {
-    // Embeddings tienen prioridad si ambos lados los tienen.
+    // Embeddings take priority when both sides have them.
     if (queryVec && entry.embedding) {
       return cosineSimilarity(queryVec, entry.embedding)
     }
-    // Fallback: Jaccard sobre tokens normalizados.
+    // Fallback: Jaccard over normalized tokens.
     const entryTokens = tokenize(entry.normalizedError)
     return jaccard(queryTokens, entryTokens)
   }
@@ -141,7 +140,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
       const normalized = normalizeError(input.rawError)
       const fp = fingerprintError(normalized, input.toolName)
 
-      // Fast path: match exacto por fingerprint.
+      // Fast path: exact fingerprint match.
       const exact = store.getByFingerprint(fp)
       if (exact) {
         return {
@@ -151,7 +150,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
         }
       }
 
-      // Slow path: ranking por similitud sobre todas las entries del mismo tool.
+      // Slow path: rank by similarity over every entry of the same tool.
       const all = store.list().filter((e) => e.toolName === input.toolName)
       if (all.length === 0) return null
 
@@ -202,7 +201,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
 
     async recordResolution(input) {
       const entry = store.getById(input.entryId)
-      if (!entry) throw new Error(`ErrorEntry no encontrada: ${input.entryId}`)
+      if (!entry) throw new Error(`ErrorEntry not found: ${input.entryId}`)
       const resolution: Resolution = {
         id: randomUUID(),
         approvalStatus: 'pending',
@@ -220,7 +219,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
 
     async approveResolution(resolutionId, approvedBy) {
       const found = findResolutionInEntries(store.list(), resolutionId)
-      if (!found) throw new Error(`Resolution no encontrada: ${resolutionId}`)
+      if (!found) throw new Error(`Resolution not found: ${resolutionId}`)
       found.resolution.approvalStatus = 'approved'
       found.resolution.approvedBy = approvedBy
       found.resolution.approvedAt = deps.now().toISOString()
@@ -230,7 +229,7 @@ export function createErrorRegistry(opts: CreateErrorRegistryOptions = {}): Erro
 
     async rejectResolution(resolutionId, reason) {
       const found = findResolutionInEntries(store.list(), resolutionId)
-      if (!found) throw new Error(`Resolution no encontrada: ${resolutionId}`)
+      if (!found) throw new Error(`Resolution not found: ${resolutionId}`)
       found.resolution.approvalStatus = 'rejected'
       found.resolution.rejectedReason = reason
       found.entry.updatedAt = deps.now().toISOString()
