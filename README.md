@@ -61,6 +61,43 @@ graph TD
   - `createReadOnlyTools()` (versión segura sin escritura ni ejecución: `read`, `ls`, `grep`, `glob`).
   - Herramientas individuales exportadas directamente: `readTool`, `writeTool`, `editTool`, `bashTool`, `lsTool`, `grepTool`, `globTool`.
 
+### 4. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
+> ⚠️ **Experimental**. Lives under a dedicated subpath, not the main barrel. The import path itself is the signal that the API is volatile and may change between minor releases.
+
+* **Description**: A registry of agent-encountered errors and human-approved resolutions. When an agent hits an error that another agent (or a previous run) has already resolved, the registry injects the fix as a hint into the next `tool_result` — the agent applies the known solution instead of fighting through it again. Honest single-org PoC; federation across organizations and full secret sanitization are out of scope.
+* **Key exports**:
+  - `createErrorRegistry(opts)` — JSONL append-only store (or in-memory) with optional OpenAI-compatible embeddings and a Jaccard fallback. Exposes `query`, `ensureEntry`, `recordResolution`, `approveResolution`, `rejectResolution`, `noteSuccessfulReuse`, `listPending`, `listEntries`.
+  - `errorRegistryHooks({ registry, context, successWindow? })` — returns a `SessionHooks` object that wires the session to the registry: detects errors, injects hints, records candidate resolutions as `pending` after a recovery without recurrence.
+  - Types: `ErrorRegistry`, `ErrorEntry`, `Resolution`, `RegistryHit`, `ErrorContext`, `ApprovalStatus`, etc.
+
+```typescript
+import { createNodeAgentSession } from 'astorlm/node'
+import { createCodingTools } from 'astorlm/tools/node'
+import { OpenAIProvider } from 'astorlm'
+import {
+  createErrorRegistry,
+  errorRegistryHooks,
+} from 'astorlm/experimental/error-registry'
+
+const registry = createErrorRegistry({
+  storePath: '.astorlm/error-registry.jsonl',
+  // Optional — if omitted, falls back to Jaccard over tokens:
+  // embeddings: { baseURL: 'http://127.0.0.1:11434/v1', model: 'nomic-embed-text' },
+})
+await registry.init()
+
+const session = await createNodeAgentSession({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: createCodingTools(),
+  hooks: errorRegistryHooks({
+    registry,
+    context: { cwd: process.cwd(), osPlatform: process.platform, nodeVersion: process.version, tags: [] },
+  }),
+})
+```
+
+A human approves pending resolutions asynchronously (programmatically via `registry.approveResolution(id, approver)` or via a CLI). Until approved, a candidate resolution is not suggested to other sessions.
+
 ---
 
 ## 🚀 Guías de Uso Rápido (Quick Use Examples)
