@@ -75,7 +75,7 @@ export interface SessionHooks {
   beforeTurn?: (context: { turn: number; messages: Message[] }) => Promise<void>
   beforeProviderCall?: (context: { messages: Message[]; systemPrompt: string }) => Promise<{ messages: Message[]; systemPrompt: string }>
   beforeToolExecution?: (context: { toolName: string; input: unknown; toolUseId: string }) => Promise<{ authorize: boolean; mockResult?: string }>
-  afterToolExecution?: (context: { toolName: string; input: unknown; output: string; durationMs: number }) => Promise<string>
+  afterToolExecution?: (context: { toolName: string; input: unknown; output: string; durationMs: number; isError: boolean }) => Promise<string>
   afterTurn?: (context: { turn: number; lastMessage: Message }) => Promise<void>
 }
 
