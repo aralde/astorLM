@@ -21,6 +21,11 @@
       "types": "./dist/tools/node.d.ts",
       "import": "./dist/tools/node.js",
       "require": "./dist/tools/node.cjs"
+    },
+    "./experimental/error-registry": {
+      "types": "./dist/experimental/error-registry/index.d.ts",
+      "import": "./dist/experimental/error-registry/index.js",
+      "require": "./dist/experimental/error-registry/index.cjs"
     }
   },
   "files": ["dist", "README.md"],

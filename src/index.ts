@@ -1,4 +1,8 @@
 // API pública del SDK (Core Runtime-Agnostic)
+// Los módulos experimentales se importan desde subpaths dedicados:
+//   import { createErrorRegistry } from 'astorlm/experimental/error-registry'
+// Nunca desde el barrel principal — eso señala su naturaleza volátil.
+
 export { createAgentSession } from './agent/session.js'
 export type { AgentSession, CreateAgentSessionOptions } from './agent/session.js'
 export { SessionManager, InMemorySessionManager } from './agent/sessionManager.js'
@@ -42,6 +46,7 @@ export type {
 export { isTransientError, computeBackoffDelay } from './agent/retry.js'
 
 export { createNoopExecutor } from './executor/types.js'
+
 export type {
   Executor,
   ExecResult,
