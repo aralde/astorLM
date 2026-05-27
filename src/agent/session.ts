@@ -6,6 +6,10 @@ import { noopLogger } from '../types.js'
 import { SessionManager } from './sessionManager.js'
 import { createNoopExecutor } from '../executor/types.js'
 import type { Executor } from '../executor/types.js'
+import { SkillRegistry } from '../skills/registry.js'
+import { renderSkillsBlock } from '../skills/promptBlock.js'
+import { createLoadSkillTool } from '../skills/loadTool.js'
+import type { SkillSource, SkillMode } from '../skills/types.js'
 import type {
   AgentEventListener,
   Logger,
@@ -45,6 +49,22 @@ export interface CreateAgentSessionOptions {
    * Para ejecución aislada usá `DockerExecutor` o pasá uno custom.
    */
   executor?: Executor
+  /**
+   * Skill sources made available to the agent. The session enumerates
+   * each source at startup (calling `list()`), aggregates the result
+   * into a SkillRegistry, and then either:
+   *
+   *   - `skillMode: 'on-demand'` (default) — exposes `{name, description}`
+   *     in `<available-skills>` and auto-registers a `load_skill` tool
+   *     the model invokes to materialise the full body.
+   *   - `skillMode: 'all'` — pre-loads every body and inlines them into
+   *     the system prompt. Cheaper at runtime, costlier in context.
+   *
+   * Conflicting names across sources throw at session creation.
+   */
+  skillSources?: SkillSource[]
+  /** Default: `'on-demand'`. */
+  skillMode?: SkillMode
 }
 
 export interface AgentSession {
@@ -161,6 +181,53 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
 
   const executor: Executor = opts.executor ?? createNoopExecutor()
 
+  // Skills: build the registry once, then dispatch on the selected
+  // mode. Each mode has a different deal with the model:
+  //
+  //   - 'on-demand': meta-tool. We register `load_skill` and the model
+  //     calls it when it wants a body. Elegant; fragile on small models.
+  //   - 'all': no tools. We inline every body into the system prompt at
+  //     init time. Cheapest at runtime; eats context.
+  //   - 'filesystem': canonical pattern (Claude Code / Codex / Gemini).
+  //     We list paths only; the model reads SKILL.md with the standard
+  //     `read` tool that already lives in the registry. Robust across
+  //     models because there is no meta-step to reason about.
+  const skillMode: SkillMode = opts.skillMode ?? 'on-demand'
+  const skillRegistry = new SkillRegistry(opts.skillSources ?? [])
+  await skillRegistry.init()
+  let skillsBlock = ''
+  if (skillRegistry.size > 0) {
+    if (skillMode === 'filesystem') {
+      // Hard precondition: every available skill must expose a path.
+      // Mixing FS skills with in-memory ones in this mode is a config
+      // error — fail at session creation, not mid-turn.
+      const pathless = skillRegistry.list().filter((s) => !s.path)
+      if (pathless.length > 0) {
+        const offenders = pathless.map((s) => `"${s.name}" (source "${s.source}")`).join(', ')
+        throw new Error(
+          `skillMode: 'filesystem' requires every skill to expose a filesystem path; ` +
+            `the following skills do not: ${offenders}. ` +
+            `Use createFileSystemSkillSource for these skills, or pick another mode.`,
+        )
+      }
+      skillsBlock = renderSkillsBlock(skillRegistry.list(), 'filesystem')
+      // No meta-tool registered: the agent will reach for SKILL.md via
+      // its own `read` tool. The consumer is responsible for making sure
+      // such a tool exists in the session — `createCodingTools()` and
+      // `createReadOnlyTools()` both include it.
+    } else if (skillMode === 'on-demand') {
+      skillsBlock = renderSkillsBlock(skillRegistry.list(), 'on-demand')
+      // Register the load tool only when there is at least one skill —
+      // exposing an unusable tool would just waste context.
+      if (!registry.has('load_skill')) {
+        registry.register(createLoadSkillTool(skillRegistry))
+      }
+    } else {
+      const loaded = await skillRegistry.loadAll()
+      skillsBlock = renderSkillsBlock(loaded, 'all')
+    }
+  }
+
   let activeCtrl: AbortController | null = null
   let systemPromptCache: string | null = null
   const getSystemPrompt = async () => {
@@ -171,6 +238,7 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
       appendSystemPrompt: opts.appendSystemPrompt,
       contextFiles: opts.contextFiles,
       fileReader: opts.fileReader,
+      skillsBlock,
     })
     return systemPromptCache
   }
