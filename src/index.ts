@@ -45,6 +45,27 @@ export type {
 
 export { isTransientError, computeBackoffDelay } from './agent/retry.js'
 
+export {
+  SkillRegistry,
+  createInMemorySkillSource,
+  parseSkillFrontmatter,
+  renderSkillsBlock,
+  createLoadSkillTool,
+  validateSkillName,
+  validateSkillDescription,
+  validateSkillSpec,
+  SkillValidationError,
+  SKILL_VALIDATION_LIMITS,
+} from './skills/index.js'
+export type {
+  Skill,
+  SkillMetadata,
+  SkillSource,
+  SkillMode,
+  InMemorySkillSourceOptions,
+  ParsedFrontmatter,
+} from './skills/index.js'
+
 export { createNoopExecutor } from './executor/types.js'
 
 export type {
