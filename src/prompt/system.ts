@@ -14,6 +14,13 @@ export interface BuildSystemPromptOptions {
   contextFiles?: string[]
   /** Cargador de archivos asíncrono para leer archivos de contexto. */
   fileReader?: (path: string) => Promise<string | null>
+  /**
+   * Pre-rendered skills block (output of `renderSkillsBlock`). Inserted
+   * after context files and before `appendSystemPrompt`. Pass an empty
+   * string (or omit) to skip — this function does not know about the
+   * skills subsystem, it just concatenates the block at the right spot.
+   */
+  skillsBlock?: string
 }
 
 export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise<string> {
@@ -29,6 +36,8 @@ export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise
       }
     }
   }
+
+  if (opts.skillsBlock) parts.push(opts.skillsBlock)
 
   if (opts.appendSystemPrompt) parts.push(`\n\n${opts.appendSystemPrompt}`)
 

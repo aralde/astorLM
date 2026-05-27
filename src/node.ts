@@ -146,3 +146,8 @@ export type { AstorAgentOptions, AstorOutputMode } from './agent/facade.js'
 export { LocalExecutor } from './executor/local.js'
 export { DockerExecutor } from './executor/docker.js'
 export type { DockerExecutorOptions } from './executor/docker.js'
+
+// Skill sources that need Node APIs (filesystem). The core `Skill`,
+// `SkillSource`, `SkillRegistry`, etc. live in the agnostic barrel.
+export { createFileSystemSkillSource } from './skills-node/fileSystemSource.js'
+export type { FileSystemSkillSourceOptions } from './skills-node/fileSystemSource.js'
