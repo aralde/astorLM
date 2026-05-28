@@ -36,7 +36,7 @@ export class ToolRegistry {
     return [...this.tools.values()]
   }
 
-  /** Schemas listos para enviar al provider. */
+  /** Schemas listos para enviar al modelo. */
   toSchemas(): Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>> {
     return this.list().map((t) => ({
       name: t.name,

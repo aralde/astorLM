@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAgentSession } from '../src/agent/session.js'
+import { createAgent } from '../src/agent/session.js'
 import { isTransientError, computeBackoffDelay } from '../src/agent/retry.js'
 import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
@@ -99,10 +99,10 @@ describe('agent loop con RetryPolicy', () => {
   it('default (sin retry): propaga el error y emite session_end:error', async () => {
     const provider = new MockProvider([{ failBeforeStream: httpErr(503) }])
     const events: AgentEvent[] = []
-    const session = await createAgentSession({ provider })
-    session.subscribe((e) => events.push(e))
+    const session = await createAgent({ provider })
+    session.on('event', (e) => events.push(e))
 
-    await expect(session.prompt('go')).rejects.toMatchObject({ status: 503 })
+    await expect(session.run('go')).rejects.toMatchObject({ status: 503 })
 
     const last = events[events.length - 1]
     expect(last?.type).toBe('session_end')
@@ -117,13 +117,13 @@ describe('agent loop con RetryPolicy', () => {
       { text: 'finalmente respondí' },
     ])
     const events: AgentEvent[] = []
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 3, baseDelayMs: 1, jitter: false },
     })
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    const result = await session.prompt('go')
+    const result = await session.run('go')
     expect(result.content[0]).toEqual({ type: 'text', text: 'finalmente respondí' })
 
     const retries = events.filter((e) => e.type === 'provider_retry')
@@ -141,14 +141,14 @@ describe('agent loop con RetryPolicy', () => {
       { failBeforeStream: netErr('ECONNRESET') },
       { text: 'ok' },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 3, baseDelayMs: 1, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    await session.prompt('go')
+    await session.run('go')
     expect(events.filter((e) => e.type === 'provider_retry')).toHaveLength(2)
   })
 
@@ -157,14 +157,14 @@ describe('agent loop con RetryPolicy', () => {
       { failBeforeStream: httpErr(401, 'unauthorized') },
       { text: 'no debería llegar' },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 3, baseDelayMs: 1, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    await expect(session.prompt('go')).rejects.toMatchObject({ status: 401 })
+    await expect(session.run('go')).rejects.toMatchObject({ status: 401 })
     expect(events.find((e) => e.type === 'provider_retry')).toBeUndefined()
     expect(provider.calls).toHaveLength(1)
   })
@@ -176,14 +176,14 @@ describe('agent loop con RetryPolicy', () => {
       { text: 'hola...', failAfterPartial: httpErr(503) },
       { text: 'no debería llegar' },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 3, baseDelayMs: 1, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    await expect(session.prompt('go')).rejects.toMatchObject({ status: 503 })
+    await expect(session.run('go')).rejects.toMatchObject({ status: 503 })
     expect(events.find((e) => e.type === 'provider_retry')).toBeUndefined()
     // Verificamos que el text_delta sí se emitió antes del error.
     expect(events.find((e) => e.type === 'text_delta')).toBeDefined()
@@ -194,14 +194,14 @@ describe('agent loop con RetryPolicy', () => {
       { failBeforeStream: httpErr(503) },
       { failBeforeStream: httpErr(503) },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 2, baseDelayMs: 1, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    await expect(session.prompt('go')).rejects.toMatchObject({ status: 503 })
+    await expect(session.run('go')).rejects.toMatchObject({ status: 503 })
     expect(events.filter((e) => e.type === 'provider_retry')).toHaveLength(1)
     const last = events[events.length - 1]
     expect((last as Extract<AgentEvent, { type: 'session_end' }>).reason).toBe('error')
@@ -213,14 +213,14 @@ describe('agent loop con RetryPolicy', () => {
       { failBeforeStream: httpErr(503) },
       { text: 'no llega' },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 3, baseDelayMs: 200, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    const pending = session.prompt('go')
+    const pending = session.run('go')
     // Abortamos durante el sleep del primer backoff.
     setTimeout(() => session.abort(), 20)
 
@@ -234,14 +234,14 @@ describe('agent loop con RetryPolicy', () => {
       { failBeforeStream: httpErr(503) },
       { text: 'no llega' },
     ])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       retry: { maxAttempts: 1, baseDelayMs: 1, jitter: false },
     })
     const events: AgentEvent[] = []
-    session.subscribe((e) => events.push(e))
+    session.on('event', (e) => events.push(e))
 
-    await expect(session.prompt('go')).rejects.toMatchObject({ status: 503 })
+    await expect(session.run('go')).rejects.toMatchObject({ status: 503 })
     expect(events.find((e) => e.type === 'provider_retry')).toBeUndefined()
   })
 })

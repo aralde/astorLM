@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 
-export const bashKillTool = defineTool({
+export const bashKillTool = tool({
   name: 'bash_kill',
   description:
     'Termina un proceso lanzado con `bash_spawn`. Default señal SIGTERM. No-op si el proceso ya terminó o el PID no existe.',

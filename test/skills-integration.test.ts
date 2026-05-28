@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAgentSession, type AgentSession } from '../src/agent/session.js'
+import { createAgent, type Agent } from '../src/agent/session.js'
 import { createInMemorySkillSource } from '../src/skills/inMemorySource.js'
 import { MockProvider } from './mock-provider.js'
 import type { ContentBlock } from '../src/types.js'
@@ -12,7 +12,7 @@ import type { ContentBlock } from '../src/types.js'
  * recorded call points at the final mutated state.
  */
 function findToolResult(
-  session: AgentSession,
+  session: Agent,
   toolUseId: string,
 ): Extract<ContentBlock, { type: 'tool_result' }> | undefined {
   for (const m of session.getMessages()) {
@@ -45,7 +45,7 @@ describe('skills integration (session)', () => {
     it('lists skills in <available-skills> and auto-registers load_skill', async () => {
       const provider = new MockProvider([{ text: 'ok', stopReason: 'end_turn' }])
 
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         skillSources: [makeSource()],
       })
@@ -53,7 +53,7 @@ describe('skills integration (session)', () => {
       // load_skill must be registered.
       expect(session.registry.has('load_skill')).toBe(true)
 
-      await session.prompt('Hello')
+      await session.run('Hello')
 
       // The system prompt sent to the provider must list the skill but not its body.
       const sentSystem = provider.calls[0]!.systemPrompt
@@ -77,12 +77,12 @@ describe('skills integration (session)', () => {
         { text: 'Loaded.', stopReason: 'end_turn' },
       ])
 
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         skillSources: [makeSource()],
       })
 
-      await session.prompt('Make a deck about cats')
+      await session.run('Make a deck about cats')
 
       const toolResult = findToolResult(session, 'tu-1')
       expect(toolResult).toBeDefined()
@@ -103,12 +103,12 @@ describe('skills integration (session)', () => {
         { text: 'recovered', stopReason: 'end_turn' },
       ])
 
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         skillSources: [makeSource()],
       })
 
-      await session.prompt('Try a non-existent skill')
+      await session.run('Try a non-existent skill')
 
       const toolResult = findToolResult(session, 'tu-1')
       expect(toolResult).toBeDefined()
@@ -119,7 +119,7 @@ describe('skills integration (session)', () => {
 
     it('does not register load_skill when there are no skill sources', async () => {
       const provider = new MockProvider([{ text: 'ok', stopReason: 'end_turn' }])
-      const session = await createAgentSession({ provider })
+      const session = await createAgent({ provider })
       expect(session.registry.has('load_skill')).toBe(false)
     })
   })
@@ -128,7 +128,7 @@ describe('skills integration (session)', () => {
     it('inlines every skill body into the system prompt and skips load_skill', async () => {
       const provider = new MockProvider([{ text: 'ok', stopReason: 'end_turn' }])
 
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         skillSources: [makeSource()],
         skillMode: 'all',
@@ -136,7 +136,7 @@ describe('skills integration (session)', () => {
 
       expect(session.registry.has('load_skill')).toBe(false)
 
-      await session.prompt('Hello')
+      await session.run('Hello')
       const sentSystem = provider.calls[0]!.systemPrompt
       expect(sentSystem).toContain('<skill name="pptx" source="test-bundle">')
       expect(sentSystem).toContain(SKILL_BODY)
@@ -157,7 +157,7 @@ describe('skills integration (session)', () => {
       })
 
       await expect(
-        createAgentSession({ provider, skillSources: [a, b] }),
+        createAgent({ provider, skillSources: [a, b] }),
       ).rejects.toThrow(/Skill name conflict/)
     })
   })
@@ -165,13 +165,13 @@ describe('skills integration (session)', () => {
   describe('appendSystemPrompt ordering', () => {
     it('places the skills block before any user-supplied appendSystemPrompt', async () => {
       const provider = new MockProvider([{ text: 'ok', stopReason: 'end_turn' }])
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         skillSources: [makeSource()],
         appendSystemPrompt: 'EXTRA-USER-TEXT',
       })
 
-      await session.prompt('Hello')
+      await session.run('Hello')
       const sentSystem = provider.calls[0]!.systemPrompt
       const skillsIdx = sentSystem.indexOf('<available-skills>')
       const extraIdx = sentSystem.indexOf('EXTRA-USER-TEXT')
@@ -181,4 +181,3 @@ describe('skills integration (session)', () => {
     })
   })
 })
-

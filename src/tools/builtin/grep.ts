@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
 const SKIP = new Set(['node_modules', '.git', 'dist'])
@@ -24,7 +24,7 @@ async function walk(dir: string, out: string[]) {
   }
 }
 
-export const grepTool = defineTool({
+export const grepTool = tool({
   name: 'grep',
   description:
     'Busca un patrón (regex) en archivos del cwd. Devuelve líneas con número de línea. Ignora node_modules/.git/dist.',

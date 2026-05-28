@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { estimateTokens, optimizeContext } from '../src/agent/optimizer.js'
-import { createAgentSession } from '../src/agent/session.js'
+import { createAgent } from '../src/agent/session.js'
 import { MockProvider } from './mock-provider.js'
 import { SessionManager } from '../src/agent/sessionManager.js'
 import type { Message, ContextOptimizerOptions } from '../src/types.js'
@@ -146,7 +146,7 @@ describe('Context Optimizer & Token Estimator', () => {
     })
   })
 
-  describe('Integration with AgentSession', () => {
+  describe('Integration with Agent', () => {
     it('activa automáticamente el optimizador si el provider define contextLimit', async () => {
       const provider = new MockProvider([
         { text: 'Final response.', stopReason: 'end_turn' },
@@ -209,7 +209,7 @@ describe('Context Optimizer & Token Estimator', () => {
         updatedAt: Date.now(),
       })
 
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         sessionId,
         sessionManager,
@@ -223,7 +223,7 @@ describe('Context Optimizer & Token Estimator', () => {
 
       // Ejecutar un nuevo prompt (se convertirá en el Turno 4, protegiendo Turnos 4, 3, 2).
       // Turno 1 quedará fuera de la ventana de protección y se compactará.
-      await session.prompt('What is next?')
+      await session.run('What is next?')
 
       // Validar que el historial guardado en la sesión fue compactado
       const finalMsgs = session.getMessages()

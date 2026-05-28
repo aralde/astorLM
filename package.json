@@ -12,15 +12,15 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     },
-    "./tools/node": {
-      "types": "./dist/tools/node.d.ts",
-      "import": "./dist/tools/node.js",
-      "require": "./dist/tools/node.cjs"
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.js",
+      "require": "./dist/tools/index.cjs"
     },
     "./experimental/error-registry": {
       "types": "./dist/experimental/error-registry/index.d.ts",
