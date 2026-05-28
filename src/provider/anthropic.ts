@@ -22,6 +22,7 @@ export interface AnthropicProviderOptions {
   }
 }
 
+
 /**
  * Provider sobre @anthropic-ai/sdk usando el streaming nativo.
  * Convierte:
@@ -202,3 +203,5 @@ function toAnthropicMessage(m: Message): Anthropic.MessageParam | null {
   if (!content.length) return null
   return { role: m.role, content }
 }
+
+

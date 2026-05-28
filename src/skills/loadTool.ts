@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { defineTool } from '../tools/define.js'
+import { tool } from '../tools/define.js'
 import type { Tool } from '../types.js'
 import type { SkillRegistry } from './registry.js'
 
@@ -23,7 +23,7 @@ import type { SkillRegistry } from './registry.js'
  * across resumes for free — no special handling needed.
  */
 export function createLoadSkillTool(registry: SkillRegistry): Tool {
-  return defineTool({
+  return tool({
     name: 'load_skill',
     description:
       "Load a skill's full instructions by name. Skills are listed in " +

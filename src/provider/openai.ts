@@ -320,3 +320,4 @@ function flattenMessages(msgs: Message[]): OpenAI.Chat.ChatCompletionMessagePara
   }
   return out
 }
+

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createAgentSession } from '../../src/agent/session.js'
-import { defineTool } from '../../src/tools/define.js'
+import { createAgent } from '../../src/agent/session.js'
+import { tool } from '../../src/tools/define.js'
 import { createErrorRegistry } from '../../src/experimental/error-registry/registry.js'
 import { errorRegistryHooks } from '../../src/experimental/error-registry/attach.js'
 import { MockProvider } from '../mock-provider.js'
@@ -16,7 +16,7 @@ const ctx = {
 describe('errorRegistryHooks', () => {
   it('injects a hint when an approved resolution exists and counts the reuse', async () => {
     // Tool that ALWAYS fails with the same error.
-    const failing = defineTool({
+    const failing = tool({
       name: 'deploy',
       description: 'deploy',
       schema: z.object({ stack: z.string() }),
@@ -26,7 +26,7 @@ describe('errorRegistryHooks', () => {
     })
 
     // Successful "fix" tool — simulates the agent applying a correction.
-    const fix = defineTool({
+    const fix = tool({
       name: 'fix',
       description: 'fix',
       schema: z.object({ what: z.string() }),
@@ -45,12 +45,12 @@ describe('errorRegistryHooks', () => {
       { text: 'Done: attached iam:PassRole to the principal.', stopReason: 'end_turn' },
     ])
 
-    const session1 = await createAgentSession({
+    const session1 = await createAgent({
       provider: provider1,
       tools: [failing, fix],
       hooks: errorRegistryHooks({ registry, context: ctx, successWindow: 2 }),
     })
-    await session1.prompt('deploy stack a')
+    await session1.run('deploy stack a')
 
     // One entry created, one pending resolution.
     expect(registry.listEntries()).toHaveLength(1)
@@ -69,16 +69,15 @@ describe('errorRegistryHooks', () => {
       { text: 'Applied the hint, done.', stopReason: 'end_turn' },
     ])
 
-    const session2 = await createAgentSession({
+    const session2 = await createAgent({
       provider: provider2,
       tools: [failing, fix],
       hooks: errorRegistryHooks({ registry, context: ctx, successWindow: 2 }),
     })
-    await session2.prompt('deploy stack b')
+    await session2.run('deploy stack b')
 
     // The tool_result that was sent to provider2 should contain the
-    // <error-registry-hint> block. (calls[i].messages shares its
-    // reference with the running history, so we scan the final union.)
+    // <error-registry-hint> block.
     const allText = JSON.stringify(session2.getMessages())
     expect(allText).toContain('error-registry-hint')
     expect(allText).toContain('PassRole')
@@ -93,7 +92,7 @@ describe('errorRegistryHooks', () => {
   })
 
   it('does not record a resolution when the same error recurs within the window', async () => {
-    const failing = defineTool({
+    const failing = tool({
       name: 'flaky',
       description: '',
       schema: z.object({}),
@@ -112,12 +111,12 @@ describe('errorRegistryHooks', () => {
       { text: 'giving up', stopReason: 'end_turn' },
     ])
 
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       tools: [failing],
       hooks: errorRegistryHooks({ registry, context: ctx, successWindow: 2 }),
     })
-    await session.prompt('try it')
+    await session.run('try it')
 
     // No pending resolutions: we never had successWindow consecutive
     // successful executions without recurrence.

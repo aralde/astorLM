@@ -2,12 +2,12 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createAgentSession } from '../src/agent/session.js'
+import { createAgent } from '../src/agent/session.js'
 import {
   InMemorySessionManager,
   SessionManager,
 } from '../src/agent/sessionManager.js'
-import { FileSessionManager } from '../src/node.js'
+import { FileSessionManager } from '../src/core.js'
 import { MockProvider } from './mock-provider.js'
 import type { Message } from '../src/types.js'
 
@@ -173,7 +173,7 @@ describe('SessionManager & Persistence', () => {
     })
   })
 
-  describe('AgentSession Integration', () => {
+  describe('Agent Integration', () => {
     it('guarda los mensajes automáticamente durante el bucle y los inicializa al crear sesión', async () => {
       const manager = SessionManager.inMemory()
       const provider = new MockProvider([
@@ -182,7 +182,7 @@ describe('SessionManager & Persistence', () => {
 
       // 1. Create a session with manager
       const sessionId = 'session-test-integration'
-      const session = await createAgentSession({
+      const session = await createAgent({
         provider,
         sessionId,
         sessionManager: manager,
@@ -194,8 +194,8 @@ describe('SessionManager & Persistence', () => {
       expect(list[0]!.id).toBe(sessionId)
       expect(list[0]!.messages).toEqual([])
 
-      // 2. Call prompt (this will add user message and then run loop, which adds assistant message)
-      await session.prompt('hola agente')
+      // 2. Call run (this will add user message and then run loop, which adds assistant message)
+      await session.run('hola agente')
 
       // Get messages from session
       const msgs = session.getMessages()
@@ -213,7 +213,7 @@ describe('SessionManager & Persistence', () => {
       expect(savedState!.messages[1]!.id).toBe(msgs[1]!.id)
 
       // 3. Create a brand new session using the same ID to verify loading
-      const resumedSession = await createAgentSession({
+      const resumedSession = await createAgent({
         provider,
         sessionId,
         sessionManager: manager,

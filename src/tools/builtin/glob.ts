@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
 /** Convierte un patrón glob simple a RegExp. Soporta `*`, `**`, `?`. */
@@ -50,7 +50,7 @@ async function walk(dir: string, base: string, out: string[], skip: Set<string>)
   }
 }
 
-export const globTool = defineTool({
+export const globTool = tool({
   name: 'glob',
   description:
     'Busca archivos por patrón glob (soporta `*`, `**`, `?`). Ignora node_modules, .git y dist por defecto.',

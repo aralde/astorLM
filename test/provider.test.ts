@@ -223,10 +223,6 @@ describe('AnthropicProvider - thinking blocks mapping', () => {
   it('serializes thinking blocks with signature and maps redacted_thinking', () => {
     const provider = new AnthropicProvider({ apiKey: 'fake-key', model: 'claude-3-7-sonnet' })
 
-    // We can directly test mapping helper functions if needed, but we can also just run message serialization checks.
-    // Let's test by checking standard stream inputs using toAnthropicMessage.
-    // Note that we don't need to invoke stream() if we can access internal mapping or test it implicitly via a stream spy,
-    // but we can also just call stream and verify the request payload.
     const mockCreate = vi.spyOn(provider['client'].messages, 'stream').mockReturnValue({
       async *[Symbol.asyncIterator]() {
         // yield nothing

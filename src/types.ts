@@ -98,20 +98,6 @@ export interface ProviderStreamOptions {
   maxTokens?: number
 }
 
-/**
- * Conteo de tokens crudo reportado por el provider para una llamada.
- * Sin pricing ni conversión a USD — el consumidor calcula costo si quiere.
- * `cacheReadTokens` / `cacheCreationTokens` quedan opcionales porque no todos
- * los providers los exponen (Anthropic sí; OpenAI sólo `cached_tokens` cuando
- * el modelo cachea automáticamente; muchos OpenAI-compat no devuelven nada).
- */
-export interface TokenUsage {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens?: number
-  cacheCreationTokens?: number
-}
-
 export type ProviderEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'thinking_delta'; thinking: string }
@@ -125,6 +111,20 @@ export interface Provider {
   readonly model: string
   readonly contextLimit?: number
   stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent>
+}
+
+/**
+ * Conteo de tokens crudo reportado por el provider para una llamada.
+ * Sin pricing ni conversión a USD — el consumidor calcula costo si quiere.
+ * `cacheReadTokens` / `cacheCreationTokens` quedan opcionales porque no todos
+ * los providers los exponen (Anthropic sí; OpenAI sólo `cached_tokens` cuando
+ * el modelo cachea automáticamente; muchos OpenAI-compat no devuelven nada).
+ */
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheCreationTokens?: number
 }
 
 // ---------- Retry ----------

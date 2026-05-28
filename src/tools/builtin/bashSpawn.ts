@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 
-export const bashSpawnTool = defineTool({
+export const bashSpawnTool = tool({
   name: 'bash_spawn',
   description:
     'Arranca un comando shell en background y devuelve un PID inmediatamente. ' +

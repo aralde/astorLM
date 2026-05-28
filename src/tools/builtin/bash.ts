@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 
 const DEFAULT_TIMEOUT_MS = 120_000
 const MAX_OUTPUT_BYTES = 200_000
 
-export const bashTool = defineTool({
+export const bashTool = tool({
   name: 'bash',
   description:
     'Ejecuta un comando shell de forma bloqueante en el cwd del agente. Devuelve stdout y stderr combinados con el exit code. Para procesos largos (servers, watchers) usá `bash_spawn`.',
