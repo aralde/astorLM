@@ -97,7 +97,7 @@ export interface SessionHooks {
     toolUseId: string
     cwd: string
     bus?: { emit: (event: AgentEvent) => void }
-  }) => Promise<{ authorize: boolean; mockResult?: string }>
+  }) => Promise<{ authorize: boolean; mockResult?: string; steer?: boolean; feedback?: string }>
   afterToolExecution?: (context: {
     toolName: string
     input: unknown
@@ -196,6 +196,7 @@ export type AgentEvent =
   | { type: 'tool_execution_start'; toolUseId: string; name: string; input: unknown }
   | { type: 'tool_execution_end'; toolUseId: string; name: string; output: string; isError: boolean; durationMs: number }
   | { type: 'provider_retry'; attempt: number; maxAttempts: number; delayMs: number; error: unknown }
+  | { type: 'user_steering'; toolUseId: string; feedback: string }
   | { type: 'turn_end'; turn: number; stopReason: StopReason; usage?: TokenUsage }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
   | { type: 'contract_violation'; rule: string; details: string }

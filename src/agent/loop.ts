@@ -148,7 +148,12 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     if (toolUses.length === 0 || stopReason === 'end_turn') {
       opts.bus.emit({ type: 'turn_end', turn, stopReason, ...(turnUsage ? { usage: turnUsage } : {}) })
       if (opts.hooks?.afterTurn) {
-        await opts.hooks.afterTurn({ turn, lastMessage: assistantMessage })
+        await opts.hooks.afterTurn({
+          turn,
+          lastMessage: assistantMessage,
+          cwd: opts.cwd,
+          bus: opts.bus,
+        })
       }
       return assistantMessage
     }
@@ -161,8 +166,23 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       executor: opts.executor,
     }
 
+    let steeredFeedback: { toolUseId: string; feedback: string } | null = null
+
     const results = await Promise.all(
       toolUses.map(async (tu) => {
+        // Si otra herramienta ya activó steering, cancelamos esta inmediatamente
+        const currentSteered = steeredFeedback as { toolUseId: string; feedback: string } | null
+        if (currentSteered) {
+          const output = `Cancelled due to user steering on tool '${toolUses.find((u) => u.id === currentSteered.toolUseId)?.name ?? 'unknown'}'.`
+          const block: ToolResultBlock = {
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            content: output,
+            is_error: true,
+          }
+          return block
+        }
+
         opts.bus.emit({
           type: 'tool_execution_start',
           toolUseId: tu.id,
@@ -172,8 +192,10 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
         let authorize = true
         let mockResult: string | undefined = undefined
+        let steer = false
+        let feedback: string | undefined = undefined
 
-        if (authorize && opts.hooks?.beforeToolExecution) {
+        if (opts.hooks?.beforeToolExecution) {
           const hookRes = await opts.hooks.beforeToolExecution({
             toolName: tu.name,
             input: tu.input,
@@ -183,26 +205,45 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
           })
           authorize = hookRes.authorize
           mockResult = hookRes.mockResult
+          steer = hookRes.steer ?? false
+          feedback = hookRes.feedback
         }
 
         let output: string
         let isError = false
         const started = performance.now()
 
-        if (!authorize) {
+        if (steer) {
+          steeredFeedback = { toolUseId: tu.id, feedback: feedback ?? 'Execution cancelled by user feedback.' }
+          output = feedback ?? 'Execution cancelled by user feedback.'
+          isError = true
+          opts.bus.emit({
+            type: 'user_steering',
+            toolUseId: tu.id,
+            feedback: output,
+          })
+        } else if (!authorize) {
           output = mockResult ?? 'Execution rejected by user policy.'
           isError = true
         } else if (mockResult !== undefined) {
           output = mockResult
         } else {
-          const res = await opts.registry.run(tu.name, tu.input, ctx)
-          output = res.output
-          isError = res.isError
+          // Re-chequear steering antes de ejecutar la tool real, por si otra tool en paralelo lo activó
+          const currentSteered2 = steeredFeedback as { toolUseId: string; feedback: string } | null
+          if (currentSteered2) {
+            output = `Cancelled due to user steering on tool '${toolUses.find((u) => u.id === currentSteered2.toolUseId)?.name ?? 'unknown'}'.`
+            isError = true
+          } else {
+            const res = await opts.registry.run(tu.name, tu.input, ctx)
+            output = res.output
+            isError = res.isError
+          }
         }
 
         const durationMs = performance.now() - started
 
-        if (opts.hooks?.afterToolExecution) {
+        const hasSteered = steeredFeedback !== null
+        if (!steer && !hasSteered && opts.hooks?.afterToolExecution) {
           output = await opts.hooks.afterToolExecution({
             toolName: tu.name,
             input: tu.input,
@@ -232,10 +273,19 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       }),
     )
 
+    const contentBlocks: ContentBlock[] = [...results]
+    const finalSteered = steeredFeedback as { feedback: string } | null
+    if (finalSteered) {
+      contentBlocks.push({
+        type: 'text',
+        text: `[User Steering Feedback]: ${finalSteered.feedback}`,
+      })
+    }
+
     opts.messages.push({
       id: crypto.randomUUID(),
       role: 'user',
-      content: results as ContentBlock[],
+      content: contentBlocks,
     })
     opts.bus.emit({ type: 'turn_end', turn, stopReason, ...(turnUsage ? { usage: turnUsage } : {}) })
 
