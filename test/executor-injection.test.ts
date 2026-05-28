@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createAgentSession } from '../src/agent/session.js'
-import { defineTool } from '../src/tools/define.js'
+import { createAgent } from '../src/agent/session.js'
+import { tool } from '../src/tools/define.js'
 import { MockProvider } from './mock-provider.js'
 import type { Executor, ExecResult, ProcessStatus, SpawnHandle } from '../src/executor/types.js'
 
@@ -21,11 +21,11 @@ class TracingExecutor implements Executor {
 }
 
 describe('Executor injection en ToolContext', () => {
-  it('createAgentSession propaga executor al ToolContext que reciben las tools', async () => {
+  it('createAgent propaga executor al ToolContext que reciben las tools', async () => {
     const exec = new TracingExecutor()
 
     let capturedExecutorName: string | undefined
-    const probe = defineTool({
+    const probe = tool({
       name: 'probe',
       description: 'observa ctx',
       schema: z.object({}),
@@ -41,12 +41,12 @@ describe('Executor injection en ToolContext', () => {
       { text: 'done' },
     ])
 
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       tools: [probe],
       executor: exec,
     })
-    await session.prompt('go')
+    await session.run('go')
 
     expect(capturedExecutorName).toBe('tracing')
     expect(exec.observed).toEqual(['exec:true'])
@@ -54,7 +54,7 @@ describe('Executor injection en ToolContext', () => {
 
   it('sin executor configurado el ctx recibe noop que tira con mensaje claro', async () => {
     let caughtMsg: string | undefined
-    const probe = defineTool({
+    const probe = tool({
       name: 'probe',
       description: '',
       schema: z.object({}),
@@ -72,8 +72,8 @@ describe('Executor injection en ToolContext', () => {
       { toolCalls: [{ id: 't1', name: 'probe', input: {} }] },
       { text: 'done' },
     ])
-    const session = await createAgentSession({ provider, tools: [probe] })
-    await session.prompt('go')
+    const session = await createAgent({ provider, tools: [probe] })
+    await session.run('go')
     expect(caughtMsg).toMatch(/requiere un Executor/)
   })
 })

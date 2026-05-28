@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 
-export const bashGetOutputTool = defineTool({
+export const bashGetOutputTool = tool({
   name: 'bash_get_output',
   description:
     'Lee y drena el stdout/stderr acumulado de un proceso lanzado con `bash_spawn`. ' +

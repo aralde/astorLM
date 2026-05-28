@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createAgentSession } from '../src/agent/session.js'
-import { defineTool } from '../src/tools/define.js'
+import { createAgent } from '../src/agent/session.js'
+import { tool } from '../src/tools/define.js'
 import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
 
@@ -13,7 +13,7 @@ describe('agent loop', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-'))
 
     const calls: string[] = []
-    const greet = defineTool({
+    const greet = tool({
       name: 'greet',
       description: 'saluda',
       schema: z.object({ name: z.string() }),
@@ -32,10 +32,10 @@ describe('agent loop', () => {
     ])
 
     const events: AgentEvent[] = []
-    const session = await createAgentSession({ provider, cwd: dir, tools: [greet] })
-    session.subscribe((e) => events.push(e))
+    const session = await createAgent({ provider, cwd: dir, tools: [greet] })
+    session.on('event', (e) => events.push(e))
 
-    const final = await session.prompt('saludá a ariel')
+    const final = await session.run('saludá a ariel')
 
     expect(calls).toEqual(['ariel'])
     expect(provider.calls).toHaveLength(2)
@@ -50,7 +50,7 @@ describe('agent loop', () => {
   })
 
   it('agrega token usage por turno y lo acumula a nivel sesión', async () => {
-    const echo = defineTool({
+    const echo = tool({
       name: 'echo',
       description: '',
       schema: z.object({ s: z.string() }),
@@ -68,12 +68,12 @@ describe('agent loop', () => {
     ])
 
     const turnUsages: Array<{ turn: number; usage?: unknown }> = []
-    const session = await createAgentSession({ provider, tools: [echo] })
-    session.subscribe((e) => {
+    const session = await createAgent({ provider, tools: [echo] })
+    session.on('event', (e) => {
       if (e.type === 'turn_end') turnUsages.push({ turn: e.turn, usage: e.usage })
     })
 
-    await session.prompt('go')
+    await session.run('go')
 
     expect(turnUsages).toEqual([
       { turn: 1, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 50 } },
@@ -89,13 +89,13 @@ describe('agent loop', () => {
 
   it('getUsage devuelve ceros si el provider no reporta usage', async () => {
     const provider = new MockProvider([{ text: 'hola' }])
-    const session = await createAgentSession({ provider })
-    await session.prompt('hi')
+    const session = await createAgent({ provider })
+    await session.run('hi')
     expect(session.getUsage()).toEqual({ inputTokens: 0, outputTokens: 0 })
   })
 
   it('tool_result se reinyecta como mensaje user', async () => {
-    const echo = defineTool({
+    const echo = tool({
       name: 'echo',
       description: '',
       schema: z.object({ s: z.string() }),
@@ -105,8 +105,8 @@ describe('agent loop', () => {
       { toolCalls: [{ id: 't1', name: 'echo', input: { s: 'foo' } }] },
       { text: 'ok' },
     ])
-    const session = await createAgentSession({ provider, tools: [echo] })
-    await session.prompt('go')
+    const session = await createAgent({ provider, tools: [echo] })
+    await session.run('go')
 
     const msgs = session.getMessages()
     // user prompt + assistant(tool_use) + user(tool_result) + assistant(text)
@@ -117,7 +117,7 @@ describe('agent loop', () => {
   })
 
   it('captura errores de tool como tool_result is_error=true', async () => {
-    const bad = defineTool({
+    const bad = tool({
       name: 'bad',
       description: '',
       schema: z.object({}),
@@ -130,9 +130,9 @@ describe('agent loop', () => {
       { text: 'me enteré' },
     ])
     const events: AgentEvent[] = []
-    const session = await createAgentSession({ provider, tools: [bad] })
-    session.subscribe((e) => events.push(e))
-    await session.prompt('go')
+    const session = await createAgent({ provider, tools: [bad] })
+    session.on('event', (e) => events.push(e))
+    await session.run('go')
     const errEv = events.find((e) => e.type === 'tool_execution_end') as Extract<
       AgentEvent,
       { type: 'tool_execution_end' }
@@ -142,7 +142,7 @@ describe('agent loop', () => {
   })
 
   it('session.abort() cancela el prompt en vuelo', async () => {
-    const slow = defineTool({
+    const slow = tool({
       name: 'slow',
       description: 'demora',
       schema: z.object({}),
@@ -166,10 +166,10 @@ describe('agent loop', () => {
       { text: 'no debería llegar acá' },
     ])
     const events: AgentEvent[] = []
-    const session = await createAgentSession({ provider, tools: [slow] })
-    session.subscribe((e) => events.push(e))
+    const session = await createAgent({ provider, tools: [slow] })
+    session.on('event', (e) => events.push(e))
 
-    const pending = session.prompt('go')
+    const pending = session.run('go')
     setTimeout(() => session.abort(), 20)
 
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
@@ -181,12 +181,12 @@ describe('agent loop', () => {
 
   it('session.abort() sin prompt en vuelo es no-op', async () => {
     const provider = new MockProvider([])
-    const session = await createAgentSession({ provider })
+    const session = await createAgent({ provider })
     expect(() => session.abort()).not.toThrow()
   })
 
   it('ejecuta los SessionHooks correctamente y permite interceptar el ciclo de vida', async () => {
-    const double = defineTool({
+    const double = tool({
       name: 'double',
       description: 'duplica',
       schema: z.object({ n: z.number() }),
@@ -202,7 +202,7 @@ describe('agent loop', () => {
     ])
 
     const hooksLog: string[] = []
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       tools: [double],
       systemPrompt: 'Original prompt',
@@ -231,7 +231,7 @@ describe('agent loop', () => {
       },
     })
 
-    await session.prompt('Calcula el doble de 10')
+    await session.run('Calcula el doble de 10')
 
     expect(hooksLog).toHaveLength(8)
     expect(hooksLog[0]).toBe('beforeTurn:1:1')
@@ -256,7 +256,7 @@ describe('agent loop', () => {
   })
 
   it('beforeToolExecution puede denegar autorizacion o mockear resultados', async () => {
-    const compute = defineTool({
+    const compute = tool({
       name: 'compute',
       description: 'calcula',
       schema: z.object({ x: z.number() }),
@@ -274,7 +274,7 @@ describe('agent loop', () => {
       { text: 'Fin.', stopReason: 'end_turn' },
     ])
 
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       tools: [compute],
       hooks: {
@@ -290,7 +290,7 @@ describe('agent loop', () => {
       },
     })
 
-    await session.prompt('Ejecuta las tools')
+    await session.run('Ejecuta las tools')
     const msgs = session.getMessages()
     const toolResultMsg = msgs[2]!
     expect(toolResultMsg.content).toEqual([
@@ -319,10 +319,10 @@ describe('agent loop', () => {
     ])
 
     const events: AgentEvent[] = []
-    const session = await createAgentSession({ provider })
-    session.subscribe((e) => events.push(e))
+    const session = await createAgent({ provider })
+    session.on('event', (e) => events.push(e))
 
-    const final = await session.prompt('¿Cuál es el sentido de la vida?')
+    const final = await session.run('¿Cuál es el sentido de la vida?')
 
     // Verificar que se guardó el bloque de thinking
     expect(final.content[0]).toEqual({

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { defineTool } from '../src/tools/define.js'
+import { tool } from '../src/tools/define.js'
 import { ToolRegistry } from '../src/tools/registry.js'
 import { editTool, readTool, writeTool } from '../src/tools/index.js'
 import { noopLogger } from '../src/types.js'
@@ -18,17 +18,17 @@ function makeCtx(cwd: string) {
   }
 }
 
-describe('defineTool', () => {
+describe('tool', () => {
   it('valida input con zod y genera inputSchema', async () => {
-    const tool = defineTool({
+    const t = tool({
       name: 'echo',
       description: 'echo',
       schema: z.object({ text: z.string() }),
       execute: async ({ text }) => text.toUpperCase(),
     })
-    expect(tool.inputSchema['type']).toBe('object')
-    expect(() => tool.parseInput({ text: 123 })).toThrow()
-    const out = await tool.execute({ text: 'hola' }, makeCtx(process.cwd()))
+    expect(t.inputSchema['type']).toBe('object')
+    expect(() => t.parseInput({ text: 123 })).toThrow()
+    const out = await t.execute({ text: 'hola' }, makeCtx(process.cwd()))
     expect(out).toBe('HOLA')
   })
 })
@@ -36,7 +36,7 @@ describe('defineTool', () => {
 describe('ToolRegistry', () => {
   it('rechaza nombres duplicados', () => {
     const reg = new ToolRegistry()
-    const t = defineTool({
+    const t = tool({
       name: 'x',
       description: '',
       schema: z.object({}),
@@ -55,7 +55,7 @@ describe('ToolRegistry', () => {
   it('captura excepciones de execute como isError=true', async () => {
     const reg = new ToolRegistry()
     reg.register(
-      defineTool({
+      tool({
         name: 'boom',
         description: '',
         schema: z.object({}),

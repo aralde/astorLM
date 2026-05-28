@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
-export const writeTool = defineTool({
+export const writeTool = tool({
   name: 'write',
   description:
     'Escribe (o sobreescribe) un archivo de texto. Crea directorios padre automáticamente.',

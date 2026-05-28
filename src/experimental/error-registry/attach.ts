@@ -80,7 +80,7 @@ function buildHintBlock(args: {
  * ```ts
  * const registry = createErrorRegistry({ storePath: '.astorlm/errors.jsonl' })
  * await registry.init()
- * const session = await createAgentSession({
+ * const agent = await createLocalAgent({
  *   provider,
  *   tools,
  *   hooks: errorRegistryHooks({ registry, context: { cwd, osPlatform, nodeVersion, tags: [] } }),

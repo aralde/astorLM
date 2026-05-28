@@ -1,5 +1,5 @@
-import { createAgentSession } from './agent/session.js'
-import type { CreateAgentSessionOptions, AgentSession } from './agent/session.js'
+import { createAgent } from './agent/session.js'
+import type { CreateAgentOptions, Agent } from './agent/session.js'
 import { SessionManager } from './agent/sessionManager.js'
 import type { SessionState } from './agent/sessionManager.js'
 import type { Message } from './types.js'
@@ -7,14 +7,24 @@ import { LocalExecutor } from './executor/local.js'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-// Export FileSessionManagerOptions y FileSessionManager
+/**
+ * Options for configuring the FileSessionManager.
+ */
 export interface FileSessionManagerOptions {
   dir: string
 }
 
+/**
+ * A SessionManager implementation that persists session state to the filesystem.
+ * Stores metadata in `.meta.json` files and conversation history in `.jsonl` files.
+ */
 export class FileSessionManager extends SessionManager {
   readonly dir: string
 
+  /**
+   * Creates a new FileSessionManager.
+   * @param opts - Options containing the directory to store session files.
+   */
   constructor(opts: FileSessionManagerOptions) {
     super()
     this.dir = path.resolve(opts.dir)
@@ -111,22 +121,28 @@ export class FileSessionManager extends SessionManager {
   }
 }
 
-// Monkeypatch SessionManager para mantener compatibilidad con SessionManager.fileSystem() en Node
-(SessionManager as any).fileSystem = function (opts: FileSessionManagerOptions) {
-  return new FileSessionManager(opts)
-}
+/**
+ * Options for creating a local Node-based agent.
+ * Inherits all core Agent creation options.
+ */
+export interface CreateLocalAgentOptions extends CreateAgentOptions {}
 
-// Wrapper createNodeAgentSession
-export interface CreateNodeAgentSessionOptions extends CreateAgentSessionOptions {}
-
-export function createNodeAgentSession(opts: CreateNodeAgentSessionOptions): Promise<AgentSession> {
+/**
+ * Creates a local Node-based agent.
+ * This is a wrapper around `createAgent` that automatically configures defaults
+ * suitable for local Node.js execution (e.g., local filesystem, LocalExecutor).
+ * 
+ * @param opts - Options for configuring the local agent.
+ * @returns A Promise that resolves to the initialized Agent instance.
+ */
+export function createLocalAgent(opts: CreateLocalAgentOptions): Promise<Agent> {
   const cwd = opts.cwd ?? process.cwd()
   const fileReader = opts.fileReader ?? (async (relPath: string) => {
     const abs = path.join(cwd, relPath)
     return fs.readFile(abs, 'utf8')
   })
 
-  return createAgentSession({
+  return createAgent({
     ...opts,
     cwd,
     fileReader,

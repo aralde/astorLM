@@ -3,8 +3,8 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: [
     'src/index.ts',
-    'src/node.ts',
-    'src/tools/node.ts',
+    'src/core.ts',
+    'src/tools/index.ts',
     'src/experimental/error-registry/index.ts',
   ],
   format: ['esm', 'cjs'],

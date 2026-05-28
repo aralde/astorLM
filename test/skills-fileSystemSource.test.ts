@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createFileSystemSkillSource } from '../src/node.js'
+import { createFileSystemSkillSource } from '../src/core.js'
 
 async function writeSkill(
   dir: string,

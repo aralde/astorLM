@@ -1,10 +1,10 @@
 import { readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
-export const lsTool = defineTool({
+export const lsTool = tool({
   name: 'ls',
   description: 'Lista archivos y directorios en una ruta (no recursivo).',
   schema: z.object({

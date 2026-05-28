@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import type { Tool, ToolContext } from '../types.js'
 
-export interface DefineToolOptions<S extends z.ZodTypeAny> {
+export interface ToolOptions<S extends z.ZodTypeAny> {
   name: string
   description: string
   schema: S
@@ -14,7 +14,7 @@ export interface DefineToolOptions<S extends z.ZodTypeAny> {
  * deja la validación en `parseInput` para que el loop pueda fallar limpio
  * antes de ejecutar el `execute`.
  */
-export function defineTool<S extends z.ZodTypeAny>(opts: DefineToolOptions<S>): Tool {
+export function tool<S extends z.ZodTypeAny>(opts: ToolOptions<S>): Tool {
   const jsonSchema = zodToJsonSchema(opts.schema, { target: 'openApi3' }) as Record<string, unknown>
   // Anthropic espera un objeto con `type: "object"` en el top-level — Zod a veces lo envuelve.
   const inputSchema = normalizeSchema(jsonSchema)
@@ -33,3 +33,5 @@ function normalizeSchema(schema: Record<string, unknown>): Record<string, unknow
   // Algunos wrappers (refs) los desempaquetamos a {} compatible.
   return { type: 'object', properties: {}, ...schema }
 }
+
+

@@ -5,7 +5,7 @@ import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
 
 describe('AstorAgent Facade', () => {
-  it('runTask ejecuta correctamente e inicializa automáticamente', async () => {
+  it('run ejecuta correctamente e inicializa automáticamente', async () => {
     const manager = SessionManager.inMemory()
     const provider = new MockProvider([
       { text: 'Respuesta facade', stopReason: 'end_turn' },
@@ -18,7 +18,7 @@ describe('AstorAgent Facade', () => {
       defaultOutputMode: 'silent',
     })
 
-    const result = await agent.runTask('hola facade', { sessionId: 'test-facade' })
+    const result = await agent.run('hola facade', { sessionId: 'test-facade' })
     expect(result.sessionId).toBe('test-facade')
     expect(result.text).toBe('Respuesta facade')
 
@@ -46,7 +46,7 @@ describe('AstorAgent Facade', () => {
       events.push(e)
     }
 
-    await agent.runTask('test callback', { outputMode: customCallback })
+    await agent.run('test callback', { outputMode: customCallback })
 
     expect(events.length).toBeGreaterThan(0)
     // Debería contener text_delta
@@ -54,7 +54,7 @@ describe('AstorAgent Facade', () => {
     expect(textDeltas.length).toBeGreaterThan(0)
   })
 
-  it('runBranchTask realiza branching y corre instrucción en un solo paso', async () => {
+  it('fork realiza branching y permite correr instrucción sobre la rama hija', async () => {
     const manager = SessionManager.inMemory()
     const provider = new MockProvider([
       { text: 'Respuesta branch', stopReason: 'end_turn' },
@@ -76,12 +76,13 @@ describe('AstorAgent Facade', () => {
     await manager.save(parent)
 
     // Crear branch e interactuar
-    const result = await agent.runBranchTask({
+    const branchAgent = await agent.fork({
       parentId: 'padre',
       branchFromMessageId: 'm2',
       newSessionId: 'hija',
-      promptText: 'continuación',
     })
+
+    const result = await branchAgent.run('continuación')
 
     expect(result.sessionId).toBe('hija')
     expect(result.text).toBe('Respuesta branch')
