@@ -6,6 +6,7 @@ export default defineConfig({
     'src/core.ts',
     'src/tools/index.ts',
     'src/experimental/error-registry/index.ts',
+    'src/experimental/contract/index.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,

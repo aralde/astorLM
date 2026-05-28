@@ -50,7 +50,7 @@ export class OpenAIProvider implements Provider {
   async *stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent> {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: opts.systemPrompt },
-      ...flattenMessages(opts.messages),
+      ...flattenMessages(opts.messages, this.model),
     ]
 
     const tools = opts.tools.map<OpenAI.Chat.ChatCompletionTool>((t) => ({
@@ -66,6 +66,7 @@ export class OpenAIProvider implements Provider {
       {
         model: this.model,
         stream: true,
+        temperature: 0,
         // Pedimos usage en el último chunk (OpenAI y la mayoría de los compat lo soportan;
         // los que no, simplemente devuelven `chunk.usage = null` y lo ignoramos).
         stream_options: { include_usage: true },
@@ -261,7 +262,7 @@ function safeJson(s: string): unknown {
  *   - user con tool_result   → un mensaje `role:'tool'` por cada tool_result
  *   - texto plano queda igual
  */
-function flattenMessages(msgs: Message[]): OpenAI.Chat.ChatCompletionMessageParam[] {
+function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompletionMessageParam[] {
   const out: OpenAI.Chat.ChatCompletionMessageParam[] = []
   for (const m of msgs) {
     if (m.role === 'system') {
@@ -291,7 +292,7 @@ function flattenMessages(msgs: Message[]): OpenAI.Chat.ChatCompletionMessagePara
         role: 'assistant',
         content: text || null,
       }
-      if (reasoning) {
+      if (reasoning && model && (model.startsWith('o1') || model.startsWith('o3') || model.includes('reasoner') || model.includes('deepseek'))) {
         (msg as any).reasoning_content = reasoning
       }
       if (toolCalls.length) msg.tool_calls = toolCalls
