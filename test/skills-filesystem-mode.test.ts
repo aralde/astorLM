@@ -2,10 +2,10 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createAgentSession } from '../src/agent/session.js'
+import { createAgent } from '../src/agent/session.js'
 import { createInMemorySkillSource } from '../src/skills/inMemorySource.js'
 import { renderSkillsBlock } from '../src/skills/promptBlock.js'
-import { createFileSystemSkillSource } from '../src/node.js'
+import { createFileSystemSkillSource } from '../src/core.js'
 import { MockProvider } from './mock-provider.js'
 import type { SkillMetadata } from '../src/skills/types.js'
 
@@ -92,7 +92,7 @@ describe("session integration — mode: 'filesystem'", () => {
 
   it('lists paths and does NOT register load_skill', async () => {
     const provider = new MockProvider([{ text: 'ok', stopReason: 'end_turn' }])
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider,
       skillSources: [createFileSystemSkillSource({ dir: skillsDir, name: 'fs' })],
       skillMode: 'filesystem',
@@ -100,7 +100,7 @@ describe("session integration — mode: 'filesystem'", () => {
 
     expect(session.registry.has('load_skill')).toBe(false)
 
-    await session.prompt('Hello')
+    await session.run('Hello')
 
     const sentSystem = provider.calls[0]!.systemPrompt
     expect(sentSystem).toContain('<available-skills>')
@@ -122,7 +122,7 @@ describe("session integration — mode: 'filesystem'", () => {
     })
 
     await expect(
-      createAgentSession({
+      createAgent({
         provider,
         skillSources: [fsSource, memSource],
         skillMode: 'filesystem',

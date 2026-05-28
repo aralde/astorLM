@@ -1,6 +1,6 @@
-import { createAgentSession } from './session.js'
+import { createAgent } from './session.js'
 import { SessionManager } from './sessionManager.js'
-import { createCodingTools } from '../tools/node.js'
+import { createCodingTools } from '../tools/index.js'
 import type { Provider, Tool, AgentEvent } from '../types.js'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -11,11 +11,11 @@ function setupOutputMode(session: any, mode: AstorOutputMode) {
   if (mode === 'silent') return
 
   if (typeof mode === 'function') {
-    session.subscribe(mode)
+    session.on('event', mode)
     return
   }
 
-  session.subscribe((e: AgentEvent) => {
+  session.on('event', (e: AgentEvent) => {
     if (e.type === 'text_delta') {
       process.stdout.write(e.text)
     }
@@ -39,6 +39,7 @@ export interface AstorAgentOptions {
   tools?: Tool[]
   cwd?: string
   defaultOutputMode?: AstorOutputMode
+  sessionId?: string
 }
 
 export class AstorAgent {
@@ -47,27 +48,32 @@ export class AstorAgent {
   private tools: Tool[]
   private cwd: string
   private defaultOutputMode: AstorOutputMode
+  private sessionId?: string
 
   constructor(opts: AstorAgentOptions) {
+    if (!opts.provider) {
+      throw new Error('AstorAgent requires a provider option.')
+    }
     this.provider = opts.provider
     this.sessionManager = opts.sessionManager ?? SessionManager.inMemory()
     this.tools = opts.tools ?? createCodingTools()
     this.cwd = opts.cwd ?? process.cwd()
     this.defaultOutputMode = opts.defaultOutputMode ?? 'console'
+    this.sessionId = opts.sessionId
   }
 
   /**
    * Ejecuta una tarea en una sesión nueva o existente.
    * Auto-inicializa la sesión, configura la salida/logs y ejecuta el prompt.
    */
-  async runTask(
-    promptText: string,
+  async run(
+    input: string,
     opts?: { sessionId?: string; outputMode?: AstorOutputMode }
   ): Promise<{ sessionId: string; text: string }> {
-    const session = await createAgentSession({
+    const session = await createAgent({
       provider: this.provider,
       sessionManager: this.sessionManager,
-      sessionId: opts?.sessionId,
+      sessionId: opts?.sessionId ?? this.sessionId,
       tools: this.tools,
       cwd: this.cwd,
       fileReader: async (relPath: string) => {
@@ -78,7 +84,7 @@ export class AstorAgent {
 
     setupOutputMode(session, opts?.outputMode ?? this.defaultOutputMode)
 
-    const result = await session.prompt(promptText)
+    const result = await session.run(input)
     const text = result.content
       .filter((block) => block.type === 'text')
       .map((block) => (block as any).text)
@@ -91,24 +97,26 @@ export class AstorAgent {
   }
 
   /**
-   * Crea una sesión hija branchada y ejecuta una instrucción sobre ella inmediatamente.
+   * Crea una sesión hija branchada.
    */
-  async runBranchTask(opts: {
+  async fork(opts: {
     parentId: string
     branchFromMessageId?: string
     newSessionId?: string
-    promptText: string
-    outputMode?: AstorOutputMode
-  }): Promise<{ sessionId: string; text: string }> {
+  }): Promise<AstorAgent> {
     const childState = await this.sessionManager.create({
       id: opts.newSessionId,
       parentId: opts.parentId,
       branchFromMessageId: opts.branchFromMessageId,
     })
 
-    return this.runTask(opts.promptText, {
+    return new AstorAgent({
+      provider: this.provider,
+      sessionManager: this.sessionManager,
+      tools: this.tools,
+      cwd: this.cwd,
+      defaultOutputMode: this.defaultOutputMode,
       sessionId: childState.id,
-      outputMode: opts.outputMode,
     })
   }
 }

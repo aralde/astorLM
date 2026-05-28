@@ -1,14 +1,13 @@
-// Public SDK surface (core, runtime-agnostic).
-// Experimental modules are imported from dedicated subpaths, e.g.:
-//   import { createErrorRegistry } from 'astorlm/experimental/error-registry'
-// Never from this main barrel — the subpath itself signals volatility.
+// Public SDK surface.
+// This barrel exports both the runtime-agnostic core and the Node-specific local runner.
 
-export { createAgentSession } from './agent/session.js'
-export type { AgentSession, CreateAgentSessionOptions } from './agent/session.js'
+export { createAgent } from './agent/session.js'
+export type { Agent, CreateAgentOptions } from './agent/session.js'
 export { SessionManager, InMemorySessionManager } from './agent/sessionManager.js'
 export type { SessionState, CreateSessionOptions } from './agent/sessionManager.js'
 
-export { defineTool } from './tools/define.js'
+export { tool } from './tools/define.js'
+export type { ToolOptions } from './tools/define.js'
 export { ToolRegistry } from './tools/registry.js'
 
 export { AnthropicProvider } from './provider/anthropic.js'
@@ -76,3 +75,6 @@ export type {
   SpawnHandle,
   ProcessStatus,
 } from './executor/types.js'
+
+// Re-export Node-specific local API for unified imports
+export * from './core.js'

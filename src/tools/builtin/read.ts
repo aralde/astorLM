@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
-export const readTool = defineTool({
+export const readTool = tool({
   name: 'read',
   description:
     'Lee el contenido de un archivo de texto. Devuelve hasta `limit` líneas a partir de `offset` (1-indexed). Útil para inspeccionar código antes de editarlo.',

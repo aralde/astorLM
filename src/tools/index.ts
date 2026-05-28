@@ -10,7 +10,7 @@ import { lsTool } from './builtin/ls.js'
 import { readTool } from './builtin/read.js'
 import { writeTool } from './builtin/write.js'
 
-export { defineTool } from './define.js'
+export { tool } from './define.js'
 export { ToolRegistry } from './registry.js'
 
 export function createCodingTools(): Tool[] {

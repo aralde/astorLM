@@ -1,9 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { z } from 'zod'
-import { defineTool } from '../define.js'
+import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
-export const editTool = defineTool({
+export const editTool = tool({
   name: 'edit',
   description:
     'Reemplaza una ocurrencia exacta de `oldString` por `newString` en el archivo indicado. `oldString` debe ser único (al menos por defecto). Útil para ediciones quirúrgicas sin reescribir el archivo entero.',

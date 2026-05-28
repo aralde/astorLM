@@ -22,22 +22,38 @@ import type {
   TokenUsage,
 } from '../types.js'
 
-export interface CreateAgentSessionOptions {
+/**
+ * Configuration options for creating a new agent session.
+ */
+export interface CreateAgentOptions {
+  /** The model provider (e.g., Anthropic, OpenAI). */
   provider: Provider
+  /** The current working directory for the agent. Defaults to process.cwd() or '/'. */
   cwd?: string
+  /** An array of tools to register to the agent's ToolRegistry. */
   tools?: Tool[]
+  /** The base system prompt for the agent. */
   systemPrompt?: string
+  /** Additional system prompt text appended to the base system prompt. */
   appendSystemPrompt?: string
+  /** Paths to context files that will be included in the system prompt. */
   contextFiles?: string[]
+  /** Logger instance for outputting debug and info messages. */
   logger?: Logger
+  /** Maximum number of turns allowed in a single agent loop. */
   maxTurns?: number
+  /** Custom identifier for this agent session. Defaults to a random UUID. */
   sessionId?: string
+  /** Manager used for session persistence. Defaults to InMemorySessionManager. */
   sessionManager?: SessionManager
+  /** Lifecycle hooks for the agent session. */
   hooks?: SessionHooks
+  /** Custom file reader function used when reading context files. */
   fileReader?: (path: string) => Promise<string | null>
+  /** Configuration for automatic context optimization, or boolean to toggle it. */
   contextOptimizer?: ContextOptimizerOptions | boolean
   /**
-   * Política opcional de reintentos para errores transientes del provider
+   * Política opcional de reintentos para errores transientes del modelo
    * (HTTP 429, 5xx, timeouts de red, streams sin chunks). Opt-in: si se
    * omite, los errores propagan y la sesión cierra con `session_end: error`.
    */
@@ -45,7 +61,7 @@ export interface CreateAgentSessionOptions {
   /**
    * Backend de ejecución de comandos shell para el bashTool (y derivados).
    * Default: un executor noop que falla con error claro si una tool intenta
-   * usarlo. En Node, `createNodeAgentSession` lo override por LocalExecutor.
+   * usarlo. En Node, `createLocalAgent` lo override por LocalExecutor.
    * Para ejecución aislada usá `DockerExecutor` o pasá uno custom.
    */
   executor?: Executor
@@ -59,6 +75,8 @@ export interface CreateAgentSessionOptions {
    *     the model invokes to materialise the full body.
    *   - `skillMode: 'all'` — pre-loads every body and inlines them into
    *     the system prompt. Cheaper at runtime, costlier in context.
+   *   - `skillMode: 'filesystem'` — list paths only, the model reads
+   *     SKILL.md with standard read tool.
    *
    * Conflicting names across sources throw at session creation.
    */
@@ -67,33 +85,79 @@ export interface CreateAgentSessionOptions {
   skillMode?: SkillMode
 }
 
-export interface AgentSession {
+/**
+ * Represents an active agent session capable of executing tasks,
+ * managing conversational context, and interacting with tools.
+ */
+export interface Agent {
+  /** The unique identifier of this agent session. */
   readonly id: string
+  /** The provider used by this agent. */
   readonly provider: Provider
+  /** The tool registry managing tools available to this agent. */
   readonly registry: ToolRegistry
+  /** The current working directory for the agent. */
   readonly cwd: string
+
+  /**
+   * Retrieves the current conversation messages for this session.
+   * @returns An array of Message objects.
+   */
   getMessages(): Message[]
   /**
    * Devuelve el acumulado de tokens consumidos por esta sesión a lo largo
-   * de todos los turnos. Sin pricing — sólo conteo crudo. Si ningún provider
+   * de todos los turnos. Sin pricing — sólo conteo crudo. Si ningún modelo
    * reportó usage todavía, devuelve ceros.
    */
   getUsage(): TokenUsage
-  subscribe(listener: AgentEventListener): () => void
+  /**
+   * Registers a new tool to the agent's tool registry.
+   * @param tool - The tool to register.
+   */
   registerTool(tool: Tool): void
-  prompt(text: string, opts?: { abortSignal?: AbortSignal }): Promise<Message>
+  /**
+   * Runs the agent with the given user input, starting the agent loop.
+   * @param input - The text input or an object containing the input string.
+   * @param opts - Execution options such as an abort signal.
+   * @returns A Promise resolving to the final message produced by the agent.
+   */
+  run(input: string | { input: string }, opts?: { abortSignal?: AbortSignal }): Promise<Message>
+  /**
+   * Forks the current agent session, creating a new session branch from the current or a specific state.
+   * @param opts - Options for configuring the fork (e.g. `newSessionId`, `branchFromMessageId`).
+   * @returns A Promise resolving to the newly forked Agent instance.
+   */
+  fork(opts?: { newSessionId?: string; branchFromMessageId?: string }): Promise<Agent>
+  /**
+   * Subscribes to events emitted by the agent (e.g., 'text', 'tool-start').
+   * @param event - The event name to subscribe to.
+   * @param listener - The callback function for the event.
+   * @returns A function to unsubscribe from the event.
+   */
+  on(event: string, listener: (...args: any[]) => void): () => void
+  /**
+   * Aborts the current execution loop, if running.
+   * @param reason - Optional reason for abortion.
+   */
   abort(reason?: unknown): void
 }
 
 /**
- * Crea una sesión del agente. Esta es la API pública principal del SDK.
- * Es async porque carga el estado persistido del `sessionManager` (si hay)
- * antes de devolver la sesión: al `await` esta función ya podés `subscribe`,
- * `getMessages` y `prompt` sin sorpresas.
+ * Creates an agent session. This is the main public API of the SDK.
+ * It is async because it loads the persisted state from the `sessionManager` (if present)
+ * before returning the agent: after `await`, you can immediately use `on`, `getMessages`,
+ * and `run` without issues.
  *
- * No es un singleton: podés tener múltiples sesiones independientes en paralelo.
+ * This is not a singleton: you can have multiple independent agents running in parallel.
+ *
+ * @param opts - Options to configure the new agent.
+ * @returns A Promise that resolves to the initialized Agent instance.
  */
-export async function createAgentSession(opts: CreateAgentSessionOptions): Promise<AgentSession> {
+export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
+  const provider = opts.provider
+  if (!provider) {
+    throw new Error('createAgent requires a provider option.')
+  }
   const cwd = opts.cwd ?? (typeof process !== 'undefined' ? process.cwd() : '/')
   const registry = new ToolRegistry()
   if (opts.tools) registry.registerMany(opts.tools)
@@ -103,9 +167,9 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
   if (useOptimizer) {
     if (typeof opts.contextOptimizer === 'object') {
       contextOptimizer = opts.contextOptimizer
-    } else if (opts.provider.contextLimit) {
+    } else if (provider.contextLimit) {
       contextOptimizer = {
-        maxTokens: opts.provider.contextLimit,
+        maxTokens: provider.contextLimit,
       }
     }
   }
@@ -243,67 +307,98 @@ export async function createAgentSession(opts: CreateAgentSessionOptions): Promi
     return systemPromptCache
   }
 
+  async function run(input: string | { input: string }, promptOpts?: { abortSignal?: AbortSignal }): Promise<Message> {
+    const text = typeof input === 'string' ? input : input.input
+    const externalSignal = promptOpts?.abortSignal
+    const ctrl = new AbortController()
+    activeCtrl = ctrl
+    const onExternalAbort = () => ctrl.abort(externalSignal?.reason)
+    if (externalSignal) {
+      if (externalSignal.aborted) ctrl.abort(externalSignal.reason)
+      else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+    }
+
+    messages.push({
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: [{ type: 'text', text }],
+    })
+    await saveState()
+
+    try {
+      const result = await runLoop({
+        provider,
+        registry,
+        bus,
+        messages,
+        systemPrompt: await getSystemPrompt(),
+        cwd,
+        abortSignal: ctrl.signal,
+        maxTurns: opts.maxTurns,
+        logger,
+        hooks: opts.hooks,
+        contextOptimizer,
+        retry: opts.retry,
+        executor,
+      })
+      bus.emit({ type: 'session_end', reason: 'completed' })
+      await saveState()
+      return result
+    } catch (err) {
+      const aborted = (err as { name?: string }).name === 'AbortError'
+      bus.emit({
+        type: 'session_end',
+        reason: aborted ? 'aborted' : 'error',
+        error: aborted ? undefined : err,
+      })
+      await saveState()
+      throw err
+    } finally {
+      if (activeCtrl === ctrl) activeCtrl = null
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort)
+    }
+  }
+
   return {
     id,
-    provider: opts.provider,
+    provider,
     registry,
     cwd,
     getMessages: () => messages.slice(),
     getUsage: () => ({ ...sessionUsage }),
-    subscribe: (l) => bus.subscribe(l),
     registerTool: (t) => registry.register(t),
     abort(reason) {
       activeCtrl?.abort(reason)
     },
-    async prompt(text, promptOpts) {
-      const externalSignal = promptOpts?.abortSignal
-      const ctrl = new AbortController()
-      activeCtrl = ctrl
-      const onExternalAbort = () => ctrl.abort(externalSignal?.reason)
-      if (externalSignal) {
-        if (externalSignal.aborted) ctrl.abort(externalSignal.reason)
-        else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
-      }
-
-      messages.push({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: [{ type: 'text', text }],
+    run,
+    async fork(forkOpts) {
+      const childState = await manager.create({
+        id: forkOpts?.newSessionId,
+        parentId: id,
+        branchFromMessageId: forkOpts?.branchFromMessageId,
       })
-      await saveState()
-
-      try {
-        const result = await runLoop({
-          provider: opts.provider,
-          registry,
-          bus,
-          messages,
-          systemPrompt: await getSystemPrompt(),
-          cwd,
-          abortSignal: ctrl.signal,
-          maxTurns: opts.maxTurns,
-          logger,
-          hooks: opts.hooks,
-          contextOptimizer,
-          retry: opts.retry,
-          executor,
-        })
-        bus.emit({ type: 'session_end', reason: 'completed' })
-        await saveState()
-        return result
-      } catch (err) {
-        const aborted = (err as { name?: string }).name === 'AbortError'
-        bus.emit({
-          type: 'session_end',
-          reason: aborted ? 'aborted' : 'error',
-          error: aborted ? undefined : err,
-        })
-        await saveState()
-        throw err
-      } finally {
-        if (activeCtrl === ctrl) activeCtrl = null
-        if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort)
-      }
+      return createAgent({
+        ...opts,
+        sessionId: childState.id,
+      })
     },
+    on(event: string, listener: (...args: any[]) => void): () => void {
+      return bus.subscribe((e) => {
+        if (event === 'event') {
+          listener(e)
+        } else if (event === 'text' && e.type === 'text_delta') {
+          listener(e.text)
+        } else if (event === 'thinking' && e.type === 'thinking_delta') {
+          listener(e.thinking)
+        } else if (event === 'tool-start' && e.type === 'tool_execution_start') {
+          listener({ name: e.name, input: e.input })
+        } else if (event === 'tool-end' && e.type === 'tool_execution_end') {
+          listener({ name: e.name, output: e.output, isError: e.isError })
+        } else if (event === 'error' && e.type === 'session_end' && e.reason === 'error') {
+          listener(e.error)
+        }
+      })
+    }
   }
 }
+
