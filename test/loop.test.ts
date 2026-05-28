@@ -339,4 +339,75 @@ describe('agent loop', () => {
     expect(thinkingDeltas).toHaveLength(1)
     expect((thinkingDeltas[0] as any).thinking).toBe('Pienso luego existo.')
   })
+
+  it('soporta steering del usuario interrumpiendo y recibiendo feedback en beforeToolExecution', async () => {
+    const doSomething = tool({
+      name: 'doSomething',
+      description: 'hace algo',
+      schema: z.object({}),
+      execute: async () => 'real result',
+    })
+
+    const provider = new MockProvider([
+      {
+        toolCalls: [
+          { id: 'tu_steer', name: 'doSomething', input: {} },
+          { id: 'tu_cancel', name: 'doSomething', input: {} },
+        ],
+        stopReason: 'tool_use',
+      },
+      { text: 'Fin.', stopReason: 'end_turn' },
+    ])
+
+    const events: AgentEvent[] = []
+    const session = await createAgent({
+      provider,
+      tools: [doSomething],
+      hooks: {
+        beforeToolExecution: async ({ toolUseId }) => {
+          if (toolUseId === 'tu_steer') {
+            return {
+              authorize: false,
+              steer: true,
+              feedback: 'No hagas eso, haz otra cosa'
+            }
+          }
+          return { authorize: true }
+        },
+      },
+    })
+    session.on('event', (e) => events.push(e))
+
+    await session.run('Ejecuta')
+
+    const msgs = session.getMessages()
+    const toolResultMsg = msgs[2]!
+    expect(toolResultMsg.role).toBe('user')
+    expect(toolResultMsg.content).toEqual([
+      {
+        type: 'tool_result',
+        tool_use_id: 'tu_steer',
+        content: 'No hagas eso, haz otra cosa',
+        is_error: true,
+      },
+      {
+        type: 'tool_result',
+        tool_use_id: 'tu_cancel',
+        content: "Cancelled due to user steering on tool 'doSomething'.",
+        is_error: true,
+      },
+      {
+        type: 'text',
+        text: '[User Steering Feedback]: No hagas eso, haz otra cosa',
+      }
+    ])
+
+    const steerEv = events.find((e) => e.type === 'user_steering') as Extract<
+      AgentEvent,
+      { type: 'user_steering' }
+    >
+    expect(steerEv).toBeDefined()
+    expect(steerEv.toolUseId).toBe('tu_steer')
+    expect(steerEv.feedback).toBe('No hagas eso, haz otra cosa')
+  })
 })
