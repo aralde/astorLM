@@ -72,11 +72,47 @@ export interface Tool {
 // ---------- Session Hooks ----------
 
 export interface SessionHooks {
-  beforeTurn?: (context: { turn: number; messages: Message[] }) => Promise<void>
-  beforeProviderCall?: (context: { messages: Message[]; systemPrompt: string }) => Promise<{ messages: Message[]; systemPrompt: string }>
-  beforeToolExecution?: (context: { toolName: string; input: unknown; toolUseId: string }) => Promise<{ authorize: boolean; mockResult?: string }>
-  afterToolExecution?: (context: { toolName: string; input: unknown; output: string; durationMs: number; isError: boolean }) => Promise<string>
-  afterTurn?: (context: { turn: number; lastMessage: Message }) => Promise<void>
+  beforeTurn?: (context: {
+    turn: number
+    accumulatedTurns: number
+    messages: Message[]
+    sessionUsage: TokenUsage
+    cwd: string
+    bus?: { emit: (event: AgentEvent) => void }
+  }) => Promise<void>
+  beforeProviderCall?: (context: {
+    messages: Message[]
+    systemPrompt: string
+    tools: Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>>
+    cwd: string
+    bus?: { emit: (event: AgentEvent) => void }
+  }) => Promise<{
+    messages: Message[]
+    systemPrompt: string
+    tools?: Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>>
+  }>
+  beforeToolExecution?: (context: {
+    toolName: string
+    input: unknown
+    toolUseId: string
+    cwd: string
+    bus?: { emit: (event: AgentEvent) => void }
+  }) => Promise<{ authorize: boolean; mockResult?: string }>
+  afterToolExecution?: (context: {
+    toolName: string
+    input: unknown
+    output: string
+    durationMs: number
+    isError: boolean
+    cwd: string
+    bus?: { emit: (event: AgentEvent) => void }
+  }) => Promise<string>
+  afterTurn?: (context: {
+    turn: number
+    lastMessage: Message
+    cwd: string
+    bus?: { emit: (event: AgentEvent) => void }
+  }) => Promise<void>
 }
 
 // ---------- Context Optimizer ----------
@@ -162,8 +198,11 @@ export type AgentEvent =
   | { type: 'provider_retry'; attempt: number; maxAttempts: number; delayMs: number; error: unknown }
   | { type: 'turn_end'; turn: number; stopReason: StopReason; usage?: TokenUsage }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
+  | { type: 'contract_violation'; rule: string; details: string }
 
 export type AgentEventListener = (event: AgentEvent) => void
+
+
 
 // ---------- Logger ----------
 

@@ -30,6 +30,8 @@ export interface RunLoopOptions {
   contextOptimizer?: ContextOptimizerOptions
   retry?: RetryPolicy
   executor: Executor
+  sessionUsage: TokenUsage
+  previousTurns: number
 }
 
 const DEFAULT_MAX_TURNS = 25
@@ -65,7 +67,14 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     }
 
     if (opts.hooks?.beforeTurn) {
-      await opts.hooks.beforeTurn({ turn, messages: opts.messages })
+      await opts.hooks.beforeTurn({
+        turn,
+        accumulatedTurns: opts.previousTurns + turn,
+        messages: opts.messages,
+        sessionUsage: opts.sessionUsage,
+        cwd: opts.cwd,
+        bus: opts.bus,
+      })
     }
 
     opts.bus.emit({ type: 'turn_start', turn })
@@ -76,14 +85,21 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     let providerMessages = opts.messages
     let providerSystemPrompt = opts.systemPrompt
+    let toolSchemas = opts.registry.toSchemas()
 
     if (opts.hooks?.beforeProviderCall) {
       const hookRes = await opts.hooks.beforeProviderCall({
         messages: providerMessages,
         systemPrompt: providerSystemPrompt,
+        tools: toolSchemas,
+        cwd: opts.cwd,
+        bus: opts.bus,
       })
       providerMessages = hookRes.messages
       providerSystemPrompt = hookRes.systemPrompt
+      if (hookRes.tools) {
+        toolSchemas = hookRes.tools
+      }
     }
 
     const stream = streamWithRetry({
@@ -91,7 +107,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       streamOpts: {
         systemPrompt: providerSystemPrompt,
         messages: providerMessages,
-        tools: opts.registry.toSchemas(),
+        tools: toolSchemas,
         abortSignal: opts.abortSignal,
       },
       policy: opts.retry,
@@ -157,11 +173,13 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         let authorize = true
         let mockResult: string | undefined = undefined
 
-        if (opts.hooks?.beforeToolExecution) {
+        if (authorize && opts.hooks?.beforeToolExecution) {
           const hookRes = await opts.hooks.beforeToolExecution({
             toolName: tu.name,
             input: tu.input,
             toolUseId: tu.id,
+            cwd: opts.cwd,
+            bus: opts.bus,
           })
           authorize = hookRes.authorize
           mockResult = hookRes.mockResult
@@ -172,7 +190,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         const started = performance.now()
 
         if (!authorize) {
-          output = 'Execution rejected by user policy.'
+          output = mockResult ?? 'Execution rejected by user policy.'
           isError = true
         } else if (mockResult !== undefined) {
           output = mockResult
@@ -191,6 +209,8 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
             output,
             durationMs,
             isError,
+            cwd: opts.cwd,
+            bus: opts.bus,
           })
         }
 
@@ -220,7 +240,12 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     opts.bus.emit({ type: 'turn_end', turn, stopReason, ...(turnUsage ? { usage: turnUsage } : {}) })
 
     if (opts.hooks?.afterTurn) {
-      await opts.hooks.afterTurn({ turn, lastMessage: assistantMessage })
+      await opts.hooks.afterTurn({
+        turn,
+        lastMessage: assistantMessage,
+        cwd: opts.cwd,
+        bus: opts.bus,
+      })
     }
   }
 
