@@ -218,15 +218,19 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
   // emite el loop con el usage reportado por el provider. Mantener acá
   // (y no en el loop) permite que sobreviva entre `prompt()` sucesivos.
   const sessionUsage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
+  let sessionTurns = 0
   bus.subscribe((event) => {
-    if (event.type === 'turn_end' && event.usage) {
-      sessionUsage.inputTokens += event.usage.inputTokens
-      sessionUsage.outputTokens += event.usage.outputTokens
-      if (typeof event.usage.cacheReadTokens === 'number') {
-        sessionUsage.cacheReadTokens = (sessionUsage.cacheReadTokens ?? 0) + event.usage.cacheReadTokens
-      }
-      if (typeof event.usage.cacheCreationTokens === 'number') {
-        sessionUsage.cacheCreationTokens = (sessionUsage.cacheCreationTokens ?? 0) + event.usage.cacheCreationTokens
+    if (event.type === 'turn_end') {
+      sessionTurns++
+      if (event.usage) {
+        sessionUsage.inputTokens += event.usage.inputTokens
+        sessionUsage.outputTokens += event.usage.outputTokens
+        if (typeof event.usage.cacheReadTokens === 'number') {
+          sessionUsage.cacheReadTokens = (sessionUsage.cacheReadTokens ?? 0) + event.usage.cacheReadTokens
+        }
+        if (typeof event.usage.cacheCreationTokens === 'number') {
+          sessionUsage.cacheCreationTokens = (sessionUsage.cacheCreationTokens ?? 0) + event.usage.cacheCreationTokens
+        }
       }
     }
   })
@@ -325,6 +329,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     })
     await saveState()
 
+    const previousTurns = sessionTurns
     try {
       const result = await runLoop({
         provider,
@@ -340,6 +345,8 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         contextOptimizer,
         retry: opts.retry,
         executor,
+        sessionUsage,
+        previousTurns,
       })
       bus.emit({ type: 'session_end', reason: 'completed' })
       await saveState()

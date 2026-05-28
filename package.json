@@ -26,6 +26,11 @@
       "types": "./dist/experimental/error-registry/index.d.ts",
       "import": "./dist/experimental/error-registry/index.js",
       "require": "./dist/experimental/error-registry/index.cjs"
+    },
+    "./experimental/contract": {
+      "types": "./dist/experimental/contract/index.d.ts",
+      "import": "./dist/experimental/contract/index.js",
+      "require": "./dist/experimental/contract/index.cjs"
     }
   },
   "files": ["dist", "README.md"],
