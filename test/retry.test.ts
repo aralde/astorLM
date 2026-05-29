@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createAgent } from '../src/agent/session.js'
-import { isTransientError, computeBackoffDelay } from '../src/agent/retry.js'
+import { isTransientError, isAbortError, computeBackoffDelay } from '../src/agent/retry.js'
 import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
 
@@ -72,6 +72,31 @@ describe('isTransientError', () => {
     const outer = new Error('wrapper') as Error & { cause?: unknown }
     outer.cause = inner
     expect(isTransientError(outer)).toBe(true)
+  })
+})
+
+describe('isAbortError', () => {
+  it('recognises the WHATWG/Anthropic AbortError', () => {
+    expect(isAbortError(new DOMException('Aborted', 'AbortError'))).toBe(true)
+  })
+
+  it('recognises the OpenAI SDK APIUserAbortError', () => {
+    const e = new Error('Request was aborted.') as Error & { name: string }
+    e.name = 'APIUserAbortError'
+    expect(isAbortError(e)).toBe(true)
+  })
+
+  it('does not flag unrelated errors', () => {
+    expect(isAbortError(new Error('boom'))).toBe(false)
+    expect(isAbortError(httpErr(500))).toBe(false)
+    expect(isAbortError(null)).toBe(false)
+  })
+
+  it('abort errors are never classified as transient', () => {
+    const e = new Error('Request was aborted.') as Error & { name: string }
+    e.name = 'APIUserAbortError'
+    expect(isTransientError(e)).toBe(false)
+    expect(isTransientError(new DOMException('Aborted', 'AbortError'))).toBe(false)
   })
 })
 
