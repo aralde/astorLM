@@ -9,6 +9,49 @@
 
 import type { Executor } from './executor/types.js'
 
+export type AgentLoopPattern = 'REACT' | 'PLAN_EXECUTE'
+
+export interface PlanItem {
+  id: string
+  description: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+}
+
+export interface HeartbeatOptions {
+  intervalMs: number
+  checkPrompt: string
+  /**
+   * Optional local TypeScript condition that enables the Latent Heartbeat.
+   * When defined, each tick runs this function locally and ONLY calls the LLM
+   * if it returns true. Keeps token cost at zero until the trigger fires.
+   */
+  localCondition?: (cwd: string) => boolean | Promise<boolean>
+  /**
+   * Maximum time in milliseconds the heartbeat may run in the background.
+   * Once elapsed, the heartbeat stops automatically. Defaults to 300000
+   * (5 minutes) to avoid runaway loops. Set to Infinity or 0 to disable
+   * the time limit.
+   */
+  timeoutMs?: number
+  /**
+   * Maximum number of ticks to run before stopping automatically.
+   */
+  maxTicks?: number
+  /**
+   * Per-tick run timeout in milliseconds. Each heartbeat tick aborts its
+   * in-flight `run()` after this long. Decoupled from `intervalMs`: the
+   * `isRunning` guard already prevents overlapping ticks, so this only acts as
+   * a safety net for a hung run. Defaults to 60000 (60s) — keep it above the
+   * model's typical turn latency so slow but valid runs are not cut short.
+   */
+  runTimeoutMs?: number
+  /**
+   * When false, prevents the heartbeat from auto-starting at agent creation
+   * even if it was provided in the initial options. Defaults to true.
+   */
+  autoStart?: boolean
+}
+
 export type Role = 'user' | 'assistant' | 'system'
 
 export type TextBlock = { type: 'text'; text: string }
@@ -200,6 +243,8 @@ export type AgentEvent =
   | { type: 'turn_end'; turn: number; stopReason: StopReason; usage?: TokenUsage }
   | { type: 'session_end'; reason: 'completed' | 'aborted' | 'error'; error?: unknown }
   | { type: 'contract_violation'; rule: string; details: string }
+  | { type: 'heartbeat_tick'; checkPrompt: string }
+  | { type: 'plan_updated'; plan: PlanItem[] }
 
 export type AgentEventListener = (event: AgentEvent) => void
 
