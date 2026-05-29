@@ -17,6 +17,8 @@ export type { OpenAIProviderOptions } from './provider/openai.js'
 
 export { AuthStorage } from './auth/storage.js'
 export { buildSystemPrompt, DEFAULT_SYSTEM_PROMPT } from './prompt/system.js'
+export { compilePrompts } from './prompt/compiler.js'
+export type { PromptModule, PromptCompilerOptions, PromptCompilerConflict, PromptCompilerReport } from './prompt/types.js'
 export { EventBus } from './agent/events.js'
 export { estimateTokens, optimizeContext } from './agent/optimizer.js'
 

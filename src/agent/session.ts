@@ -2,6 +2,8 @@ import { ToolRegistry } from '../tools/registry.js'
 import { tool } from '../tools/index.js'
 import { z } from 'zod'
 import { buildSystemPrompt } from '../prompt/system.js'
+import { compilePrompts } from '../prompt/compiler.js'
+import type { PromptCompilerOptions } from '../prompt/types.js'
 import { runLoop } from './loop.js'
 import { isAbortError } from './retry.js'
 import { EventBus } from './events.js'
@@ -40,6 +42,8 @@ export interface CreateAgentOptions {
   tools?: Tool[]
   /** The base system prompt for the agent. */
   systemPrompt?: string
+  /** Options for compiling the system prompt from modules. */
+  promptCompiler?: PromptCompilerOptions
   /** Additional system prompt text appended to the base system prompt. */
   appendSystemPrompt?: string
   /** Paths to context files that will be included in the system prompt. */
@@ -383,9 +387,25 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
   const getSystemPrompt = async () => {
     if (systemPromptCache) return systemPromptCache
 
+    if (opts.promptCompiler) {
+      const { report } = compilePrompts(opts.promptCompiler)
+      if (report.conflicts.length > 0) {
+        for (const conflict of report.conflicts) {
+          const msg = `[Prompt Compiler] ${conflict.severity.toUpperCase()} - ${conflict.description} (Modules: ${conflict.moduleIds.join(', ')})`
+          if (conflict.severity === 'high') {
+            logger.error(msg)
+          } else {
+            logger.warn(msg)
+          }
+        }
+      }
+      logger.info(`[Prompt Compiler] System prompt compiled successfully (${report.tokenEstimate} estimated tokens).`)
+    }
+
     systemPromptCache = await buildSystemPrompt({
       cwd,
       systemPrompt: opts.systemPrompt,
+      promptCompiler: opts.promptCompiler,
       appendSystemPrompt: opts.appendSystemPrompt,
       contextFiles: opts.contextFiles,
       fileReader: opts.fileReader,
