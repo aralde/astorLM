@@ -1,8 +1,11 @@
 import { ToolRegistry } from '../tools/registry.js'
+import { tool } from '../tools/index.js'
+import { z } from 'zod'
 import { buildSystemPrompt } from '../prompt/system.js'
 import { compilePrompts } from '../prompt/compiler.js'
 import type { PromptCompilerOptions } from '../prompt/types.js'
 import { runLoop } from './loop.js'
+import { isAbortError } from './retry.js'
 import { EventBus } from './events.js'
 import { noopLogger } from '../types.js'
 import { SessionManager } from './sessionManager.js'
@@ -22,6 +25,9 @@ import type {
   ContextOptimizerOptions,
   RetryPolicy,
   TokenUsage,
+  AgentLoopPattern,
+  PlanItem,
+  HeartbeatOptions,
 } from '../types.js'
 
 /**
@@ -87,6 +93,10 @@ export interface CreateAgentOptions {
   skillSources?: SkillSource[]
   /** Default: `'on-demand'`. */
   skillMode?: SkillMode
+  /** The execution pattern style for the agent loop. Defaults to 'REACT'. */
+  pattern?: AgentLoopPattern
+  /** Optional proactive heartbeat loop configuration. */
+  heartbeat?: HeartbeatOptions
 }
 
 /**
@@ -102,6 +112,8 @@ export interface Agent {
   readonly registry: ToolRegistry
   /** The current working directory for the agent. */
   readonly cwd: string
+  /** The execution pattern style of this agent. */
+  readonly pattern: AgentLoopPattern
 
   /**
    * Retrieves the current conversation messages for this session.
@@ -144,6 +156,19 @@ export interface Agent {
    * @param reason - Optional reason for abortion.
    */
   abort(reason?: unknown): void
+  /**
+   * Starts the proactive heartbeat loop.
+   * @param opts - Optional heartbeat configuration overrides.
+   */
+  startHeartbeat(opts?: HeartbeatOptions): void
+  /**
+   * Stops the active proactive heartbeat loop.
+   */
+  stopHeartbeat(): void
+  /**
+   * Returns the current plan items if in PLAN_EXECUTE mode.
+   */
+  getPlan(): PlanItem[]
 }
 
 /**
@@ -165,6 +190,55 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
   const cwd = opts.cwd ?? (typeof process !== 'undefined' ? process.cwd() : '/')
   const registry = new ToolRegistry()
   if (opts.tools) registry.registerMany(opts.tools)
+
+  const pattern: AgentLoopPattern = opts.pattern ?? 'REACT'
+  const plan: PlanItem[] = []
+  // Short, sequential, never-reused ids ("1", "2", ...). UUIDs are hostile
+  // to smaller models that have to echo the id back in update_plan_item.
+  // Reassigned to the loaded plan length after the session manager restores
+  // persisted state below.
+  let planCounter = 0
+
+  if (pattern === 'PLAN_EXECUTE') {
+    const addPlanItemTool = tool({
+      name: 'add_plan_item',
+      description: 'Add a new task to the plan. Call it at the start of the session to map out the work.',
+      schema: z.object({
+        description: z.string().describe('Description of the task to perform')
+      }),
+      execute: async ({ description }) => {
+        const itemId = String(++planCounter)
+        plan.push({
+          id: itemId,
+          description,
+          status: 'pending'
+        })
+        bus.emit({ type: 'plan_updated', plan: plan.slice() })
+        return `Task added successfully with ID: ${itemId}`
+      }
+    })
+
+    const updatePlanItemTool = tool({
+      name: 'update_plan_item',
+      description: 'Update the status of an existing plan task (pending, running, completed, failed).',
+      schema: z.object({
+        id: z.string().describe('The ID of the task to update'),
+        status: z.enum(['pending', 'running', 'completed', 'failed']).describe('The new task status')
+      }),
+      execute: async ({ id: itemId, status }) => {
+        const item = plan.find(i => i.id === itemId)
+        if (!item) {
+          return `Error: Plan item with ID ${itemId} not found.`
+        }
+        item.status = status
+        bus.emit({ type: 'plan_updated', plan: plan.slice() })
+        return `Task ${itemId} status updated to ${status}.`
+      }
+    })
+
+    registry.register(addPlanItemTool)
+    registry.register(updatePlanItemTool)
+  }
 
   const useOptimizer = opts.contextOptimizer !== false
   let contextOptimizer: ContextOptimizerOptions | undefined = undefined
@@ -199,6 +273,13 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     metadata = state.metadata ?? {}
     createdAt = state.createdAt
     messages.push(...state.messages)
+    // Restore the PLAN_EXECUTE plan persisted in metadata so it survives
+    // resume and fork. Ids stay sequential: continue the counter from the
+    // highest restored id.
+    if (pattern === 'PLAN_EXECUTE' && Array.isArray(metadata.plan)) {
+      plan.push(...(metadata.plan as PlanItem[]))
+      planCounter = plan.reduce((max, i) => Math.max(max, Number(i.id) || 0), 0)
+    }
   } catch (err) {
     logger.error('Failed to initialize session from manager:', err)
   }
@@ -209,7 +290,8 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         id,
         parentId,
         messages: messages.slice(),
-        metadata,
+        metadata:
+          pattern === 'PLAN_EXECUTE' ? { ...metadata, plan: plan.slice() } : metadata,
         createdAt,
         updatedAt: Date.now(),
       })
@@ -332,7 +414,103 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     return systemPromptCache
   }
 
+  let isRunning = false
+  let heartbeatIntervalId: any = null
+  let heartbeatTimeoutId: any = null
+  let activeHeartbeatOpts = opts.heartbeat
+
+  function startHeartbeat(heartbeatOpts?: HeartbeatOptions) {
+    if (heartbeatOpts) {
+      activeHeartbeatOpts = heartbeatOpts
+    }
+    stopHeartbeat()
+    if (!activeHeartbeatOpts) {
+      logger.warn('startHeartbeat called but no heartbeat options were configured or passed.')
+      return
+    }
+
+    let tickCount = 0
+    const intervalMs = activeHeartbeatOpts.intervalMs
+
+    const timeoutMs = activeHeartbeatOpts.timeoutMs ?? 300000 // default 5 minutes
+    if (timeoutMs > 0 && timeoutMs !== Infinity) {
+      heartbeatTimeoutId = setTimeout(() => {
+        logger.info('Heartbeat stopped automatically due to timeout.')
+        stopHeartbeat()
+      }, timeoutMs)
+    }
+
+    heartbeatIntervalId = setInterval(async () => {
+      if (isRunning) {
+        // Discard heartbeat tick if agent is already running
+        return
+      }
+
+      if (activeHeartbeatOpts!.maxTicks) {
+        tickCount++
+        if (tickCount > activeHeartbeatOpts!.maxTicks) {
+          stopHeartbeat()
+          return
+        }
+      }
+
+      if (activeHeartbeatOpts!.localCondition) {
+        try {
+          const shouldRun = await activeHeartbeatOpts!.localCondition(cwd)
+          if (!shouldRun) {
+            // Latent trigger condition not met, skip calling the LLM
+            return
+          }
+        } catch (err) {
+          logger.error('Error executing local heartbeat condition:', err)
+          return
+        }
+      }
+
+      const checkPrompt = activeHeartbeatOpts!.checkPrompt
+      bus.emit({ type: 'heartbeat_tick', checkPrompt })
+      const ctrl = new AbortController()
+      // Per-tick run timeout, decoupled from the interval. The isRunning guard
+      // already prevents overlapping ticks, so this is only a safety net for a
+      // hung run — keep it generous so slow (but valid) model turns can finish.
+      const runTimeoutMs = activeHeartbeatOpts!.runTimeoutMs ?? 60000
+      const timer = setTimeout(() => ctrl.abort(), runTimeoutMs)
+      try {
+        await run(checkPrompt, { abortSignal: ctrl.signal })
+      } catch (err) {
+        if (ctrl.signal.aborted || isAbortError(err)) {
+          logger.warn('Heartbeat run timed out and was aborted.')
+        } else {
+          logger.error('Error during heartbeat execution:', err)
+        }
+      } finally {
+        clearTimeout(timer)
+      }
+    }, intervalMs)
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatIntervalId) {
+      clearInterval(heartbeatIntervalId)
+      heartbeatIntervalId = null
+    }
+    if (heartbeatTimeoutId) {
+      clearTimeout(heartbeatTimeoutId)
+      heartbeatTimeoutId = null
+    }
+  }
+
+  // Auto-start heartbeat if configured at creation and not explicitly disabled
+  if (activeHeartbeatOpts && activeHeartbeatOpts.autoStart !== false) {
+    startHeartbeat()
+  }
+
   async function run(input: string | { input: string }, promptOpts?: { abortSignal?: AbortSignal }): Promise<Message> {
+    if (isRunning) {
+      throw new Error('Agent is already running a task.')
+    }
+    isRunning = true
+
     const text = typeof input === 'string' ? input : input.input
     const externalSignal = promptOpts?.abortSignal
     const ctrl = new AbortController()
@@ -368,12 +546,14 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         executor,
         sessionUsage,
         previousTurns,
+        pattern,
+        plan,
       })
       bus.emit({ type: 'session_end', reason: 'completed' })
       await saveState()
       return result
     } catch (err) {
-      const aborted = (err as { name?: string }).name === 'AbortError'
+      const aborted = ctrl.signal.aborted || isAbortError(err)
       bus.emit({
         type: 'session_end',
         reason: aborted ? 'aborted' : 'error',
@@ -382,6 +562,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
       await saveState()
       throw err
     } finally {
+      isRunning = false
       if (activeCtrl === ctrl) activeCtrl = null
       if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort)
     }
@@ -392,6 +573,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     provider,
     registry,
     cwd,
+    pattern,
     getMessages: () => messages.slice(),
     getUsage: () => ({ ...sessionUsage }),
     registerTool: (t) => registry.register(t),
@@ -426,7 +608,10 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
           listener(e.error)
         }
       })
-    }
+    },
+    startHeartbeat,
+    stopHeartbeat,
+    getPlan: () => plan.slice(),
   }
 }
 

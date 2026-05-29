@@ -24,6 +24,19 @@ const TRANSIENT_NET_CODES = new Set([
   'UND_ERR_BODY_TIMEOUT',
 ])
 
+/**
+ * True if the error represents a cooperative abort rather than a real failure.
+ * Our own code raises DOMException `AbortError`; the OpenAI SDK raises
+ * `APIUserAbortError` when its request is cancelled via an AbortSignal, while
+ * Anthropic + the WHATWG fetch path surface `AbortError`. Recognise all of
+ * them so an aborted turn is never reported as a hard error.
+ */
+export function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const name = (err as { name?: string }).name
+  return name === 'AbortError' || name === 'APIUserAbortError'
+}
+
 /** Heurística sobre errores del SDK de Anthropic/OpenAI + errores de red de Node. */
 export function isTransientError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
@@ -46,7 +59,7 @@ export function isTransientError(err: unknown): boolean {
   if (typeof e.name === 'string') {
     if (e.name === 'APIConnectionError') return true
     if (e.name === 'APIConnectionTimeoutError') return true
-    if (e.name === 'AbortError') return false
+    if (e.name === 'AbortError' || e.name === 'APIUserAbortError') return false
   }
 
   // Node network error codes.
@@ -138,8 +151,7 @@ export async function* streamWithRetry(
     } catch (err) {
       // Abort: no reintenta, propaga.
       if (opts.abortSignal.aborted) throw err
-      const errName = (err as { name?: string } | null)?.name
-      if (errName === 'AbortError') throw err
+      if (isAbortError(err)) throw err
 
       // Si ya yieldeamos algo, no podemos reintentar sin duplicar.
       if (emittedAnything) throw err

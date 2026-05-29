@@ -12,6 +12,8 @@ import type {
   ContextOptimizerOptions,
   RetryPolicy,
   TokenUsage,
+  AgentLoopPattern,
+  PlanItem,
 } from '../types.js'
 import { optimizeContext, estimateTokens } from './optimizer.js'
 import { streamWithRetry } from './retry.js'
@@ -32,14 +34,16 @@ export interface RunLoopOptions {
   executor: Executor
   sessionUsage: TokenUsage
   previousTurns: number
+  pattern?: AgentLoopPattern
+  plan?: PlanItem[]
 }
 
 const DEFAULT_MAX_TURNS = 25
 
 /**
- * Bucle del agente. Cada "turno" = una llamada al provider + ejecución
- * de las tools que pidió. Termina cuando el provider devuelve `end_turn`
- * (no quedan tool_use pendientes) o se alcanza maxTurns o se aborta.
+ * Agent loop. Each "turn" = one provider call + execution of the tools it
+ * requested. Ends when the provider returns `end_turn` (no pending tool_use),
+ * maxTurns is reached, or the run is aborted.
  */
 export async function runLoop(opts: RunLoopOptions): Promise<Message> {
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS
@@ -85,6 +89,13 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     let providerMessages = opts.messages
     let providerSystemPrompt = opts.systemPrompt
+    if (opts.pattern === 'PLAN_EXECUTE' && opts.plan) {
+      const planStr = `\n\n[Active Plan State]\n` + 
+        (opts.plan.length === 0 
+          ? '(No tasks defined yet. Use add_plan_item tool to define tasks)' 
+          : opts.plan.map(i => `- [${i.status.toUpperCase()}] ${i.description} (ID: ${i.id})`).join('\n'))
+      providerSystemPrompt += planStr
+    }
     let toolSchemas = opts.registry.toSchemas()
 
     if (opts.hooks?.beforeProviderCall) {
@@ -134,7 +145,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     }
 
     if (!assistantMessage) {
-      throw new Error('Provider terminó sin emitir message_end')
+      throw new Error('Provider finished without emitting message_end')
     }
 
     if (!assistantMessage.id) {
@@ -158,7 +169,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       return assistantMessage
     }
 
-    // Ejecutar tools en paralelo.
+    // Execute tools in parallel.
     const ctx: ToolContext = {
       cwd: opts.cwd,
       abortSignal: opts.abortSignal,
@@ -170,7 +181,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     const results = await Promise.all(
       toolUses.map(async (tu) => {
-        // Si otra herramienta ya activó steering, cancelamos esta inmediatamente
+        // If another tool already triggered steering, cancel this one immediately
         const currentSteered = steeredFeedback as { toolUseId: string; feedback: string } | null
         if (currentSteered) {
           const output = `Cancelled due to user steering on tool '${toolUses.find((u) => u.id === currentSteered.toolUseId)?.name ?? 'unknown'}'.`
@@ -228,7 +239,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         } else if (mockResult !== undefined) {
           output = mockResult
         } else {
-          // Re-chequear steering antes de ejecutar la tool real, por si otra tool en paralelo lo activó
+          // Re-check steering before running the real tool, in case a parallel tool triggered it
           const currentSteered2 = steeredFeedback as { toolUseId: string; feedback: string } | null
           if (currentSteered2) {
             output = `Cancelled due to user steering on tool '${toolUses.find((u) => u.id === currentSteered2.toolUseId)?.name ?? 'unknown'}'.`
@@ -299,7 +310,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     }
   }
 
-  if (!lastAssistant) throw new Error('Loop terminó sin mensaje del assistant')
+  if (!lastAssistant) throw new Error('Loop finished without an assistant message')
   return lastAssistant
 }
 
