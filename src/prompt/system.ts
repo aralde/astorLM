@@ -1,3 +1,6 @@
+import { compilePrompts } from './compiler.js'
+import type { PromptCompilerOptions } from './types.js'
+
 const DEFAULT_SYSTEM_PROMPT = `Sos un agente de coding embebido. Trabajás dentro de un cwd dado.
 - Usá las herramientas para inspeccionar y modificar el filesystem; no inventes contenido de archivos.
 - Antes de editar un archivo, leelo si no lo viste antes.
@@ -8,6 +11,8 @@ export interface BuildSystemPromptOptions {
   cwd: string
   /** Reemplazo total del prompt por defecto. */
   systemPrompt?: string
+  /** Opciones del compilador modular de prompts (si se proveen, compilan el base prompt). */
+  promptCompiler?: PromptCompilerOptions
   /** Texto adicional que se concatena al final del prompt (sea default o custom). */
   appendSystemPrompt?: string
   /** Archivos de contexto a cargar desde cwd. Por defecto AGENTS.md y CLAUDE.md. */
@@ -24,7 +29,13 @@ export interface BuildSystemPromptOptions {
 }
 
 export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise<string> {
-  const parts: string[] = [opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT]
+  let basePrompt = opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
+  if (opts.promptCompiler) {
+    const { systemPrompt: compiled } = compilePrompts(opts.promptCompiler)
+    basePrompt = compiled
+  }
+
+  const parts: string[] = [basePrompt]
   parts.push(`\n\n<cwd>${opts.cwd}</cwd>`)
 
   const files = opts.contextFiles ?? ['AGENTS.md', 'CLAUDE.md']
@@ -45,3 +56,4 @@ export async function buildSystemPrompt(opts: BuildSystemPromptOptions): Promise
 }
 
 export { DEFAULT_SYSTEM_PROMPT }
+
