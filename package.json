@@ -22,6 +22,11 @@
       "import": "./dist/tools/index.js",
       "require": "./dist/tools/index.cjs"
     },
+    "./prompt": {
+      "types": "./dist/prompt/index.d.ts",
+      "import": "./dist/prompt/index.js",
+      "require": "./dist/prompt/index.cjs"
+    },
     "./experimental/error-registry": {
       "types": "./dist/experimental/error-registry/index.d.ts",
       "import": "./dist/experimental/error-registry/index.js",
