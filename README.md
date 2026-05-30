@@ -2,86 +2,88 @@
 
 Embeddable agentic library in TypeScript. Designed with an **SDK-first** approach (no coupled CLI or TUI), letting you integrate a coding agent natively into any TypeScript application.
 
-AstorLM is modular and **runtime-agnostic** by default, separating the core capabilities from environment adapters and OS-native tooling.
+AstorLM is modular and **runtime-agnostic** at its core, separating the agnostic agent loop from environment adapters and OS-native tooling.
 
 ---
 
 ## 📦 Module Layout (Entrypoints)
 
-AstorLM ships three clearly separated entrypoints so you do not drag Node.js-only dependencies into Edge, Cloudflare Workers, or browser deployments:
+AstorLM ships clearly separated entrypoints. The agnostic core lives behind `astorlm/core` so the loop, providers and abstractions stay portable; the main `astorlm` barrel re-exports both the core and the Node runner for convenience.
 
 ```mermaid
 graph TD
-    subgraph Core ["Core module: 'astorlm' (agnostic)"]
-        A[createAgentSession]
+    subgraph Core ["Agnostic core (loop, providers, abstractions)"]
+        A[createAgent]
         B[InMemorySessionManager]
         C[AnthropicProvider / OpenAIProvider]
         D[SessionHooks / ToolRegistry]
+        S[createSubagentTool / createSteeringController]
     end
 
-    subgraph NodeExt ["Node module: 'astorlm/node'"]
-        E[createNodeAgentSession]
+    subgraph NodeExt ["Node runner: 'astorlm/core'"]
+        E[createLocalAgent]
         F[FileSessionManager]
         G[AstorAgent - facade]
         H[mountMcpServer]
+        L[LocalExecutor / DockerExecutor]
+        K[createFileSystemSkillSource / createLayeredSkillSource]
     end
 
-    subgraph NodeTools ["Tools module: 'astorlm/tools/node'"]
+    subgraph NodeTools ["Tools: 'astorlm/tools'"]
         I[createCodingTools / createReadOnlyTools]
-        J[read, write, edit, bash, ls, grep, glob]
+        J[read, write, edit, bash, bash_spawn, ls, grep, glob]
     end
 
-    NodeExt -->|Initializes| Core
-    NodeTools -->|Injects tools into| Core
+    NodeExt -->|wraps| Core
+    NodeTools -->|injected into| Core
 ```
 
-### 1. `astorlm` (Core Runtime-Agnostic)
-* **Description**: The framework core. Contains the agent loop (`loop.ts`), the event bus, the LLM providers, and the base abstractions for sessions, tools, and skills.
-* **Runtime**: Works in any JavaScript runtime (Node.js, Deno, Bun, Cloudflare Workers, Edge runtimes, browsers).
+### 1. `astorlm` (main barrel)
+* **Description**: One-stop import. Exposes the agnostic core (`createAgent`, the providers, `tool`, `ToolRegistry`, sessions, skills, hooks, optimizer, retry, the subagent/steering helpers) **and** re-exports everything from `astorlm/core` for unified imports.
 * **Key exports**:
-  - `createAgentSession`
-  - `InMemorySessionManager`
+  - `createAgent` (async — `Promise<Agent>`)
+  - `InMemorySessionManager`, `SessionManager`
   - `AnthropicProvider`, `OpenAIProvider`
-  - `defineTool`, `ToolRegistry`
-  - `EventBus`
+  - `tool`, `ToolRegistry`
+  - `EventBus`, `buildSystemPrompt`, `estimateTokens`, `optimizeContext`, `isTransientError`, `computeBackoffDelay`
+  - `createSubagentTool` (subagents / agent-as-tool), `createSteeringController` (out-of-hook steering)
   - `SkillRegistry`, `createInMemorySkillSource`, `parseSkillFrontmatter`, `renderSkillsBlock`, `createLoadSkillTool`
-  - `validateSkillName`, `validateSkillDescription`, `validateSkillSpec`, `SkillValidationError`, `SKILL_VALIDATION_LIMITS` (spec-level frontmatter validation, aligned with the Agent Skills standard)
-  - Base types: `AgentSession`, `SessionHooks`, `Message`, `ContentBlock`, `AgentEvent`, `Skill`, `SkillMetadata`, `SkillSource`, `SkillMode`, etc.
+  - `validateSkillName`, `validateSkillDescription`, `validateSkillSpec`, `SkillValidationError`, `SKILL_VALIDATION_LIMITS`
+  - `parseAllowedTools`, `restrictToolsHook` (per-skill tool gating)
+  - Base types: `Agent`, `CreateAgentOptions`, `SessionHooks`, `Message`, `ContentBlock`, `AgentEvent`, `Skill`, `SkillMetadata`, `SkillSource`, `SkillMode`, etc.
 
-### 2. `astorlm/node` (Node.js extensions)
-* **Description**: Extensions and utilities that require Node.js OS-native APIs (`node:fs`, `node:path`, `node:child_process`).
+> ⚠️ Because the main barrel re-exports `./core`, importing from `astorlm` pulls in Node-only dependencies. If you target Edge / Workers / browser, import from the agnostic modules directly (the loop, providers and abstractions don't import Node) and avoid the Node runner.
+
+### 2. `astorlm/core` (Node.js runner)
+* **Description**: Extensions that require Node.js OS-native APIs (`node:fs`, `node:path`, `node:child_process`).
 * **Key exports**:
-  - `createNodeAgentSession` (session factory wired with a local file reader by default).
+  - `createLocalAgent` (session factory wired with `LocalExecutor` + a local file reader by default).
   - `FileSessionManager` (history persistence as JSONL plus JSON metadata).
-  - `mountMcpServer` (adapter and Stdio/HTTP transports for Model Context Protocol clients).
   - `AstorAgent` (simplified execution and branching facade).
+  - `mountMcpServer` (adapter and Stdio/HTTP transports for Model Context Protocol clients).
   - `LocalExecutor`, `DockerExecutor` (shell-command backends; see "Executors" below).
   - `createFileSystemSkillSource` (reads skills from a `dir/<name>/SKILL.md` layout).
+  - `createLayeredSkillSource` (hierarchical skill discovery — user → project → repo).
 
-### 3. `astorlm/tools/node` (Built-in tools for Node.js)
+### 3. `astorlm/tools` (Built-in tools)
 * **Description**: A bundle of filesystem-manipulation and analysis tools tuned for coding agents, with path-traversal protection.
 * **Key exports**:
-  - `createCodingTools()` (returns an array with `read`, `write`, `edit`, `bash`, `ls`, `grep`, `glob`).
+  - `createCodingTools()` (`read`, `write`, `edit`, `bash`, `bash_spawn`, `bash_get_output`, `bash_kill`, `ls`, `grep`, `glob`).
   - `createReadOnlyTools()` (safe variant — no writes or execution: `read`, `ls`, `grep`, `glob`).
-  - Individual tools exported directly: `readTool`, `writeTool`, `editTool`, `bashTool`, `lsTool`, `grepTool`, `globTool`.
+  - Individual tools: `readTool`, `writeTool`, `editTool`, `bashTool`, `bashSpawnTool`, `bashGetOutputTool`, `bashKillTool`, `lsTool`, `grepTool`, `globTool`.
 
 ### 4. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
 > ⚠️ **Experimental**. Lives under a dedicated subpath, not the main barrel. The import path itself is the signal that the API is volatile and may change between minor releases.
 
 * **Description**: A registry of agent-encountered errors and human-approved resolutions. When an agent hits an error that another agent (or a previous run) has already resolved, the registry injects the fix as a hint into the next `tool_result` — the agent applies the known solution instead of fighting through it again. Honest single-org PoC; federation across organizations and full secret sanitization are out of scope.
 * **Key exports**:
-  - `createErrorRegistry(opts)` — JSONL append-only store (or in-memory) with optional OpenAI-compatible embeddings and a Jaccard fallback. Exposes `query`, `ensureEntry`, `recordResolution`, `approveResolution`, `rejectResolution`, `noteSuccessfulReuse`, `listPending`, `listEntries`.
-  - `errorRegistryHooks({ registry, context, successWindow? })` — returns a `SessionHooks` object that wires the session to the registry: detects errors, injects hints, records candidate resolutions as `pending` after a recovery without recurrence.
-  - Types: `ErrorRegistry`, `ErrorEntry`, `Resolution`, `RegistryHit`, `ErrorContext`, `ApprovalStatus`, etc.
+  - `createErrorRegistry(opts)` — JSONL append-only store (or in-memory) with optional OpenAI-compatible embeddings and a Jaccard fallback.
+  - `errorRegistryHooks({ registry, context, successWindow? })` — returns a `SessionHooks` object that wires the session to the registry.
 
 ```typescript
-import { createNodeAgentSession } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { OpenAIProvider } from 'astorlm'
-import {
-  createErrorRegistry,
-  errorRegistryHooks,
-} from 'astorlm/experimental/error-registry'
+import { createLocalAgent, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+import { createErrorRegistry, errorRegistryHooks } from 'astorlm/experimental/error-registry'
 
 const registry = createErrorRegistry({
   storePath: '.astorlm/error-registry.jsonl',
@@ -90,7 +92,7 @@ const registry = createErrorRegistry({
 })
 await registry.init()
 
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: createCodingTools(),
   hooks: errorRegistryHooks({
@@ -102,44 +104,41 @@ const session = await createNodeAgentSession({
 // have your own hooks, merge them into a single object before passing.
 ```
 
-A human approves pending resolutions asynchronously (programmatically via `registry.approveResolution(id, approver)` or via a CLI). Until approved, a candidate resolution is not suggested to other sessions.
+A human approves pending resolutions asynchronously (e.g. `registry.approveResolution(id, approver)`). Until approved, a candidate resolution is not suggested to other sessions.
 
 ---
 
 ## 🚀 Quick Use Examples
 
-### 🔌 1. Minimal Agnostic Usage (Core)
-Ideal for running in browsers or Edge workers, with custom tools and in-memory persistence.
+> **All snippets use `OpenAIProvider`** pointed at a local OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, …). `AnthropicProvider` exists in the public API with the same shape — swap it in if you prefer Anthropic.
+
+### 🔌 1. Minimal Usage (custom tool)
 
 ```typescript
-import { createAgentSession, AnthropicProvider, defineTool } from 'astorlm'
+import { createAgent, OpenAIProvider, tool } from 'astorlm'
 import { z } from 'zod'
 
-// 1. Define a custom tool
-const getWeather = defineTool({
+// 1. Define a custom tool (Zod schema → JSON Schema under the hood)
+const getWeather = tool({
   name: 'get_weather',
   description: 'Returns the current temperature for a city',
   schema: z.object({ city: z.string() }),
   execute: async ({ city }) => `Weather in ${city}: 22°C, sunny.`,
 })
 
-// 2. Create a session backed by the agnostic core
-//    Note: createAgentSession is async — it loads any persisted state from
-//    the session manager before returning. Always await it.
-const session = await createAgentSession({
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
+// 2. Create the session.
+//    Note: createAgent is async — it loads any persisted state from the
+//    session manager before returning. Always await it.
+const agent = await createAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: [getWeather],
 })
 
 // 3. Subscribe to the token stream
-session.subscribe((event) => {
-  if (event.type === 'text_delta') {
-    console.log(event.text) // or paint into UI
-  }
-})
+agent.on('text', (text) => process.stdout.write(text))
 
 // 4. Run the prompt
-await session.prompt('How is the weather in Buenos Aires?')
+await agent.run('How is the weather in Buenos Aires?')
 ```
 
 ---
@@ -148,91 +147,76 @@ await session.prompt('How is the weather in Buenos Aires?')
 The standard setup for building an autonomous backend coding agent with local filesystem access.
 
 ```typescript
-import { createNodeAgentSession } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { AnthropicProvider } from 'astorlm'
+import { createLocalAgent, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
 
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   cwd: process.cwd(), // safe working directory
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: createCodingTools(), // read, write, edit, bash, bash_spawn, bash_get_output, bash_kill, ls, grep, glob
 })
 
-session.subscribe((e) => {
-  if (e.type === 'text_delta') {
-    process.stdout.write(e.text)
-  }
-  if (e.type === 'tool_execution_start') {
-    console.log(`\n🛠️  [Running tool: ${e.name}] with input:`, e.input)
-  }
-})
+agent.on('text', (text) => process.stdout.write(text))
+agent.on('tool-start', (t) => console.log(`\n🛠️  [tool: ${t.name}]`, t.input))
 
-await session.prompt('Refactor src/utils.ts to use arrow functions.')
+await agent.run('Refactor src/utils.ts to use arrow functions.')
+console.log(agent.getUsage()) // { inputTokens, outputTokens, cacheReadTokens?, cacheCreationTokens? }
 ```
 
 ---
 
 ### 🗃️ 3. Session & History Persistence (FileSessionManager)
-You can persist conversation history on disk to resume the agent's work or branch it at any point.
+Persist conversation history on disk to resume the agent's work or branch it at any point.
 
 ```typescript
-import { createNodeAgentSession, FileSessionManager } from 'astorlm/node'
-import { AnthropicProvider } from 'astorlm'
+import { createLocalAgent, FileSessionManager, OpenAIProvider } from 'astorlm'
 
-// 1. Initialize the on-disk persister (creates a .jsonl history file + .meta.json)
+// 1. On-disk persister (creates a .jsonl history file + .meta.json per session)
 const sessionManager = new FileSessionManager({ dir: './.astor-sessions' })
 
-// 2. Load or create the persistent session.
-//    createNodeAgentSession is async — it loads any prior history from the
-//    session manager before resolving, so by the time you have `session`
-//    it's already ready to prompt(). There is no separate initPromise.
-const session = await createNodeAgentSession({
+// 2. Load or create the persistent session. createLocalAgent is async — it
+//    loads prior history before resolving, so by the time you have `agent`
+//    it's ready to run(). There is no separate initPromise.
+const agent = await createLocalAgent({
   sessionId: 'my-refactor-session',
   sessionManager,
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
 })
 
-await session.prompt('Write an optimized fibonacci function.')
+await agent.run('Write an optimized fibonacci function.')
 ```
 
 #### 🌿 Session Branching
-You can create a child session by copying the messages of an existing session (or truncating up to a given message ID):
+Create a child session by copying the messages of an existing session (or truncating up to a given message ID):
 
 ```typescript
-// Branch the current state
+// Either via the session manager directly...
 const childState = await sessionManager.create({
   parentId: 'my-refactor-session',
-  branchFromMessageId: 'optional-message-id-cutoff', // if omitted, clones the full history
+  branchFromMessageId: 'optional-message-id-cutoff', // omit to clone full history
 })
 
-const childSession = await createNodeAgentSession({
-  sessionId: childState.id,
-  sessionManager,
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
-})
-
-await childSession.prompt('Can you rewrite it in TypeScript with strict types?')
+// ...or fork from the live agent:
+const child = await agent.fork({ branchFromMessageId: 'optional-message-id-cutoff' })
+await child.run('Now rewrite it in TypeScript with strict types?')
 ```
 
 ---
 
 ### 🎭 4. Simplified Facade with `AstorAgent`
-To streamline recurring flows, `AstorAgent` wraps lifecycle management, console subscription, and branching.
+To streamline recurring flows, `AstorAgent` wraps lifecycle management, output subscription, and branching.
 
 ```typescript
-import { AstorAgent, FileSessionManager } from 'astorlm/node'
-import { AnthropicProvider } from 'astorlm'
+import { AstorAgent, FileSessionManager, OpenAIProvider } from 'astorlm'
 
 const agent = new AstorAgent({
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   sessionManager: new FileSessionManager({ dir: './.astor-sessions' }),
-  defaultOutputMode: 'verbose', // 'silent' | 'console' | 'verbose'
+  defaultOutputMode: 'verbose', // 'silent' | 'console' | 'verbose' | (event) => void
 })
 
-// Run and manage the full prompt lifecycle
 const { sessionId, text } = await agent.runTask('Create a test.js script that adds 2 + 2')
 
-// Branch directly and run a derived task
 await agent.runBranchTask({
   parentId: sessionId,
   promptText: 'Change that script so it subtracts instead of adding',
@@ -242,66 +226,114 @@ await agent.runBranchTask({
 
 ---
 
-## 🪝 Control Hooks (`SessionHooks`)
+## 🧬 Subagents (agent-as-tool)
 
-Hooks let you intercept the agent loop. They are ideal for:
-* **Human-in-the-loop (HITL)**: human confirmation of destructive tools (e.g. `bash` or critical edits).
-* **Input/output sanitization**: security filters on output data or dynamic prompt injection.
-* **Mocking**: simulating tool executions.
+Expose a whole child agent to a parent as a single tool. When the parent calls it, `createSubagentTool` spins up an independent session with its own (typically narrower) system prompt and tool set, runs ONE prompt to completion, and returns the child's final text as the `tool_result`. The parent never sees the child's intermediate turns — only the distilled answer.
+
+The child inherits the parent's `cwd` / `executor` from the `ToolContext`, and the parent's abort signal propagates (cancelling the parent cancels the child mid-flight). Pure composition over the public API — no loop changes.
 
 ```typescript
-import { createNodeAgentSession } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { AnthropicProvider } from 'astorlm'
+import { createLocalAgent, createSubagentTool, OpenAIProvider } from 'astorlm'
+import { createReadOnlyTools, createCodingTools } from 'astorlm/tools'
 
-const session = await createNodeAgentSession({
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
+const provider = () =>
+  new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' })
+
+// A focused subagent with a read-only tool surface.
+const explorer = createSubagentTool({
+  name: 'repo_explorer',
+  description: 'Delegate repository exploration: list files, read them, summarise. Pass the task in `task`.',
+  provider: provider(),
+  systemPrompt: 'You explore repositories with read-only tools and return a concise summary.',
+  tools: createReadOnlyTools(),
+  maxTurns: 8,
+})
+
+const orchestrator = await createLocalAgent({
+  provider: provider(),
+  tools: [explorer, ...createCodingTools()],
+})
+
+await orchestrator.run('Understand this project: list the root .ts files and summarise each in one line.')
+```
+
+> Returns the child's final text only — it does not stream the child's intermediate tokens up to the parent.
+
+---
+
+## 🪝 Control Hooks (`SessionHooks`)
+
+Hooks let you intercept the agent loop. Five optional interception points, all can be async:
+
+| Hook | When | Can |
+|---|---|---|
+| `beforeTurn` | start of each turn | observe `{ turn, messages, ... }` |
+| `beforeProviderCall` | before `provider.stream` | **mutate** `{ messages, systemPrompt, tools }` sent to the model |
+| `beforeToolExecution` | before each tool | return `{ authorize, mockResult?, steer?, feedback? }` — permission + mocking + steering in one |
+| `afterToolExecution` | after each tool | return the final `output` string the model sees (sanitisation / wrapping) |
+| `afterTurn` | end of each turn | observe `{ turn, lastMessage, ... }` |
+
+```typescript
+import { createLocalAgent, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+
+const agent = await createLocalAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: createCodingTools(),
   hooks: {
-    // 1. Intercept calls before they reach the LLM provider
     beforeProviderCall: async ({ messages, systemPrompt }) => {
-      // Modify or append context to the system prompt on the fly
       return { messages, systemPrompt: `${systemPrompt}\nAlways answer in English.` }
     },
-
-    // 2. Tool-execution gatekeeping
     beforeToolExecution: async ({ toolName, input }) => {
       if (toolName === 'bash') {
-        const cmd = (input as any).command
-        console.log(`\n⚠️  Agent wants to run: "${cmd}"`)
-        const userApproved = await askUserForPermission(cmd)
-
-        return {
-          authorize: userApproved,
-          // If not authorized, you can optionally hand the LLM a mock result:
-          mockResult: userApproved ? undefined : 'Command canceled by the human operator.',
-        }
+        const approved = await askUserForPermission((input as any).command)
+        return { authorize: approved, mockResult: approved ? undefined : 'Command canceled by the operator.' }
       }
       return { authorize: true }
     },
-
-    // 3. Transform the tool result before the LLM consumes it
     afterToolExecution: async ({ toolName, output, durationMs }) => {
-      console.log(`[Metric] Tool ${toolName} took ${durationMs}ms`)
-      // Return the final string the LLM will see
+      console.log(`[metric] ${toolName} took ${durationMs}ms`)
       return output
     },
   },
 })
 ```
 
+### 🎯 Steering (redirect without aborting)
+
+A `beforeToolExecution` hook returning `{ steer: true, feedback }` cancels the turn's tool calls and feeds the model a `[User Steering Feedback]` note on the next turn — redirecting it without aborting the run. To drive that from *outside* a hook (e.g. a UI button), use `createSteeringController`:
+
+```typescript
+import { createLocalAgent, createSteeringController, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+
+const controller = createSteeringController() // optionally wraps an existing SessionHooks
+
+const agent = await createLocalAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: createCodingTools(),
+  hooks: controller.hooks,
+})
+
+// From anywhere (button handler, watcher, another process):
+controller.steer('Stop — do not create files, just list the existing ones.')
+
+await agent.run('Create a file BORRAR.txt with "temp".')
+// The queued feedback is consumed at the next tool boundary.
+```
+
+> Steering takes effect at the next tool-call boundary, not mid-token.
+
 ---
 
 ## 🔌 MCP Connectivity (Model Context Protocol)
 
-You can mount external MCP servers (local or remote) that expose tools. Tools are adapted to the agent standard automatically.
+Mount external MCP servers (local stdio or remote HTTP). Their tools are adapted to the agent standard automatically and prefixed `<server>__<tool>`.
 
 ```typescript
-import { createNodeAgentSession, mountMcpServer } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { AnthropicProvider } from 'astorlm'
+import { createLocalAgent, mountMcpServer, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
 
-// 1. Mount a filesystem MCP server via stdio
 const mcpServer = await mountMcpServer({
   name: 'local-fs',
   transport: {
@@ -311,13 +343,9 @@ const mcpServer = await mountMcpServer({
   },
 })
 
-// 2. Configure the session combining local + MCP tools
-const session = await createNodeAgentSession({
-  provider: new AnthropicProvider({ model: 'claude-3-5-sonnet-20241022' }),
-  tools: [
-    ...createCodingTools(),
-    ...mcpServer.tools, // exposed as "local-fs__<tool>"
-  ],
+const agent = await createLocalAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: [...createCodingTools(), ...mcpServer.tools],
 })
 ```
 
@@ -325,26 +353,22 @@ const session = await createNodeAgentSession({
 
 ## 📚 Skills (loadable knowledge packs)
 
-A **skill** is a self-contained piece of instructions the agent can consult. It's pure data — a markdown body plus metadata — and the SDK has no opinion about where skills come from: filesystem, HTTP registry, in-memory list, database. The `SkillSource` interface is the seam.
+A **skill** is a self-contained piece of instructions the agent can consult — a markdown body plus metadata. The SDK has no opinion about where skills come from: the `SkillSource` interface is the seam (filesystem, HTTP registry, in-memory, database).
 
-Three activation modes:
+Three activation modes (`skillMode`):
 
-* `skillMode: 'on-demand'` (default) — only each skill's `{name, description}` is injected into the system prompt (as `<available-skills>`). The session auto-registers a `load_skill` meta-tool that the model calls when relevant. Scales to many skills without bloating context, but depends on the model being willing to invoke a meta-tool (smaller models sometimes skip the step).
-* `skillMode: 'all'` — every skill body is concatenated into the system prompt up front. Cheapest at runtime; eats context. Use when you have a small, always-relevant set.
-* `skillMode: 'filesystem'` — **the canonical Agent Skills pattern** (Claude Code, OpenAI Codex, Gemini CLI). The system prompt lists each skill's name, description, and the absolute path of its `SKILL.md`. The agent reads `SKILL.md` with the standard `read` tool when triggered. No meta-tool is registered. More robust across models than `'on-demand'` and aligns with the broader ecosystem; bundled files (`scripts/`, `references/`, `assets/`) become reachable for free via `read`/`bash`. Requires every skill to expose a filesystem path (use `createFileSystemSkillSource`) **and** the session to include a `read` tool (both `createCodingTools()` and `createReadOnlyTools()` include it; if you ship a custom tool bundle, make sure `readTool` is in there).
-
-The body returned by `load_skill` becomes a regular `tool_result` in the conversation, so when you persist sessions with `FileSessionManager` the loaded skills survive resumes for free.
+* `'filesystem'` — **the canonical Agent Skills pattern** (Claude Code, OpenAI Codex, Gemini CLI). The system prompt lists each skill's name, description and the absolute path of its `SKILL.md`; the agent reads it with the standard `read` tool when triggered. No meta-tool. Most robust across models; bundled `scripts/`, `references/`, `assets/` are reachable for free via `read`/`bash`. Requires every skill to expose a path (use `createFileSystemSkillSource`) and the session to include a `read` tool.
+* `'on-demand'` (default) — only `{name, description}` go into the system prompt; the session registers a `load_skill` meta-tool the model calls to materialise a body. Scales to many skills; depends on the model invoking a meta-tool.
+* `'all'` — every body is concatenated into the system prompt up front. Cheapest at runtime; eats context. Use for a small, always-relevant set.
 
 ### From the filesystem
 
-Convention: one directory per skill, each containing a `SKILL.md` whose YAML frontmatter declares `name` and `description`. The frontmatter `name` is the source of truth and must match the folder name (drift is a thrown error).
+Convention: one directory per skill, each with a `SKILL.md` whose YAML frontmatter declares `name` and `description`. The frontmatter `name` is the source of truth and must match the folder name (drift throws).
 
 ```
 ./.astor-skills/
-  pptx/
-    SKILL.md
-  refactor/
-    SKILL.md
+  pptx/SKILL.md
+  refactor/SKILL.md
 ```
 
 ```markdown
@@ -355,91 +379,83 @@ description: Build PowerPoint decks when the user asks for slides.
 # available for your own policy code (filter by tag, gate by version, etc.).
 version: 1.2.0
 tags: documents, presentation
-license: MIT
+allowed-tools: read, write, bash
 ---
 
 # How to build a deck
-
 Use pptx-genjs. Prefer one slide per concept; keep titles under 60 chars.
-...
 ```
 
 #### Frontmatter rules (Agent Skills spec)
 
-The required fields are validated when a source enumerates its skills — invalid frontmatter throws at session creation, never silently:
-
-| Field         | Required | Rule                                                                                          |
-| ------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `name`        | ✅       | 1–64 chars, regex `^[a-z0-9][a-z0-9-]*$` (lowercase letters, digits, hyphens; no leading `-`). Reserved: `anthropic`, `claude`. |
-| `description` | ✅       | 1–1024 chars. No XML tags (`<foo>`, `</foo>`) — they confuse models that emit native tool-call syntax. |
-| any other key | ❌       | Captured into `Skill.metadata: Record<string, string>` verbatim. The SDK does not interpret these. |
-
-You can call `validateSkillSpec({ name, description })` yourself if you build skills programmatically and want the same check.
+| Field         | Required | Rule |
+| ------------- | -------- | ---- |
+| `name`        | ✅       | 1–64 chars, regex `^[a-z0-9][a-z0-9-]*$`. Reserved: `anthropic`, `claude`. |
+| `description` | ✅       | 1–1024 chars. No XML tags (`<foo>`) — they confuse models that emit native tool-call syntax. |
+| any other key | ❌       | Captured into `Skill.metadata: Record<string, string>` verbatim. |
 
 ```typescript
-import { createNodeAgentSession, createFileSystemSkillSource } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { OpenAIProvider } from 'astorlm'
+import { createLocalAgent, createFileSystemSkillSource, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
 
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: createCodingTools(),
-  skillSources: [
-    createFileSystemSkillSource({ dir: './.astor-skills' }),
-  ],
-  skillMode: 'filesystem', // recommended: agent reads SKILL.md with the `read` tool
+  skillSources: [createFileSystemSkillSource({ dir: './.astor-skills' })],
+  skillMode: 'filesystem',
 })
 
-await session.prompt('Build a deck about climate change.')
-// The agent sees `<available-skills>` listing names + paths, picks the
-// relevant one, calls `read({ path: '...pptx-deck/SKILL.md' })`, and
-// follows the body. No meta-tool involved; bundled scripts/assets in
-// the skill folder are reachable via the same `read`/`bash` tools.
+await agent.run('Build a deck about climate change.')
 ```
 
-### From an in-memory bundle (or anywhere else)
+### Hierarchical discovery (user → project → repo)
+
+Passing several `createFileSystemSkillSource` directly throws on duplicate names (no silent override). `createLayeredSkillSource` resolves precedence internally (last-wins, loudly via `onOverride`) and presents itself as a single source, so the registry's conflict-throw stays intact for genuine clashes.
 
 ```typescript
-import { createAgentSession, createInMemorySkillSource } from 'astorlm'
+import { createLayeredSkillSource } from 'astorlm/core'
 
-const session = await createAgentSession({
-  provider: /* ... */,
-  skillSources: [
-    createInMemorySkillSource({
-      name: 'shipped-skills',
-      skills: [
-        {
-          name: 'sql-review',
-          description: 'Review SQL migrations for safety on a live DB.',
-          body: '# SQL review\nCheck for table locks, NOT NULL without default, ...',
-          // Optional — surfaces in Skill.metadata for your own filtering / policy code.
-          metadata: { version: '1.0.0', tags: 'sql,review' },
-        },
-      ],
-    }),
+const layered = createLayeredSkillSource({
+  layers: [userSkillsDir, projectSkillsDir], // LOW → HIGH precedence; project wins
+  onOverride: ({ name, winner, loser }) =>
+    console.log(`"${name}": layer "${winner}" shadows "${loser}"`),
+})
+// pass in skillSources: [layered]
+```
+
+### Per-skill `allowed-tools`
+
+The frontmatter `allowed-tools` field is stored verbatim. Interpret and enforce it with two helpers:
+
+```typescript
+import { parseAllowedTools, restrictToolsHook } from 'astorlm'
+
+const allowed = parseAllowedTools(skill) ?? [] // CSV → string[] | null
+const hooks = restrictToolsHook(allowed, {
+  alwaysAllow: ['read', 'load_skill'], // keep these usable regardless
+  denyMessage: (t) => `Tool "${t}" is not in the active skill's allowed-tools.`,
+})
+// pass `hooks` into createLocalAgent({ hooks })
+```
+
+Deciding *which* skill is active (and therefore which allowlist applies) is left to the consumer — combine `parseAllowedTools` with your own logic and merge it into the session hooks. The SDK deliberately does not track an "active skill" in the core.
+
+### From an in-memory bundle
+
+```typescript
+import { createInMemorySkillSource } from 'astorlm'
+
+const source = createInMemorySkillSource({
+  name: 'shipped-skills',
+  skills: [
+    {
+      name: 'sql-review',
+      description: 'Review SQL migrations for safety on a live DB.',
+      body: '# SQL review\nCheck for table locks, NOT NULL without default, ...',
+      metadata: { version: '1.0.0', 'allowed-tools': 'read, grep' },
+    },
   ],
 })
-```
-
-### Writing a custom source
-
-Implement the two-method interface and pass it in `skillSources`:
-
-```typescript
-import type { SkillSource } from 'astorlm'
-
-const httpSource: SkillSource = {
-  name: 'registry.example.com',
-  async list() {
-    const res = await fetch('https://registry.example.com/skills')
-    return res.json()  // SkillMetadata[]
-  },
-  async load(name) {
-    const res = await fetch(`https://registry.example.com/skills/${name}`)
-    if (res.status === 404) return null
-    return res.json()  // { name, description, source, body }
-  },
-}
 ```
 
 Conflicting names across sources throw at session creation — there is no silent override.
@@ -448,18 +464,17 @@ Conflicting names across sources throw at session creation — there is no silen
 
 ## 🐳 Executors (sandboxing & swappable backends)
 
-Bash-family tools (`bash`, `bash_spawn`, `bash_get_output`, `bash_kill`) never talk to `child_process` directly — they delegate to an `Executor`. That makes the execution backend pluggable without touching the tools or the loop.
+Bash-family tools (`bash`, `bash_spawn`, `bash_get_output`, `bash_kill`) never talk to `child_process` directly — they delegate to an `Executor`, making the execution backend pluggable.
 
-* **`LocalExecutor`** (`astorlm/node`) — runs commands in the host process. Default when you use `createNodeAgentSession`.
-* **`DockerExecutor`** (`astorlm/node`) — runs every command inside a container. Real sandboxing, not a command allowlist.
-* **Custom** — implement the `Executor` interface (`exec`, `spawn`, `getOutput`, `kill`, `dispose`) and pass it in via `executor`.
+* **`LocalExecutor`** (`astorlm/core`) — runs commands in the host process. Default for `createLocalAgent`.
+* **`DockerExecutor`** (`astorlm/core`) — runs every command inside a container. Real sandboxing, not a command allowlist.
+* **Custom** — implement the `Executor` interface (`exec`, `spawn`, `getOutput`, `kill`, `dispose`) and pass it via `executor`.
 
 ```typescript
-import { createNodeAgentSession, DockerExecutor } from 'astorlm/node'
-import { createCodingTools } from 'astorlm/tools/node'
-import { OpenAIProvider } from 'astorlm'
+import { createLocalAgent, DockerExecutor, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
 
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
   tools: createCodingTools(),
   executor: new DockerExecutor({ image: 'node:20-alpine' }),
@@ -472,77 +487,64 @@ The agnostic core ships `createNoopExecutor()` as default — it throws a clear 
 
 ## ⏱️ Background processes (`bash_spawn` / `bash_get_output` / `bash_kill`)
 
-In addition to the synchronous `bash` tool, the agent can manage long-running processes:
+Beyond the synchronous `bash` tool, the agent can manage long-running processes:
 
 * `bash_spawn { command }` → returns an opaque `pid`.
-* `bash_get_output { pid }` → drains stdout/stderr buffered since the last call, plus running status / exit code.
+* `bash_get_output { pid }` → drains stdout/stderr buffered since the last call, plus status / exit code.
 * `bash_kill { pid, signal? }` → terminates the process.
 
-This is what lets the agent launch a dev server, inspect logs, and tear it down before moving on — without blocking the loop.
+This is what lets the agent launch a dev server, inspect logs, and tear it down without blocking the loop.
 
 ---
+
+## 🧭 Loop patterns
+
+`createAgent` / `createLocalAgent` accept `pattern: 'REACT' | 'PLAN_EXECUTE'` (default `'REACT'`).
+
+`'PLAN_EXECUTE'` auto-registers `add_plan_item` and `update_plan_item` tools that mutate a `PlanItem[]`. Each turn the loop injects the plan state into the system prompt (same idea as a visible, mutable to-do list). The plan persists in session metadata and survives resume/fork; read it with `agent.getPlan()`.
 
 ## 📉 Context optimizer (auto-compaction)
 
-When the provider exposes a `contextLimit`, the loop runs a structural optimizer between turns that prunes / dedupes once the conversation crosses a threshold of that limit.
+When the provider exposes a `contextLimit`, the loop runs a structural optimizer between turns that prunes / dedupes once the conversation crosses a threshold. It's structural (prune / dedupe), not LLM-based summarization.
 
 ```typescript
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   provider: /* ... */,
   contextOptimizer: {
     maxTokens: 200_000,
-    compressThreshold: 0.8,   // optimize when usage > 80% of maxTokens
-    keepRecentTurns: 3,       // always keep the last N turns verbatim
-    // tokenCounter?: (messages, systemPrompt) => number  // override the default 4-chars-per-token heuristic
+    compressThreshold: 0.8, // optimize when usage > 80% of maxTokens
+    keepRecentTurns: 3,     // always keep the last N turns verbatim
   },
 })
-
-// Disable entirely:
-//   contextOptimizer: false
+// Disable entirely: contextOptimizer: false
 // Implicit default: enabled if provider.contextLimit is set, off otherwise.
 ```
-
-The optimizer is structural (prune / dedupe), not LLM-based summarization.
-
----
 
 ## 🔁 Retry policy for transient provider errors
 
 Opt-in retries for transient failures (HTTP 429, 5xx, network timeouts, streams cut before any chunk). Already-streamed events are never duplicated — once any event is emitted on an attempt, the loop will not retry that turn.
 
 ```typescript
-const session = await createNodeAgentSession({
+const agent = await createLocalAgent({
   provider: /* ... */,
-  retry: {
-    maxAttempts: 3,
-    baseDelayMs: 500,
-    maxDelayMs: 10_000,
-    jitter: true,
-  },
+  retry: { maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 10_000, jitter: true },
 })
-
-session.subscribe((e) => {
-  if (e.type === 'provider_retry') {
-    console.warn(`Retrying provider call: attempt ${e.attempt}/${e.maxAttempts} after ${e.delayMs}ms`)
-  }
-})
+// Default (omitted): no retries — errors propagate and the session closes with session_end: error.
 ```
-
-Default (option omitted): no retries — errors propagate and the session closes with `session_end: error`.
-
----
 
 ## 📊 Token usage tracking
 
-Each session accumulates token counts reported by the provider across all `prompt()` calls. No pricing layer — raw counts only.
-
 ```typescript
-await session.prompt('...')
-console.log(session.getUsage())
+await agent.run('...')
+console.log(agent.getUsage())
 // { inputTokens, outputTokens, cacheReadTokens?, cacheCreationTokens? }
 ```
 
-`cacheReadTokens` and `cacheCreationTokens` are populated when the provider reports them (Anthropic always; OpenAI's `cached_tokens` when applicable; many OpenAI-compat endpoints leave them undefined).
+No pricing layer — raw counts only. `cacheReadTokens` / `cacheCreationTokens` are populated when the provider reports them (Anthropic always; OpenAI's `cached_tokens` when applicable; many OpenAI-compat endpoints leave them undefined).
+
+## 🫀 Heartbeat (proactive loop)
+
+`agent.startHeartbeat(opts?)` / `agent.stopHeartbeat()` (or pass `heartbeat` to the factory) run a check prompt on an interval. A `localCondition(cwd)` enables the **latent heartbeat**: the check runs locally in TypeScript and only wakes the LLM when it returns `true` — zero token cost until the trigger fires.
 
 ---
 
@@ -550,7 +552,7 @@ console.log(session.getUsage())
 
 ```bash
 pnpm install          # install dependencies
-pnpm build            # build the library (dist/ in ESM, CJS, and d.ts)
+pnpm build            # build the library (dist/ in ESM, CJS, and d.ts) — respects every entrypoint
 pnpm dev              # interactive watch-mode build
 pnpm test             # run the unit test suite (Vitest)
 pnpm typecheck        # run TypeScript type checking without emitting

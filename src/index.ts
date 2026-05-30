@@ -3,6 +3,10 @@
 
 export { createAgent } from './agent/session.js'
 export type { Agent, CreateAgentOptions } from './agent/session.js'
+export { createSubagentTool } from './agent/subagent.js'
+export type { SubagentToolOptions } from './agent/subagent.js'
+export { createSteeringController } from './agent/steering.js'
+export type { SteeringController } from './agent/steering.js'
 export { SessionManager, InMemorySessionManager } from './agent/sessionManager.js'
 export type { SessionState, CreateSessionOptions } from './agent/sessionManager.js'
 
@@ -40,6 +44,9 @@ export type {
   ContextOptimizerOptions,
   RetryPolicy,
   TokenUsage,
+  AgentLoopPattern,
+  PlanItem,
+  HeartbeatOptions,
 } from './types.js'
 
 export { isTransientError, computeBackoffDelay } from './agent/retry.js'
@@ -55,6 +62,8 @@ export {
   validateSkillSpec,
   SkillValidationError,
   SKILL_VALIDATION_LIMITS,
+  parseAllowedTools,
+  restrictToolsHook,
 } from './skills/index.js'
 export type {
   Skill,
@@ -63,6 +72,7 @@ export type {
   SkillMode,
   InMemorySkillSourceOptions,
   ParsedFrontmatter,
+  RestrictToolsOptions,
 } from './skills/index.js'
 
 export { createNoopExecutor } from './executor/types.js'
