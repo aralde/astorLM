@@ -167,3 +167,5 @@ export type { DockerExecutorOptions } from './executor/docker.js'
 // `SkillSource`, `SkillRegistry`, etc. live in the agnostic barrel.
 export { createFileSystemSkillSource } from './skills-node/fileSystemSource.js'
 export type { FileSystemSkillSourceOptions } from './skills-node/fileSystemSource.js'
+export { createLayeredSkillSource } from './skills-node/layeredSource.js'
+export type { LayeredSkillSourceOptions } from './skills-node/layeredSource.js'
