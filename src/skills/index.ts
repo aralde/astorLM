@@ -21,3 +21,5 @@ export {
   SkillValidationError,
   SKILL_VALIDATION_LIMITS,
 } from './validate.js'
+export { parseAllowedTools, restrictToolsHook } from './toolPolicy.js'
+export type { RestrictToolsOptions } from './toolPolicy.js'
