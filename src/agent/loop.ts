@@ -36,6 +36,15 @@ export interface RunLoopOptions {
   previousTurns: number
   pattern?: AgentLoopPattern
   plan?: PlanItem[]
+  /**
+   * Tools terminales: si el modelo llama a alguna de estas y su ejecución NO
+   * falla, el loop devuelve el mensaje del assistant inmediatamente después de
+   * registrar su `tool_result`, sin abrir otro turno. Lo usa `generateObject`
+   * para cerrar apenas el modelo entrega la respuesta tipada. Si la tool falla
+   * (ej. validación de schema), NO se corta: el `tool_result` de error vuelve al
+   * modelo para que reintente (repair loop).
+   */
+  stopOnToolNames?: string[]
 }
 
 const DEFAULT_MAX_TURNS = 25
@@ -307,6 +316,16 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         cwd: opts.cwd,
         bus: opts.bus,
       })
+    }
+
+    // Terminal tool: si alguna tool terminal corrió sin error, cerramos el loop
+    // acá. `results` está alineado por índice con `toolUses` (Promise.all
+    // preserva el orden), así que podemos cruzar nombre ↔ resultado.
+    if (opts.stopOnToolNames?.length) {
+      const hitTerminal = toolUses.some(
+        (tu, i) => opts.stopOnToolNames!.includes(tu.name) && !results[i]?.is_error,
+      )
+      if (hitTerminal) return assistantMessage
     }
   }
 

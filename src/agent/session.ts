@@ -97,6 +97,13 @@ export interface CreateAgentOptions {
   pattern?: AgentLoopPattern
   /** Optional proactive heartbeat loop configuration. */
   heartbeat?: HeartbeatOptions
+  /**
+   * Tools terminales: nombres de tools que, al ejecutarse sin error, cierran
+   * el loop inmediatamente (sin abrir otro turno). Pensado para el patrón de
+   * "salida como tool terminal" que usa `generateObject`, pero disponible como
+   * capacidad general del loop.
+   */
+  stopOnToolNames?: string[]
 }
 
 /**
@@ -548,6 +555,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         previousTurns,
         pattern,
         plan,
+        stopOnToolNames: opts.stopOnToolNames,
       })
       bus.emit({ type: 'session_end', reason: 'completed' })
       await saveState()

@@ -169,12 +169,36 @@ export interface ContextOptimizerOptions {
 
 // ---------- Provider ----------
 
+/**
+ * Pedido de salida tipada al provider (structured output — forzar que la
+ * respuesta del modelo cumpla un JSON Schema). Cada provider lo mapea a su
+ * mecanismo nativo:
+ *   - OpenAI / OpenAI-compatible → `response_format: { type: 'json_schema' }`
+ *     (constrained decoding: el modelo no puede emitir tokens fuera del schema).
+ *   - Providers sin soporte nativo → lo ignoran; la garantía recae en el prompt
+ *     y en la validación + reintentos del consumidor (ver `generateObject`).
+ *
+ * Sólo aplica cuando NO se envían tools en la misma llamada: `response_format`
+ * y `tool_choice` no conviven de forma confiable. El patrón "salida como tool
+ * terminal" (`generateObject` en modo `'tool'`) cubre el caso con tools.
+ */
+export interface OutputFormat {
+  /** Nombre del schema (ej. "sentiment_result"). */
+  name: string
+  /** JSON Schema que debe cumplir la respuesta. */
+  schema: Record<string, unknown>
+  /** Modo estricto del provider (OpenAI `strict: true`). Default: true. */
+  strict?: boolean
+}
+
 export interface ProviderStreamOptions {
   systemPrompt: string
   messages: Message[]
   tools: Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>>
   abortSignal: AbortSignal
   maxTokens?: number
+  /** Salida tipada opcional (structured output). Ver {@link OutputFormat}. */
+  outputFormat?: OutputFormat
 }
 
 export type ProviderEvent =
