@@ -62,6 +62,23 @@ export class OpenAIProvider implements Provider {
       },
     }))
 
+    // Salida tipada (structured output). `response_format: json_schema` aplica
+    // constrained decoding — el modelo no puede salirse del schema. No convive
+    // con `tools`/`tool_choice`, así que sólo lo mandamos cuando no hay tools.
+    const responseFormat =
+      opts.outputFormat && tools.length === 0
+        ? {
+            response_format: {
+              type: 'json_schema' as const,
+              json_schema: {
+                name: opts.outputFormat.name,
+                schema: opts.outputFormat.schema,
+                strict: opts.outputFormat.strict ?? true,
+              },
+            },
+          }
+        : {}
+
     const stream = await this.client.chat.completions.create(
       {
         model: this.model,
@@ -72,6 +89,7 @@ export class OpenAIProvider implements Provider {
         stream_options: { include_usage: true },
         messages,
         ...(tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
+        ...responseFormat,
         ...(opts.maxTokens ?? this.maxTokens ? { max_tokens: opts.maxTokens ?? this.maxTokens } : {}),
       },
       { signal: opts.abortSignal },

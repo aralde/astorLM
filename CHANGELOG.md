@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Structured output (`generateObject`)
+
+Typed, schema-validated model output as a first-class API.
+
+- `generateObject({ provider, schema, prompt, ... })` returns `{ object, message, sessionId?, mode }`
+  where `object` is typed and validated against a Zod schema.
+- Two strategies behind one call:
+  - **`'tool'` (terminal tool)** — the general primitive. Registers a synthetic
+    tool whose schema is the desired output and instructs the model to call it;
+    its input *is* the object. Works with any provider, composes with other
+    tools, and reuses the agent's tool validation + repair loop (an invalid
+    object comes back as an error `tool_result` the model self-corrects).
+  - **`'native'` (response_format)** — for the no-tools, one-shot case. Maps to
+    OpenAI `response_format: json_schema` (constrained decoding). Repairs by
+    re-asking with the validation error when the provider lacks native support.
+  - **`'auto'` (default)** — `'native'` when there are no tools and the provider
+    is OpenAI-compatible; `'tool'` otherwise.
+- `OutputFormat` type + `ProviderStreamOptions.outputFormat`. `OpenAIProvider`
+  maps it to `response_format` (only when no tools are sent in the same call).
+- `CreateAgentOptions.stopOnToolNames` / `runLoop` support: the loop returns
+  immediately after a named tool runs without error (powers the terminal-tool
+  primitive; also useful standalone).
+- `GenerateObjectError` thrown when the model never produces a valid object.
+
 ### Added — Skills subsystem (Agent Skills spec, May 2026)
 
 A complete, spec-aligned skills implementation. Skills are reusable
