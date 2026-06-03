@@ -106,6 +106,104 @@ const agent = await createLocalAgent({
 
 A human approves pending resolutions asynchronously (e.g. `registry.approveResolution(id, approver)`). Until approved, a candidate resolution is not suggested to other sessions.
 
+### 5. `astorlm/experimental/tracing` (Experimental — Observability)
+> ⚠️ **Experimental**. Volatile API behind a dedicated subpath. Runtime-agnostic (reads only the event bus; uses Web Crypto for ids).
+
+* **Description**: Derives a hierarchical span tree (`session → turn → provider_call | tool_execution`) from the agent's event bus **without touching the loop** — attaching a tracer is pure subscription. Spans carry OpenTelemetry GenAI semantic-convention attributes (`gen_ai.*`) plus astorlm-specific ones (TTFT, tool duration/errors, retries).
+* **Key exports**:
+  - `attachTracer(agent, { exporter })` — subscribes to the bus and builds spans; returns `{ detach(), currentTraceId() }`.
+  - `createInMemoryExporter()` — collects spans in an array for tests / local inspection.
+  - `createTracer(opts?)` — low-level span factory (usually managed by `attachTracer`).
+  - `createOtlpSpanExporter(opts)` (from `astorlm/experimental/tracing/otel`) — OTLP/HTTP (JSON) exporter built on `fetch` alone, **no OpenTelemetry SDK dependency**. Ships spans to any OTLP collector (OpenTelemetry Collector, Tempo, Jaeger, Honeycomb, Arize Phoenix, Langfuse).
+
+```typescript
+import { createLocalAgent, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+import { attachTracer, createInMemoryExporter } from 'astorlm/experimental/tracing'
+import { createOtlpSpanExporter } from 'astorlm/experimental/tracing/otel'
+
+const agent = await createLocalAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: createCodingTools(),
+})
+
+// In-memory (inspect locally) ...
+const memory = createInMemoryExporter()
+// ... and/or export to an OTLP collector:
+const otlp = createOtlpSpanExporter({ endpoint: 'http://localhost:4318/v1/traces', serviceName: 'my-agent' })
+
+const tracer = attachTracer(agent, {
+  exporter: { export: (spans) => { memory.export(spans); otlp.export(spans) } },
+})
+
+await agent.run('List the .ts files and count them.')
+tracer.detach()
+await otlp.shutdown() // final flush
+
+for (const s of memory.spans) console.log(s.kind, s.name, s.endTime! - s.startTime, 'ms')
+```
+
+The OTLP exporter buffers spans and flushes by batch size (`maxBatch`, default 256) or on a timer (`flushIntervalMs`, default 5s, `unref()`-ed). Hex `trace_id`/`span_id` are forwarded verbatim per the OTLP/JSON convention.
+
+### 6. `astorlm/experimental/metrics` (Experimental — Cost & metrics)
+> ⚠️ **Experimental**. Runtime-agnostic (reads only the event bus).
+
+* **Description**: Aggregates operational metrics from the agent's event bus and, given a pricing table, the USD cost of a run. No prices are hardcoded — you supply the table (USD per 1M tokens).
+* **Key exports**:
+  - `attachMetrics(agent, { pricing? })` — subscribes to the bus; returns `{ snapshot(), reset(), detach() }`. The snapshot has counts (`runs`, `turns`, `providerCalls`, `toolCalls`, `toolErrors`, `providerRetries`), `tokens`, optional `costUsd`, and latency stats (`ttftMs`, `turnMs`, `toolMs`).
+  - `computeCost(usage, pricing)`, `resolvePricing(table, model)` — usable standalone (exact then longest-prefix model match).
+
+```typescript
+import { attachMetrics } from 'astorlm/experimental/metrics'
+
+const metrics = attachMetrics(agent, {
+  pricing: { 'gpt-4o': { inputPer1M: 2.5, outputPer1M: 10, cacheReadPer1M: 1.25 } },
+})
+await agent.run('...')
+const m = metrics.snapshot() // { costUsd, latency: { ttftMs: { avg, ... } }, tokens, ... }
+```
+
+### 7. `astorlm/experimental/replay` (Experimental — Record & replay)
+> ⚠️ **Experimental**. Runtime-agnostic; the `Recording` is a plain serializable object.
+
+* **Description**: Captures exactly the provider events a run produced and replays them later with no network and no token spend — the deterministic debugging primitive. Capture is at the provider boundary, so it's independent of tools, hooks and timing.
+* **Key exports**:
+  - `createRecordingProvider(inner)` — wraps a real provider, passes events through and records them; `getRecording()` returns a serializable object.
+  - `createReplayProvider(recording, { onExhausted? })` — a provider that replays the recording turn by turn.
+
+```typescript
+import { createRecordingProvider, createReplayProvider } from 'astorlm/experimental/replay'
+
+const rec = createRecordingProvider(realProvider)
+const agent = await createLocalAgent({ provider: rec, tools })
+await agent.run('...')
+fs.writeFileSync('run.json', JSON.stringify(rec.getRecording()))
+
+// later — same events, no model call
+const recording = JSON.parse(fs.readFileSync('run.json', 'utf8'))
+const replay = await createLocalAgent({ provider: createReplayProvider(recording), tools })
+await replay.run('...')
+```
+
+### 8. `astorlm/experimental/evals` (Experimental — Offline evaluation)
+> ⚠️ **Experimental**. Runtime-agnostic core; `llmJudge` needs a `Provider` (point it at a local OpenAI-compatible endpoint).
+
+* **Description**: Runs a dataset of cases through fresh agents, applies scorers, and aggregates a report (overall pass rate + per-scorer stats). Built for CI gating; pair the agent factory with the replay provider for fast, network-free regression runs.
+* **Key exports**:
+  - `runEval({ dataset, createAgent, scorers, concurrency?, onResult? })` → `EvalReport`.
+  - Scorers: `exactMatch`, `contains`, `regexMatch`, `toolTrajectory` (tool-call sequence: `'exact' | 'ordered-subset' | 'set'`), `llmJudge` (LLM-as-judge with a rubric → normalized 0..1).
+
+```typescript
+import { runEval, contains, toolTrajectory, llmJudge } from 'astorlm/experimental/evals'
+
+const report = await runEval({
+  dataset: [{ id: 'q1', input: 'How many .ts files?', expected: 'a number' }],
+  createAgent: () => createLocalAgent({ provider: provider(), tools: createReadOnlyTools() }),
+  scorers: [contains('.ts'), toolTrajectory(['ls'], { mode: 'set' }), llmJudge({ provider: provider(), rubric: '...' })],
+})
+if (report.summary.passRate < 0.8) process.exit(1) // CI gate
+```
+
 ---
 
 ## 🚀 Quick Use Examples
