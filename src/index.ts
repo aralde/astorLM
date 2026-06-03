@@ -3,6 +3,12 @@
 
 export { createAgent } from './agent/session.js'
 export type { Agent, CreateAgentOptions } from './agent/session.js'
+export { generateObject, GenerateObjectError } from './agent/generateObject.js'
+export type {
+  GenerateObjectOptions,
+  GenerateObjectResult,
+  GenerateObjectMode,
+} from './agent/generateObject.js'
 export { createSubagentTool } from './agent/subagent.js'
 export type { SubagentToolOptions } from './agent/subagent.js'
 export { createSteeringController } from './agent/steering.js'
@@ -32,6 +38,7 @@ export type {
   Provider,
   ProviderEvent,
   ProviderStreamOptions,
+  OutputFormat,
   Message,
   ContentBlock,
   TextBlock,
