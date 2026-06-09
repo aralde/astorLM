@@ -11,6 +11,13 @@ export type {
 } from './agent/generateObject.js'
 export { createSubagentTool } from './agent/subagent.js'
 export type { SubagentToolOptions } from './agent/subagent.js'
+export { runGoalLoop } from './agent/goalLoop.js'
+export type {
+  GoalLoopOptions,
+  GoalLoopResult,
+  GoalLoopIterationContext,
+  GoalLoopResultContext,
+} from './agent/goalLoop.js'
 export { createSteeringController } from './agent/steering.js'
 export type { SteeringController } from './agent/steering.js'
 export { SessionManager, InMemorySessionManager } from './agent/sessionManager.js'
