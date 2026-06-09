@@ -27,6 +27,11 @@
       "import": "./dist/prompt/index.js",
       "require": "./dist/prompt/index.cjs"
     },
+    "./embeddings": {
+      "types": "./dist/embeddings/index.d.ts",
+      "import": "./dist/embeddings/index.js",
+      "require": "./dist/embeddings/index.cjs"
+    },
     "./experimental/error-registry": {
       "types": "./dist/experimental/error-registry/index.d.ts",
       "import": "./dist/experimental/error-registry/index.js",
