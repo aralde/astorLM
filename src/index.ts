@@ -19,6 +19,31 @@ export type { AnthropicProviderOptions } from './provider/anthropic.js'
 export { OpenAIProvider } from './provider/openai.js'
 export type { OpenAIProviderOptions } from './provider/openai.js'
 
+// Embeddings (first-class, runtime-agnostic — also at `astorlm/embeddings`)
+export {
+  createOpenAIEmbedder,
+  cosineSimilarity,
+  dotProduct,
+  euclideanDistance,
+  createSemanticIndex,
+  withEmbeddingCache,
+} from './embeddings/index.js'
+export type {
+  Embedder,
+  EmbedOptions,
+  EmbedResult,
+  EmbedManyResult,
+  EmbeddingUsage,
+  OpenAIEmbedderOptions,
+  SemanticIndex,
+  SemanticIndexOptions,
+  SemanticHit,
+  SemanticQueryOptions,
+  IndexRecord,
+  EmbeddingCache,
+  WithEmbeddingCacheOptions,
+} from './embeddings/index.js'
+
 export { AuthStorage } from './auth/storage.js'
 export { buildSystemPrompt, DEFAULT_SYSTEM_PROMPT } from './prompt/system.js'
 export { compilePrompts } from './prompt/compiler.js'
