@@ -1,66 +1,52 @@
 /**
- * Minimal OpenAI-compatible embeddings client. When the caller does not
- * configure an embedder, the registry falls back to fuzzy matching
- * (Jaccard) and this file is unused.
+ * Back-compat shim.
  *
- * Does not depend on the OpenAI or Anthropic SDKs — uses the global
- * `fetch` (Node ≥ 18) to keep the experimental module lightweight and
- * self-contained.
+ * The embeddings primitives that used to live here were promoted to the
+ * first-class `src/embeddings/` module (exported from `astorlm` and
+ * `astorlm/embeddings`). This file now re-exports thin adapters so existing
+ * imports from `astorlm/experimental/error-registry` keep working.
+ *
+ * @deprecated Import from `astorlm` / `astorlm/embeddings` instead.
  */
 
+import { createOpenAIEmbedder } from '../../embeddings/openai.js'
+import { cosineSimilarity as rawCosine } from '../../embeddings/similarity.js'
+import type { Embedder } from '../../embeddings/types.js'
+
+/** @deprecated Use `Embedder` from `astorlm`. */
 export interface EmbeddingClient {
   embed(text: string, signal?: AbortSignal): Promise<number[]>
 }
 
+/** @deprecated Use `OpenAIEmbedderOptions` from `astorlm`. */
 export interface OpenAIEmbeddingClientOptions {
   baseURL: string
   model: string
   apiKey?: string
 }
 
+/**
+ * @deprecated Use `createOpenAIEmbedder` from `astorlm`. This wrapper
+ * preserves the old single-vector `embed(text) → number[]` signature.
+ */
 export function createOpenAIEmbeddingClient(opts: OpenAIEmbeddingClientOptions): EmbeddingClient {
-  const apiKey = opts.apiKey ?? 'not-needed'
-  const url = `${opts.baseURL.replace(/\/$/, '')}/embeddings`
-
+  const embedder: Embedder = createOpenAIEmbedder(opts)
   return {
     async embed(text, signal) {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ model: opts.model, input: text }),
-        signal,
-      })
-      if (!res.ok) {
-        throw new Error(`Embeddings API ${res.status}: ${await res.text().catch(() => '')}`)
-      }
-      const json = (await res.json()) as { data?: Array<{ embedding: number[] }> }
-      const vec = json.data?.[0]?.embedding
-      if (!Array.isArray(vec)) {
-        throw new Error('Embeddings response missing data[0].embedding')
-      }
-      return vec
+      const { embedding } = await embedder.embed(text, { signal })
+      return embedding
     },
   }
 }
 
-/** Cosine similarity in [-1..1], clamped to [0..1] for ranking. */
+/**
+ * Cosine similarity clamped to `[0..1]` so it is comparable with the
+ * Jaccard fallback used by the error registry. The first-class
+ * `cosineSimilarity` (from `astorlm`) returns the standard `[-1..1]`.
+ *
+ * @deprecated Import `cosineSimilarity` from `astorlm` and clamp at the
+ * call site if you need a non-negative score.
+ */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0
-  let dot = 0
-  let na = 0
-  let nb = 0
-  for (let i = 0; i < a.length; i++) {
-    const ai = a[i] as number
-    const bi = b[i] as number
-    dot += ai * bi
-    na += ai * ai
-    nb += bi * bi
-  }
-  const denom = Math.sqrt(na) * Math.sqrt(nb)
-  if (denom === 0) return 0
-  // Normalize to [0..1] so it is comparable with Jaccard.
-  return Math.max(0, dot / denom)
+  return Math.max(0, rawCosine(a, b))
 }

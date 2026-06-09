@@ -44,6 +44,7 @@ graph TD
   - `createAgent` (async — `Promise<Agent>`)
   - `InMemorySessionManager`, `SessionManager`
   - `AnthropicProvider`, `OpenAIProvider`
+  - `createOpenAIEmbedder`, `cosineSimilarity`, `createSemanticIndex`, `withEmbeddingCache` (embeddings — also at `astorlm/embeddings`)
   - `tool`, `ToolRegistry`
   - `EventBus`, `buildSystemPrompt`, `estimateTokens`, `optimizeContext`, `isTransientError`, `computeBackoffDelay`
   - `createSubagentTool` (subagents / agent-as-tool), `createSteeringController` (out-of-hook steering)
@@ -72,7 +73,35 @@ graph TD
   - `createReadOnlyTools()` (safe variant — no writes or execution: `read`, `ls`, `grep`, `glob`).
   - Individual tools: `readTool`, `writeTool`, `editTool`, `bashTool`, `bashSpawnTool`, `bashGetOutputTool`, `bashKillTool`, `lsTool`, `grepTool`, `globTool`.
 
-### 4. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
+### 4. `astorlm/embeddings` (Embeddings & semantic search)
+* **Description**: First-class, runtime-agnostic embeddings primitives — sit next to the providers in the main barrel and are also reachable via this dedicated subpath. `fetch`-based, zero extra dependencies, work anywhere `fetch` exists (Node, Deno, browsers, edge).
+* **Key exports**:
+  - `createOpenAIEmbedder({ baseURL, model, apiKey?, dimensions? })` — OpenAI-compatible `Embedder` with `embed` (single) and `embedMany` (batch, one round-trip) plus token `usage`.
+  - `createSemanticIndex({ embedder })` — in-memory vector store: `add` / `addMany` / `query(text, { topK, threshold })` / `queryByVector` / `remove` / `clear`. The reusable primitive behind semantic search, RAG retrieval and dedupe.
+  - `withEmbeddingCache(embedder)` — memoizes identical inputs so repeated lookups don't re-embed (or re-bill); `embedMany` only requests the cache misses.
+  - `cosineSimilarity` (standard `[-1..1]`), `dotProduct`, `euclideanDistance`.
+  - Types: `Embedder`, `EmbedResult`, `EmbedManyResult`, `SemanticIndex`, `SemanticHit`, etc.
+
+```typescript
+import { createOpenAIEmbedder, createSemanticIndex } from 'astorlm'
+
+const embedder = createOpenAIEmbedder({
+  baseURL: 'http://127.0.0.1:11434/v1',
+  model: 'nomic-embed-text',
+  apiKey: 'not-needed',
+})
+
+const index = createSemanticIndex({ embedder })
+await index.addMany([
+  { id: 'oom', text: 'Node process crashes with out of memory during the build.' },
+  { id: 'tls', text: 'TLS handshake fails: expired certificate in production.' },
+])
+
+const hits = await index.query('ran out of RAM while compiling', { topK: 1 })
+// → [{ id: 'oom', score: 0.8…, text: '…' }]
+```
+
+### 5. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
 > ⚠️ **Experimental**. Lives under a dedicated subpath, not the main barrel. The import path itself is the signal that the API is volatile and may change between minor releases.
 
 * **Description**: A registry of agent-encountered errors and human-approved resolutions. When an agent hits an error that another agent (or a previous run) has already resolved, the registry injects the fix as a hint into the next `tool_result` — the agent applies the known solution instead of fighting through it again. Honest single-org PoC; federation across organizations and full secret sanitization are out of scope.
