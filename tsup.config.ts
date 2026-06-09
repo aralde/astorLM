@@ -6,6 +6,7 @@ export default defineConfig({
     'src/core.ts',
     'src/tools/index.ts',
     'src/prompt/index.ts',
+    'src/embeddings/index.ts',
     'src/experimental/error-registry/index.ts',
     'src/experimental/contract/index.ts',
     'src/experimental/tracing/index.ts',
