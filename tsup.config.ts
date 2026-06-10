@@ -9,11 +9,7 @@ export default defineConfig({
     'src/embeddings/index.ts',
     'src/experimental/error-registry/index.ts',
     'src/experimental/contract/index.ts',
-    'src/experimental/tracing/index.ts',
-    'src/experimental/tracing/otel/index.ts',
-    'src/experimental/metrics/index.ts',
-    'src/experimental/replay/index.ts',
-    'src/experimental/evals/index.ts',
+    'src/experimental/wasm-runner/index.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,
@@ -21,4 +17,8 @@ export default defineConfig({
   clean: true,
   target: 'node20',
   splitting: false,
+  // Keep the optional WASM runtime out of the bundle: it is dynamically
+  // imported and ships its own .wasm assets that must be resolved from the
+  // consumer's node_modules, not inlined into dist/.
+  external: ['quickjs-emscripten', /^@jitl\/quickjs-/],
 })
