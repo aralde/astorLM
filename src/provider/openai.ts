@@ -18,6 +18,11 @@ export interface OpenAIProviderOptions {
   baseURL?: string
   /** Permite usar otros endpoints compatibles (Groq, OpenRouter, Together, etc.). */
   envVar?: string
+  /**
+   * Allows the client to run inside a browser-like environment (e.g. a Tauri or
+   * Electron webview). Off by default, matching the OpenAI SDK's safe default.
+   */
+  dangerouslyAllowBrowser?: boolean
 }
 
 /**
@@ -41,7 +46,11 @@ export class OpenAIProvider implements Provider {
     const auth = opts.auth ?? AuthStorage.default()
     const envVar = opts.envVar ?? 'OPENAI_API_KEY'
     const apiKey = opts.apiKey ?? auth.require(envVar)
-    this.client = new OpenAI({ apiKey, baseURL: opts.baseURL })
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: opts.baseURL,
+      dangerouslyAllowBrowser: opts.dangerouslyAllowBrowser ?? false,
+    })
     this.model = opts.model
     this.maxTokens = opts.maxTokens
     this.contextLimit = opts.model.includes('gpt-3.5') ? 16385 : 128000

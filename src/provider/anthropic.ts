@@ -20,6 +20,11 @@ export interface AnthropicProviderOptions {
   thinking?: {
     budget_tokens: number
   }
+  /**
+   * Allows the client to run inside a browser-like environment (e.g. a Tauri or
+   * Electron webview). Off by default, matching the Anthropic SDK's safe default.
+   */
+  dangerouslyAllowBrowser?: boolean
 }
 
 
@@ -40,7 +45,11 @@ export class AnthropicProvider implements Provider {
   constructor(opts: AnthropicProviderOptions) {
     const auth = opts.auth ?? AuthStorage.default()
     const apiKey = opts.apiKey ?? auth.require('ANTHROPIC_API_KEY')
-    this.client = new Anthropic({ apiKey, baseURL: opts.baseURL })
+    this.client = new Anthropic({
+      apiKey,
+      baseURL: opts.baseURL,
+      dangerouslyAllowBrowser: opts.dangerouslyAllowBrowser ?? false,
+    })
     this.model = opts.model
     this.maxTokens = opts.maxTokens ?? 4096
     this.contextLimit = 200000
