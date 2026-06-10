@@ -127,5 +127,11 @@ export type {
   ProcessStatus,
 } from './executor/types.js'
 
+export type {
+  CodeRunner,
+  RunCodeOptions,
+  RunCodeResult,
+} from './coderunner/types.js'
+
 // Re-export Node-specific local API for unified imports
 export * from './core.js'

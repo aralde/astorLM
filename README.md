@@ -135,7 +135,7 @@ const agent = await createLocalAgent({
 
 A human approves pending resolutions asynchronously (e.g. `registry.approveResolution(id, approver)`). Until approved, a candidate resolution is not suggested to other sessions.
 
-### 5. `astorlm/experimental/tracing` (Experimental — Observability)
+### 6. `astorlm/experimental/tracing` (Experimental — Observability)
 > ⚠️ **Experimental**. Volatile API behind a dedicated subpath. Runtime-agnostic (reads only the event bus; uses Web Crypto for ids).
 
 * **Description**: Derives a hierarchical span tree (`session → turn → provider_call | tool_execution`) from the agent's event bus **without touching the loop** — attaching a tracer is pure subscription. Spans carry OpenTelemetry GenAI semantic-convention attributes (`gen_ai.*`) plus astorlm-specific ones (TTFT, tool duration/errors, retries).
@@ -174,7 +174,7 @@ for (const s of memory.spans) console.log(s.kind, s.name, s.endTime! - s.startTi
 
 The OTLP exporter buffers spans and flushes by batch size (`maxBatch`, default 256) or on a timer (`flushIntervalMs`, default 5s, `unref()`-ed). Hex `trace_id`/`span_id` are forwarded verbatim per the OTLP/JSON convention.
 
-### 6. `astorlm/experimental/metrics` (Experimental — Cost & metrics)
+### 7. `astorlm/experimental/metrics` (Experimental — Cost & metrics)
 > ⚠️ **Experimental**. Runtime-agnostic (reads only the event bus).
 
 * **Description**: Aggregates operational metrics from the agent's event bus and, given a pricing table, the USD cost of a run. No prices are hardcoded — you supply the table (USD per 1M tokens).
@@ -192,7 +192,7 @@ await agent.run('...')
 const m = metrics.snapshot() // { costUsd, latency: { ttftMs: { avg, ... } }, tokens, ... }
 ```
 
-### 7. `astorlm/experimental/replay` (Experimental — Record & replay)
+### 8. `astorlm/experimental/replay` (Experimental — Record & replay)
 > ⚠️ **Experimental**. Runtime-agnostic; the `Recording` is a plain serializable object.
 
 * **Description**: Captures exactly the provider events a run produced and replays them later with no network and no token spend — the deterministic debugging primitive. Capture is at the provider boundary, so it's independent of tools, hooks and timing.
@@ -214,7 +214,7 @@ const replay = await createLocalAgent({ provider: createReplayProvider(recording
 await replay.run('...')
 ```
 
-### 8. `astorlm/experimental/evals` (Experimental — Offline evaluation)
+### 9. `astorlm/experimental/evals` (Experimental — Offline evaluation)
 > ⚠️ **Experimental**. Runtime-agnostic core; `llmJudge` needs a `Provider` (point it at a local OpenAI-compatible endpoint).
 
 * **Description**: Runs a dataset of cases through fresh agents, applies scorers, and aggregates a report (overall pass rate + per-scorer stats). Built for CI gating; pair the agent factory with the replay provider for fast, network-free regression runs.
@@ -232,6 +232,12 @@ const report = await runEval({
 })
 if (report.summary.passRate < 0.8) process.exit(1) // CI gate
 ```
+
+### 10. `astorlm/experimental/wasm-runner` (Experimental — WASM code sandbox)
+> ⚠️ **Experimental**. Dedicated subpath, volatile API.
+
+* **Description**: `CodeRunner` — runs untrusted *source code* (not shell commands) inside a memory-safe WebAssembly sandbox with no host access. The daemon-free, runtime-agnostic isolation tier, complementary to `DockerExecutor`. See ["WASM code sandbox"](#-wasm-code-sandbox-astorlmexperimentalwasm-runner) below.
+* **Key exports**: `QuickJsCodeRunner` (JS via QuickJS-wasm), `createCodeRunnerTool({ runner })` (opt-in `run_code` tool), plus the `CodeRunner` / `RunCodeOptions` / `RunCodeResult` types.
 
 ---
 
@@ -609,6 +615,39 @@ const agent = await createLocalAgent({
 ```
 
 The agnostic core ships `createNoopExecutor()` as default — it throws a clear error if a bash tool tries to use it without explicit configuration, so the SDK never silently runs commands on the host.
+
+---
+
+## 🧪 WASM code sandbox (`astorlm/experimental/wasm-runner`)
+
+`CodeRunner` is a sibling primitive to `Executor`, not a replacement for it. Where `Executor` runs **shell commands** with the host toolchain (isolated by Docker, or not at all), `CodeRunner` runs a **self-contained code snippet** inside a memory-safe WebAssembly runtime — no filesystem, no network, no host syscalls unless explicitly granted (capability-based, default-deny).
+
+The key difference: it needs no daemon and no `child_process`, so it runs anywhere WASM does (Node, Deno, the browser, edge) — exactly where `DockerExecutor` cannot reach.
+
+* **`QuickJsCodeRunner`** — JavaScript via QuickJS compiled to WASM (`quickjs-emscripten`, an optional dependency loaded lazily). Per-run fresh context, enforced wall-clock deadline and memory limit, captured `console`, read-only JSON `globals`.
+* **`createCodeRunnerTool({ runner })`** — wraps a runner as a `run_code` tool. Opt-in: it is *not* part of `createCodingTools()`; register it explicitly.
+
+```typescript
+import { createLocalAgent, OpenAIProvider } from 'astorlm'
+import { createReadOnlyTools } from 'astorlm/tools'
+import { QuickJsCodeRunner, createCodeRunnerTool } from 'astorlm/experimental/wasm-runner'
+
+const runner = new QuickJsCodeRunner({ timeoutMs: 3_000 })
+
+const agent = await createLocalAgent({
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: [...createReadOnlyTools(), createCodeRunnerTool({ runner })],
+})
+```
+
+| | `Executor` (Docker) | `CodeRunner` (WASM) |
+|---|---|---|
+| Runs | shell commands + toolchain | self-contained code snippets |
+| Where | Node + Docker daemon only | any runtime (Node/Deno/browser/edge) |
+| Isolation | OS-level (read-write cwd mount) | capability-empty, default-deny |
+| Cold start | hundreds of ms–s per command | ~ms |
+
+> ⚠️ Experimental API. Python (`PyodideCodeRunner`) is planned behind the same `CodeRunner` interface.
 
 ---
 
