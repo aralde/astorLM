@@ -42,30 +42,10 @@
       "import": "./dist/experimental/contract/index.js",
       "require": "./dist/experimental/contract/index.cjs"
     },
-    "./experimental/tracing": {
-      "types": "./dist/experimental/tracing/index.d.ts",
-      "import": "./dist/experimental/tracing/index.js",
-      "require": "./dist/experimental/tracing/index.cjs"
-    },
-    "./experimental/tracing/otel": {
-      "types": "./dist/experimental/tracing/otel/index.d.ts",
-      "import": "./dist/experimental/tracing/otel/index.js",
-      "require": "./dist/experimental/tracing/otel/index.cjs"
-    },
-    "./experimental/metrics": {
-      "types": "./dist/experimental/metrics/index.d.ts",
-      "import": "./dist/experimental/metrics/index.js",
-      "require": "./dist/experimental/metrics/index.cjs"
-    },
-    "./experimental/replay": {
-      "types": "./dist/experimental/replay/index.d.ts",
-      "import": "./dist/experimental/replay/index.js",
-      "require": "./dist/experimental/replay/index.cjs"
-    },
-    "./experimental/evals": {
-      "types": "./dist/experimental/evals/index.d.ts",
-      "import": "./dist/experimental/evals/index.js",
-      "require": "./dist/experimental/evals/index.cjs"
+    "./experimental/wasm-runner": {
+      "types": "./dist/experimental/wasm-runner/index.d.ts",
+      "import": "./dist/experimental/wasm-runner/index.js",
+      "require": "./dist/experimental/wasm-runner/index.cjs"
     }
   },
   "files": ["dist", "README.md"],
@@ -87,10 +67,14 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "quickjs-emscripten": "^0.31.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "optionalDependencies": {
+    "quickjs-emscripten": "^0.31.0"
   },
   "engines": {
     "node": ">=20"
