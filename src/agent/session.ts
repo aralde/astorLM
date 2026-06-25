@@ -63,16 +63,16 @@ export interface CreateAgentOptions {
   /** Configuration for automatic context optimization, or boolean to toggle it. */
   contextOptimizer?: ContextOptimizerOptions | boolean
   /**
-   * Política opcional de reintentos para errores transientes del modelo
-   * (HTTP 429, 5xx, timeouts de red, streams sin chunks). Opt-in: si se
-   * omite, los errores propagan y la sesión cierra con `session_end: error`.
+   * Optional retry policy for transient model errors (HTTP 429, 5xx, network
+   * timeouts, streams without chunks). Opt-in: if omitted, errors propagate and
+   * the session closes with `session_end: error`.
    */
   retry?: RetryPolicy
   /**
-   * Backend de ejecución de comandos shell para el bashTool (y derivados).
-   * Default: un executor noop que falla con error claro si una tool intenta
-   * usarlo. En Node, `createLocalAgent` lo override por LocalExecutor.
-   * Para ejecución aislada usá `DockerExecutor` o pasá uno custom.
+   * Shell command execution backend for the bashTool (and derivatives).
+   * Default: a noop executor that fails with a clear error if a tool tries to
+   * use it. In Node, `createLocalAgent` overrides it with LocalExecutor.
+   * For isolated execution use `DockerExecutor` or pass a custom one.
    */
   executor?: Executor
   /**
@@ -98,10 +98,10 @@ export interface CreateAgentOptions {
   /** Optional proactive heartbeat loop configuration. */
   heartbeat?: HeartbeatOptions
   /**
-   * Tools terminales: nombres de tools que, al ejecutarse sin error, cierran
-   * el loop inmediatamente (sin abrir otro turno). Pensado para el patrón de
-   * "salida como tool terminal" que usa `generateObject`, pero disponible como
-   * capacidad general del loop.
+   * Terminal tools: names of tools that, when executed without error, close the
+   * loop immediately (without opening another turn). Designed for the "output as
+   * a terminal tool" pattern used by `generateObject`, but available as a general
+   * loop capability.
    */
   stopOnToolNames?: string[]
 }
@@ -128,9 +128,9 @@ export interface Agent {
    */
   getMessages(): Message[]
   /**
-   * Devuelve el acumulado de tokens consumidos por esta sesión a lo largo
-   * de todos los turnos. Sin pricing — sólo conteo crudo. Si ningún modelo
-   * reportó usage todavía, devuelve ceros.
+   * Returns the accumulated tokens consumed by this session across all turns.
+   * No pricing — just raw counts. If no model has reported usage yet, returns
+   * zeros.
    */
   getUsage(): TokenUsage
   /**
@@ -270,7 +270,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
   let metadata: Record<string, unknown> = {}
   let createdAt = Date.now()
 
-  // Inicialización: cargar (o crear) el estado del manager antes de devolver la sesión.
+  // Initialization: load (or create) the manager's state before returning the session.
   try {
     let state = await manager.get(id)
     if (!state) {
@@ -307,9 +307,9 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     }
   }
 
-  // Acumulador de tokens por sesión. Se alimenta de los `turn_end` que
-  // emite el loop con el usage reportado por el provider. Mantener acá
-  // (y no en el loop) permite que sobreviva entre `prompt()` sucesivos.
+  // Per-session token accumulator. It is fed by the `turn_end` events the loop
+  // emits with the usage reported by the provider. Keeping it here (and not in
+  // the loop) lets it survive across successive `prompt()` calls.
   const sessionUsage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
   let sessionTurns = 0
   bus.subscribe((event) => {

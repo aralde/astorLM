@@ -7,7 +7,7 @@ import type { ToolResultBlock } from '../src/types.js'
 describe('createSubagentTool (agent-as-tool)', () => {
   it('delegates to a child agent and returns its final text as the tool result', async () => {
     const childProvider = new MockProvider([
-      { text: 'El clima es soleado, 22°C.', stopReason: 'end_turn' },
+      { text: 'The weather is sunny, 22°C.', stopReason: 'end_turn' },
     ])
     const research = createSubagentTool({
       name: 'research_agent',
@@ -17,27 +17,27 @@ describe('createSubagentTool (agent-as-tool)', () => {
 
     const parentProvider = new MockProvider([
       {
-        toolCalls: [{ id: 't1', name: 'research_agent', input: { task: 'investiga el clima' } }],
+        toolCalls: [{ id: 't1', name: 'research_agent', input: { task: 'research the weather' } }],
         stopReason: 'tool_use',
       },
-      { text: 'Listo.', stopReason: 'end_turn' },
+      { text: 'Done.', stopReason: 'end_turn' },
     ])
 
     const parent = await createAgent({ provider: parentProvider, tools: [research] })
-    await parent.run('averiguá el clima')
+    await parent.run('find out the weather')
 
     // The child saw exactly one turn with the delegated task as the user prompt.
     expect(childProvider.calls).toHaveLength(1)
     // MockProvider stores the messages array by reference, so read the first
     // (user) message rather than the last, which the loop mutates post-stream.
     const childUserMsg = childProvider.calls[0]!.messages[0]!
-    expect(childUserMsg.content[0]).toEqual({ type: 'text', text: 'investiga el clima' })
+    expect(childUserMsg.content[0]).toEqual({ type: 'text', text: 'research the weather' })
 
     // The parent's tool_result carries the child's distilled answer.
     const msgs = parent.getMessages()
     const toolResult = msgs[2]!.content[0] as ToolResultBlock
     expect(toolResult.type).toBe('tool_result')
-    expect(toolResult.content).toBe('El clima es soleado, 22°C.')
+    expect(toolResult.content).toBe('The weather is sunny, 22°C.')
     expect(toolResult.is_error).toBe(false)
   })
 
@@ -50,14 +50,14 @@ describe('createSubagentTool (agent-as-tool)', () => {
       inputKey: 'goal',
     })
     const parentProvider = new MockProvider([
-      { toolCalls: [{ id: 't1', name: 'worker', input: { goal: 'hacelo' } }], stopReason: 'tool_use' },
+      { toolCalls: [{ id: 't1', name: 'worker', input: { goal: 'do it' } }], stopReason: 'tool_use' },
       { text: 'ok', stopReason: 'end_turn' },
     ])
     const parent = await createAgent({ provider: parentProvider, tools: [sub] })
     await parent.run('go')
 
     const childUserMsg = childProvider.calls[0]!.messages[0]!
-    expect(childUserMsg.content[0]).toEqual({ type: 'text', text: 'hacelo' })
+    expect(childUserMsg.content[0]).toEqual({ type: 'text', text: 'do it' })
   })
 
   it('returns a placeholder when the child produces no text', async () => {

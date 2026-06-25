@@ -7,9 +7,9 @@ import type {
 } from '../types.js'
 
 /**
- * Códigos de error de red Node considerados transientes.
- * No es exhaustivo a propósito: si no podemos clasificarlo con confianza,
- * dejamos que propague para no esconder bugs.
+ * Node network error codes considered transient.
+ * Deliberately not exhaustive: if we can't classify it with confidence, we let
+ * it propagate so as not to hide bugs.
  */
 const TRANSIENT_NET_CODES = new Set([
   'ECONNRESET',
@@ -37,7 +37,7 @@ export function isAbortError(err: unknown): boolean {
   return name === 'AbortError' || name === 'APIUserAbortError'
 }
 
-/** Heurística sobre errores del SDK de Anthropic/OpenAI + errores de red de Node. */
+/** Heuristic over Anthropic/OpenAI SDK errors + Node network errors. */
 export function isTransientError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
   const e = err as {
@@ -54,8 +54,8 @@ export function isTransientError(err: unknown): boolean {
     if (e.status >= 500 && e.status < 600) return true
   }
 
-  // SDK-specific connection / timeout errors (Anthropic + OpenAI siguen
-  // el mismo naming).
+  // SDK-specific connection / timeout errors (Anthropic + OpenAI follow
+  // the same naming).
   if (typeof e.name === 'string') {
     if (e.name === 'APIConnectionError') return true
     if (e.name === 'APIConnectionTimeoutError') return true
@@ -65,7 +65,7 @@ export function isTransientError(err: unknown): boolean {
   // Node network error codes.
   if (typeof e.code === 'string' && TRANSIENT_NET_CODES.has(e.code)) return true
 
-  // Mensaje de stream cortado sin chunks (Anthropic/OpenAI vía undici).
+  // Message for a stream cut without chunks (Anthropic/OpenAI via undici).
   const msg = typeof e.message === 'string' ? e.message.toLowerCase() : ''
   if (
     msg.includes('request ended without sending any chunks') ||
@@ -76,13 +76,13 @@ export function isTransientError(err: unknown): boolean {
     return true
   }
 
-  // Recursar en cause (fetch suele envolver el error real ahí).
+  // Recurse into cause (fetch often wraps the real error there).
   if (e.cause && e.cause !== err) return isTransientError(e.cause)
 
   return false
 }
 
-/** Backoff exponencial con tope y jitter opcional. */
+/** Exponential backoff with a cap and optional jitter. */
 export function computeBackoffDelay(attempt: number, policy: RetryPolicy): number {
   const base = policy.baseDelayMs ?? 500
   const cap = policy.maxDelayMs ?? 10_000
@@ -92,7 +92,7 @@ export function computeBackoffDelay(attempt: number, policy: RetryPolicy): numbe
   return Math.floor(Math.random() * exp)
 }
 
-/** Sleep abortable: resuelve al cumplirse ms, o rechaza si el signal aborta antes. */
+/** Abortable sleep: resolves after ms, or rejects if the signal aborts first. */
 function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -120,18 +120,18 @@ export interface StreamWithRetryOptions {
 }
 
 /**
- * Envuelve `provider.stream()` con reintentos opt-in.
+ * Wraps `provider.stream()` with opt-in retries.
  *
- * Reglas:
- *  - Sólo reintenta si `policy.maxAttempts > 1` y el error es clasificable
- *    como transiente.
- *  - **No reintenta si ya se yieldeó algún evento en el intento actual**:
- *    reintentar significaría duplicar texto/tool_uses al consumidor del bus.
- *    Este es el mismo criterio que pi-agent ("stream ended without chunks").
- *  - El signal de abort gana siempre: durante el sleep o entre intentos,
- *    si se abortó, propaga `AbortError` sin reintentar.
- *  - Emite `provider_retry` antes de cada espera para que el consumidor vea
- *    los reintentos en el stream.
+ * Rules:
+ *  - Only retries if `policy.maxAttempts > 1` and the error is classifiable
+ *    as transient.
+ *  - **Does not retry if any event was already yielded in the current attempt**:
+ *    retrying would mean duplicating text/tool_uses to the bus consumer.
+ *    This is the same criterion as pi-agent ("stream ended without chunks").
+ *  - The abort signal always wins: during the sleep or between attempts, if it
+ *    was aborted, it propagates `AbortError` without retrying.
+ *  - Emits `provider_retry` before each wait so the consumer sees the retries
+ *    in the stream.
  */
 export async function* streamWithRetry(
   opts: StreamWithRetryOptions,
@@ -149,17 +149,17 @@ export async function* streamWithRetry(
       }
       return
     } catch (err) {
-      // Abort: no reintenta, propaga.
+      // Abort: do not retry, propagate.
       if (opts.abortSignal.aborted) throw err
       if (isAbortError(err)) throw err
 
-      // Si ya yieldeamos algo, no podemos reintentar sin duplicar.
+      // If we already yielded something, we can't retry without duplicating.
       if (emittedAnything) throw err
 
-      // Última oportunidad usada.
+      // Last chance used up.
       if (attempt >= maxAttempts) throw err
 
-      // Errores no clasificables propagan.
+      // Non-classifiable errors propagate.
       if (!policy || !isTransientError(err)) throw err
 
       const delayMs = computeBackoffDelay(attempt, policy)

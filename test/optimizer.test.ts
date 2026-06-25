@@ -7,7 +7,7 @@ import type { Message, ContextOptimizerOptions } from '../src/types.js'
 
 describe('Context Optimizer & Token Estimator', () => {
   describe('estimateTokens', () => {
-    it('estima correctamente en base a caracteres (chars / 4)', () => {
+    it('estimates correctly based on characters (chars / 4)', () => {
       const messages: Message[] = [
         {
           role: 'user',
@@ -23,7 +23,7 @@ describe('Context Optimizer & Token Estimator', () => {
       // 28 / 4 = 7 tokens
       expect(estimateTokens(messages)).toBe(7)
 
-      // Con systemPrompt de 13 chars: +13 chars = 41 chars total
+      // With a 13-char systemPrompt: +13 chars = 41 chars total
       // 41 / 4 = 10.25 -> 11 tokens
       expect(estimateTokens(messages, 'System prompt')).toBe(11)
     })
@@ -37,7 +37,7 @@ describe('Context Optimizer & Token Estimator', () => {
       tokenCounter: (msgs, sys) => estimateTokens(msgs, sys),
     }
 
-    it('no optimiza si está por debajo del threshold', () => {
+    it('does not optimize if below the threshold', () => {
       const messages: Message[] = [
         { role: 'user', content: [{ type: 'text', text: 'Short prompt' }] },
       ]
@@ -50,10 +50,10 @@ describe('Context Optimizer & Token Estimator', () => {
       expect(optimized).toEqual(messages)
     })
 
-    it('no optimiza si todos los mensajes están protegidos por keepRecentTurns', () => {
+    it('does not optimize if all messages are protected by keepRecentTurns', () => {
       // 200 chars ≈ 50 tokens
-      // threshold es 80 tokens, pero si ponemos maxTokens muy bajo: maxTokens: 40 -> threshold = 32 tokens
-      // 200 chars excede threshold (50 > 32)
+      // threshold is 80 tokens, but if we set maxTokens very low: maxTokens: 40 -> threshold = 32 tokens
+      // 200 chars exceeds the threshold (50 > 32)
       const messages: Message[] = [
         { role: 'user', content: [{ type: 'text', text: 'a'.repeat(200) }] },
       ]
@@ -65,13 +65,13 @@ describe('Context Optimizer & Token Estimator', () => {
           maxTokens: 40,
         }
       )
-      // Como solo hay un mensaje, es parte del turno reciente protegido.
+      // Since there is only one message, it is part of the protected recent turn.
       expect(wasOptimized).toBe(false)
       expect(optimized).toEqual(messages)
     })
 
-    it('compacta bloques tool_result antiguos cuando excede el threshold', () => {
-      // Generamos un historial largo para tener mensajes fuera del keepRecentTurns
+    it('compacts old tool_result blocks when it exceeds the threshold', () => {
+      // We generate a long history to have messages outside keepRecentTurns
       const messages: Message[] = [
         { role: 'user', content: [{ type: 'text', text: 'Initial request' }] },
         {
@@ -91,12 +91,12 @@ describe('Context Optimizer & Token Estimator', () => {
             },
           ],
         },
-        // Turno reciente (protegido por keepRecentTurns: 1)
+        // Recent turn (protected by keepRecentTurns: 1)
         { role: 'user', content: [{ type: 'text', text: 'Recent follow-up prompt' }] },
       ]
 
-      // Con maxTokens: 400 y threshold: 320 (80%), 362 tokens de tool_result superan el umbral cuando se
-      // suma el resto de textos, pero después de compactar queda muy por debajo, evitando eliminar mensajes.
+      // With maxTokens: 400 and threshold: 320 (80%), the 362 tokens of tool_result exceed the threshold once
+      // the rest of the text is added, but after compaction it stays well below, avoiding message removal.
       const { messages: optimized, optimized: wasOptimized } = optimizeContext(
         messages,
         'Sys',
@@ -107,26 +107,26 @@ describe('Context Optimizer & Token Estimator', () => {
       )
 
       expect(wasOptimized).toBe(true)
-      // El mensaje 2 (tool_result) debe estar compactado
+      // Message 2 (tool_result) must be compacted
       const toolResultMsg = optimized[2]!
       expect(toolResultMsg.role).toBe('user')
       const block = toolResultMsg.content[0]!
       expect(block.type).toBe('tool_result')
       expect(block.content).toContain("[Tool 'grep' execution result truncated")
       expect(block.content).toContain('Original output length: 1450 characters')
-      // El último mensaje (turno reciente) no debe alterarse
+      // The last message (recent turn) must not be altered
       expect(optimized[3]).toEqual(messages[3])
     })
 
-    it('elimina los mensajes más antiguos (excepto el inicial) si compactar tool_results no es suficiente', () => {
-      // Configuramos para que el contenido sea gigante tanto en los textos que no se pueden compactar
-      // (ya que no son tool_results) como en general.
+    it('removes the oldest messages (except the initial one) if compacting tool_results is not enough', () => {
+      // We configure the content to be huge both in the texts that can't be compacted
+      // (since they are not tool_results) and in general.
       const messages: Message[] = [
-        { role: 'user', content: [{ type: 'text', text: 'Initial request' }] }, // Msg 0 (mantenido)
-        { role: 'assistant', content: [{ type: 'text', text: 'Intermediate text '.repeat(100) }] }, // Msg 1 (eliminado)
-        { role: 'user', content: [{ type: 'text', text: 'More intermediate text '.repeat(100) }] }, // Msg 2 (eliminado)
-        // Turno reciente (protegido por keepRecentTurns: 1)
-        { role: 'user', content: [{ type: 'text', text: 'Recent follow-up' }] }, // Msg 3 (mantenido)
+        { role: 'user', content: [{ type: 'text', text: 'Initial request' }] }, // Msg 0 (kept)
+        { role: 'assistant', content: [{ type: 'text', text: 'Intermediate text '.repeat(100) }] }, // Msg 1 (removed)
+        { role: 'user', content: [{ type: 'text', text: 'More intermediate text '.repeat(100) }] }, // Msg 2 (removed)
+        // Recent turn (protected by keepRecentTurns: 1)
+        { role: 'user', content: [{ type: 'text', text: 'Recent follow-up' }] }, // Msg 3 (kept)
       ]
 
       const { messages: optimized, optimized: wasOptimized } = optimizeContext(
@@ -134,12 +134,12 @@ describe('Context Optimizer & Token Estimator', () => {
         'Sys',
         {
           ...defaultOpts,
-          maxTokens: 50, // Umbral muy bajo
+          maxTokens: 50, // Very low threshold
         }
       )
 
       expect(wasOptimized).toBe(true)
-      // Debe quedar el inicial (Msg 0) y el reciente (Msg 3)
+      // The initial (Msg 0) and the recent (Msg 3) must remain
       expect(optimized).toHaveLength(2)
       expect(optimized[0]?.content[0]).toEqual({ type: 'text', text: 'Initial request' })
       expect(optimized[1]?.content[0]).toEqual({ type: 'text', text: 'Recent follow-up' })
@@ -147,19 +147,19 @@ describe('Context Optimizer & Token Estimator', () => {
   })
 
   describe('Integration with Agent', () => {
-    it('activa automáticamente el optimizador si el provider define contextLimit', async () => {
+    it('automatically enables the optimizer if the provider defines contextLimit', async () => {
       const provider = new MockProvider([
         { text: 'Final response.', stopReason: 'end_turn' },
       ])
-      // Simulamos que el provider expone un contextLimit de 500 tokens (threshold = 400)
+      // We simulate the provider exposing a contextLimit of 500 tokens (threshold = 400)
       Object.defineProperty(provider, 'contextLimit', {
         value: 500,
         writable: false,
       })
 
-      // Mensajes antiguos manualmente para simular historial previo con más de 3 turnos (keepRecentTurns = 3 por defecto)
+      // Manually crafted old messages to simulate prior history with more than 3 turns (keepRecentTurns = 3 by default)
       const msgs: Message[] = [
-        // Turno 1 (se compactará su tool_result porque cae fuera de los últimos 3 turnos al enviar el prompt)
+        // Turn 1 (its tool_result will be compacted because it falls outside the last 3 turns when sending the prompt)
         {
           role: 'user',
           content: [{ type: 'text', text: 'Turn 1 initial setup' }],
@@ -180,7 +180,7 @@ describe('Context Optimizer & Token Estimator', () => {
             },
           ],
         },
-        // Turno 2 (protegido)
+        // Turn 2 (protected)
         {
           role: 'user',
           content: [{ type: 'text', text: 'Turn 2 user prompt' }],
@@ -189,7 +189,7 @@ describe('Context Optimizer & Token Estimator', () => {
           role: 'assistant',
           content: [{ type: 'text', text: 'Turn 2 response' }],
         },
-        // Turno 3 (protegido)
+        // Turn 3 (protected)
         {
           role: 'user',
           content: [{ type: 'text', text: 'Turn 3 user prompt' }],
@@ -221,13 +221,13 @@ describe('Context Optimizer & Token Estimator', () => {
         },
       })
 
-      // Ejecutar un nuevo prompt (se convertirá en el Turno 4, protegiendo Turnos 4, 3, 2).
-      // Turno 1 quedará fuera de la ventana de protección y se compactará.
+      // Run a new prompt (it becomes Turn 4, protecting Turns 4, 3, 2).
+      // Turn 1 falls outside the protection window and gets compacted.
       await session.run('What is next?')
 
-      // Validar que el historial guardado en la sesión fue compactado
+      // Verify that the history stored in the session was compacted
       const finalMsgs = session.getMessages()
-      // El mensaje con el tool_result de grep (índice 2 de msgs) debe haber sido compactado.
+      // The message with grep's tool_result (index 2 of msgs) must have been compacted.
       const compactMsg = finalMsgs[2]!
       expect(compactMsg.content[0]?.type).toBe('tool_result')
       expect(compactMsg.content[0]?.content).toContain("[Tool 'grep' execution result truncated")

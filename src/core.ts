@@ -150,15 +150,15 @@ export function createLocalAgent(opts: CreateLocalAgentOptions): Promise<Agent> 
   })
 }
 
-// Re-exportar MCP Client específico de Node
+// Re-export Node-specific MCP Client
 export { mountMcpServer } from './mcp/client.js'
 export type { MountMcpServerOptions, MountedMcpServer, McpTransportConfig } from './mcp/client.js'
 
-// Re-exportar AstorAgent
+// Re-export AstorAgent
 export { AstorAgent } from './agent/facade.js'
 export type { AstorAgentOptions, AstorOutputMode } from './agent/facade.js'
 
-// Executors específicos de Node
+// Node-specific executors
 export { LocalExecutor } from './executor/local.js'
 export { DockerExecutor } from './executor/docker.js'
 export type { DockerExecutorOptions } from './executor/docker.js'

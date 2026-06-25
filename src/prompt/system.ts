@@ -1,23 +1,23 @@
 import { compilePrompts } from './compiler.js'
 import type { PromptCompilerOptions } from './types.js'
 
-const DEFAULT_SYSTEM_PROMPT = `Sos un agente de coding embebido. Trabajás dentro de un cwd dado.
-- Usá las herramientas para inspeccionar y modificar el filesystem; no inventes contenido de archivos.
-- Antes de editar un archivo, leelo si no lo viste antes.
-- Si una tool falla, leé el error y ajustá el approach; no repitas la misma llamada.
-- Respondé en el idioma del usuario. Sé conciso.`
+const DEFAULT_SYSTEM_PROMPT = `You are an embedded coding agent. You work inside a given cwd.
+- Use the tools to inspect and modify the filesystem; do not invent file contents.
+- Before editing a file, read it if you haven't seen it before.
+- If a tool fails, read the error and adjust the approach; do not repeat the same call.
+- Respond in the user's language. Be concise.`
 
 export interface BuildSystemPromptOptions {
   cwd: string
-  /** Reemplazo total del prompt por defecto. */
+  /** Full replacement of the default prompt. */
   systemPrompt?: string
-  /** Opciones del compilador modular de prompts (si se proveen, compilan el base prompt). */
+  /** Options for the modular prompt compiler (if provided, they compile the base prompt). */
   promptCompiler?: PromptCompilerOptions
-  /** Texto adicional que se concatena al final del prompt (sea default o custom). */
+  /** Extra text concatenated at the end of the prompt (default or custom). */
   appendSystemPrompt?: string
-  /** Archivos de contexto a cargar desde cwd. Por defecto AGENTS.md y CLAUDE.md. */
+  /** Context files to load from cwd. Defaults to AGENTS.md and CLAUDE.md. */
   contextFiles?: string[]
-  /** Cargador de archivos asíncrono para leer archivos de contexto. */
+  /** Async file loader to read context files. */
   fileReader?: (path: string) => Promise<string | null>
   /**
    * Pre-rendered skills block (output of `renderSkillsBlock`). Inserted

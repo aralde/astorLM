@@ -42,7 +42,7 @@ export class ContractViolationError extends Error {
 // ---------- Helper Functions ----------
 
 /**
- * Convierte un patrón glob simple a RegExp. Soporta `*`, `**`, `?`.
+ * Converts a simple glob pattern to a RegExp. Supports `*`, `**`, `?`.
  */
 export function globToRegex(pattern: string): RegExp {
   let out = '^'

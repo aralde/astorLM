@@ -1,8 +1,8 @@
 import type { Message, ContextOptimizerOptions, ToolUseBlock } from '../types.js'
 
 /**
- * Heurística simple para estimar el número de tokens en base a la longitud de caracteres.
- * La regla de oro habitual es 1 token ≈ 4 caracteres de texto plano.
+ * Simple heuristic to estimate the number of tokens based on character length.
+ * The usual rule of thumb is 1 token ≈ 4 characters of plain text.
  */
 export function estimateTokens(messages: Message[], systemPrompt?: string): number {
   let charCount = systemPrompt ? systemPrompt.length : 0
@@ -24,7 +24,7 @@ export function estimateTokens(messages: Message[], systemPrompt?: string): numb
 }
 
 /**
- * Busca la definición de tool_use en los mensajes del asistente.
+ * Finds the tool_use definition in the assistant messages.
  */
 function findToolUse(messages: Message[], toolUseId: string): ToolUseBlock | null {
   for (const m of messages) {
@@ -40,7 +40,7 @@ function findToolUse(messages: Message[], toolUseId: string): ToolUseBlock | nul
 }
 
 /**
- * Genera un resumen compacto de la ejecución de una herramienta.
+ * Generates a compact summary of a tool's execution.
  */
 function defaultSummarizeToolResult(content: string, toolUse: ToolUseBlock | null): string {
   const originalLength = content.length
@@ -55,7 +55,7 @@ function defaultSummarizeToolResult(content: string, toolUse: ToolUseBlock | nul
 }
 
 /**
- * Optimiza el contexto actual (messages) si excede el umbral de tokens.
+ * Optimizes the current context (messages) if it exceeds the token threshold.
  */
 export function optimizeContext(
   messages: Message[],
@@ -69,12 +69,12 @@ export function optimizeContext(
     return { messages, optimized: false }
   }
 
-  // Clonar mensajes para no mutar el input directamente
+  // Clone messages so we don't mutate the input directly
   const cloned: Message[] = JSON.parse(JSON.stringify(messages))
 
-  // Determinar el índice límite para conservar los turnos recientes intactos.
-  // Un "turno" inicia cuando encontramos un mensaje de usuario que contiene texto no vacío
-  // (es decir, el prompt inicial o de seguimiento del usuario).
+  // Determine the boundary index to keep the recent turns intact.
+  // A "turn" starts when we find a user message containing non-empty text
+  // (i.e. the user's initial or follow-up prompt).
   let boundaryIndex = 0
   let userPromptsSeen = 0
   for (let i = cloned.length - 1; i >= 0; i--) {
@@ -89,13 +89,13 @@ export function optimizeContext(
   }
 
   if (boundaryIndex === 0) {
-    // Si todos los mensajes caen en la ventana de turnos recientes, no podemos optimizar
+    // If all messages fall within the recent-turns window, we can't optimize
     return { messages, optimized: false }
   }
 
   let optimized = false
 
-  // --- Nivel 1: Compactar bloques tool_result antiguos ---
+  // --- Level 1: Compact old tool_result blocks ---
   for (let i = 0; i < boundaryIndex; i++) {
     const m = cloned[i]!
     for (const b of m.content) {
@@ -109,7 +109,7 @@ export function optimizeContext(
             b.content = newContent
             optimized = true
 
-            // Reevaluar tokens tras cada compresión para detenerse lo antes posible
+            // Re-evaluate tokens after each compression to stop as early as possible
             currentTokens = options.tokenCounter(cloned, systemPrompt)
             if (currentTokens <= threshold) {
               return { messages: cloned, optimized: true }
@@ -120,10 +120,10 @@ export function optimizeContext(
     }
   }
 
-  // --- Nivel 2: Eliminar mensajes más antiguos (excepto el mensaje 0 que es el prompt inicial) ---
-  // Iteramos eliminando el mensaje en el índice 1 mientras sea posible y estemos por encima del umbral.
+  // --- Level 2: Remove the oldest messages (except message 0, the initial prompt) ---
+  // We iterate removing the message at index 1 while possible and while above the threshold.
   while (cloned.length > 2 && currentTokens > threshold) {
-    // Recalcular la frontera dinámica en la lista recortada
+    // Recompute the dynamic boundary on the trimmed list
     let tempBoundary = 0
     let tempPrompts = 0
     for (let i = cloned.length - 1; i >= 0; i--) {
@@ -137,7 +137,7 @@ export function optimizeContext(
       }
     }
 
-    // No remover si el mensaje a eliminar (índice 1) ya cae dentro de la ventana de protección de turnos recientes
+    // Don't remove if the message to delete (index 1) already falls within the recent-turns protection window
     if (tempBoundary <= 1) {
       break
     }
@@ -145,7 +145,7 @@ export function optimizeContext(
     cloned.splice(1, 1)
     optimized = true
 
-    // Reevaluar tokens
+    // Re-evaluate tokens
     currentTokens = options.tokenCounter(cloned, systemPrompt)
   }
 

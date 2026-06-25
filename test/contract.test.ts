@@ -7,11 +7,11 @@ import type { AgentEvent } from '../src/types.js'
 import { ContractViolationError, createContractHooks } from '../src/experimental/contract/index.js'
 
 describe('Agent Contract', () => {
-  describe('Presupuesto (Budget)', () => {
-    it('detiene la ejecución si se supera maxTurns', async () => {
+  describe('Budget', () => {
+    it('stops execution if maxTurns is exceeded', async () => {
       const provider = new MockProvider([
-        { text: 'turno 1', stopReason: 'end_turn' },
-        { text: 'turno 2', stopReason: 'end_turn' },
+        { text: 'turn 1', stopReason: 'end_turn' },
+        { text: 'turn 2', stopReason: 'end_turn' },
       ])
 
       const contract = {
@@ -24,12 +24,12 @@ describe('Agent Contract', () => {
       const session = await createAgent({ provider, hooks: createContractHooks(contract) })
       session.on('event', (e) => events.push(e))
 
-      // El primer run consume 1 turno.
+      // The first run consumes 1 turn.
       await session.run('go')
       expect(session.getMessages()).toHaveLength(2)
 
-      // El segundo run intentaría ejecutar un segundo turno.
-      // Debe lanzar ContractViolationError.
+      // The second run would try to execute a second turn.
+      // It must throw ContractViolationError.
       await expect(session.run('go')).rejects.toThrow(ContractViolationError)
 
       const violation = events.find((e) => e.type === 'contract_violation')
@@ -38,10 +38,10 @@ describe('Agent Contract', () => {
       expect((violation as any).rule).toBe('budget.maxTurns')
     })
 
-    it('detiene la ejecución si se supera maxTotalTokens', async () => {
+    it('stops execution if maxTotalTokens is exceeded', async () => {
       const provider = new MockProvider([
         {
-          text: 'respuesta 1',
+          text: 'response 1',
           usage: { inputTokens: 50, outputTokens: 60 },
           stopReason: 'end_turn',
         },
@@ -57,14 +57,14 @@ describe('Agent Contract', () => {
       const session = await createAgent({ provider, hooks: createContractHooks(contract) })
       session.on('event', (e) => events.push(e))
 
-      // En el turno 1, el usage reportado es 110. Al iniciar el turno 2 (en una run posterior, o al evaluarse en el loop):
-      // Primero hacemos el run 1, que debería tener éxito porque la validación se hace al inicio del turno.
-      // Esperamos que en el run 1 pase la validación del turno 1 (donde sessionUsage es 0).
+      // On turn 1, the reported usage is 110. When starting turn 2 (in a later run, or when evaluated in the loop):
+      // First we do run 1, which should succeed because validation happens at the start of the turn.
+      // We expect run 1 to pass turn 1's validation (where sessionUsage is 0).
       await session.run('go')
       expect(session.getUsage().inputTokens).toBe(50)
       expect(session.getUsage().outputTokens).toBe(60)
 
-      // Intentamos run 2, debe lanzar error por superar límite total
+      // We attempt run 2, it must throw an error for exceeding the total limit
       await expect(session.run('go')).rejects.toThrow(ContractViolationError)
 
       const violation = events.find((e) => e.type === 'contract_violation')
@@ -73,8 +73,8 @@ describe('Agent Contract', () => {
     })
   })
 
-  describe('Control de Herramientas (Tools)', () => {
-    it('filtra las herramientas expuestas al provider', async () => {
+  describe('Tool Control', () => {
+    it('filters the tools exposed to the provider', async () => {
       const toolA = tool({
         name: 'toolA',
         description: 'a',
@@ -103,13 +103,13 @@ describe('Agent Contract', () => {
 
       await session.run('go')
 
-      // Verificar las herramientas enviadas al provider en la última llamada
+      // Verify the tools sent to the provider on the last call
       const lastCall = provider.calls[provider.calls.length - 1]
       expect(lastCall?.tools).toHaveLength(1)
       expect(lastCall?.tools[0]?.name).toBe('toolA')
     })
 
-    it('bloquea la ejecución de herramientas denegadas', async () => {
+    it('blocks the execution of denied tools', async () => {
       const toolA = tool({
         name: 'toolA',
         description: 'a',
@@ -144,12 +144,12 @@ describe('Agent Contract', () => {
   })
 
   describe('Sandbox - Filesystem Paths', () => {
-    it('permite rutas dentro de allowedPaths', async () => {
+    it('allows paths inside allowedPaths', async () => {
       const dummyRead = tool({
         name: 'read',
-        description: 'lee un archivo',
+        description: 'reads a file',
         schema: z.object({ path: z.string() }),
-        execute: async ({ path }) => `contenido de ${path}`,
+        execute: async ({ path }) => `content of ${path}`,
       })
 
       const provider = new MockProvider([
@@ -159,7 +159,7 @@ describe('Agent Contract', () => {
           ],
           stopReason: 'tool_use',
         },
-        { text: 'fin' },
+        { text: 'end' },
       ])
 
       const contract = {
@@ -183,15 +183,15 @@ describe('Agent Contract', () => {
       const res1 = results?.find((r: any) => r.tool_use_id === 'tc1')
       expect(res1?.type).toBe('tool_result')
       expect((res1 as any).is_error).toBeFalsy()
-      expect((res1 as any).content).toBe('contenido de src/index.ts')
+      expect((res1 as any).content).toBe('content of src/index.ts')
     })
 
-    it('bloquea rutas fuera de allowedPaths', async () => {
+    it('blocks paths outside allowedPaths', async () => {
       const dummyRead = tool({
         name: 'read',
-        description: 'lee un archivo',
+        description: 'reads a file',
         schema: z.object({ path: z.string() }),
-        execute: async ({ path }) => `contenido de ${path}`,
+        execute: async ({ path }) => `content of ${path}`,
       })
 
       const provider = new MockProvider([
@@ -201,7 +201,7 @@ describe('Agent Contract', () => {
           ],
           stopReason: 'tool_use',
         },
-        { text: 'fin' },
+        { text: 'end' },
       ])
 
       const contract = {
@@ -220,12 +220,12 @@ describe('Agent Contract', () => {
       await expect(session.run('go')).rejects.toThrow(ContractViolationError)
     })
 
-    it('bloquea rutas explícitamente en deniedPaths', async () => {
+    it('blocks paths explicitly listed in deniedPaths', async () => {
       const dummyWrite = tool({
         name: 'write',
-        description: 'escribe un archivo',
+        description: 'writes a file',
         schema: z.object({ path: z.string() }),
-        execute: async ({ path }) => `escribi en ${path}`,
+        execute: async ({ path }) => `wrote to ${path}`,
       })
 
       const provider = new MockProvider([
@@ -235,7 +235,7 @@ describe('Agent Contract', () => {
           ],
           stopReason: 'tool_use',
         },
-        { text: 'fin' },
+        { text: 'end' },
       ])
 
       const contract = {
@@ -256,10 +256,10 @@ describe('Agent Contract', () => {
   })
 
   describe('Sandbox - Bash Commands', () => {
-    it('permite comandos aprobados', async () => {
+    it('allows approved commands', async () => {
       const dummyBash = tool({
         name: 'bash',
-        description: 'ejecuta comandos',
+        description: 'runs commands',
         schema: z.object({ command: z.string() }),
         execute: async ({ command }) => `run ${command}`,
       })
@@ -298,10 +298,10 @@ describe('Agent Contract', () => {
       expect((res1 as any).content).toBe('run npm test')
     })
 
-    it('bloquea comandos no aprobados', async () => {
+    it('blocks unapproved commands', async () => {
       const dummyBash = tool({
         name: 'bash',
-        description: 'ejecuta comandos',
+        description: 'runs commands',
         schema: z.object({ command: z.string() }),
         execute: async ({ command }) => `run ${command}`,
       })
@@ -333,10 +333,10 @@ describe('Agent Contract', () => {
       await expect(session.run('go')).rejects.toThrow(ContractViolationError)
     })
 
-    it('bloquea comandos en deniedCommands', async () => {
+    it('blocks commands in deniedCommands', async () => {
       const dummyBash = tool({
         name: 'bash',
-        description: 'ejecuta comandos',
+        description: 'runs commands',
         schema: z.object({ command: z.string() }),
         execute: async ({ command }) => `run ${command}`,
       })

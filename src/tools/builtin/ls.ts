@@ -6,7 +6,7 @@ import { resolveSafe } from '../../util/fs.js'
 
 export const lsTool = tool({
   name: 'ls',
-  description: 'Lista archivos y directorios en una ruta (no recursivo).',
+  description: 'Lists files and directories at a path (non-recursive).',
   schema: z.object({
     path: z.string().optional().default('.'),
   }),
@@ -20,6 +20,6 @@ export const lsTool = tool({
       if (!st) continue
       lines.push(st.isDirectory() ? `${name}/` : `${name}\t${st.size}b`)
     }
-    return lines.join('\n') || '(vacío)'
+    return lines.join('\n') || '(empty)'
   },
 })

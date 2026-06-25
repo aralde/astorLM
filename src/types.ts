@@ -1,10 +1,10 @@
 /**
  * Public type surface for the agent library.
  *
- * Mensajes y bloques siguen el modelo de "content blocks" de Anthropic:
- * un mensaje del assistant puede contener texto + tool_use; un mensaje del
- * user puede contener texto + tool_result. Esto facilita modelar el loop
- * sin perder información intermedia.
+ * Messages and blocks follow Anthropic's "content blocks" model:
+ * an assistant message may contain text + tool_use; a user message may
+ * contain text + tool_result. This makes it easy to model the loop
+ * without losing intermediate information.
  */
 
 import type { Executor } from './executor/types.js'
@@ -78,7 +78,7 @@ export interface Message {
   content: ContentBlock[]
 }
 
-/** Razón por la cual el provider terminó un turno. */
+/** Reason why the provider ended a turn. */
 export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence'
 
 // ---------- Tools ----------
@@ -88,26 +88,25 @@ export interface ToolContext {
   abortSignal: AbortSignal
   logger: Logger
   /**
-   * Backend de ejecución de comandos shell. Inyectado por la sesión. El bashTool
-   * (y derivados: bash_spawn, bash_get_output, bash_kill) delegan acá en vez de
-   * hablar con `child_process` directo, lo que permite swappear el backend
-   * (local, container, remoto) sin tocar las tools.
+   * Shell command execution backend. Injected by the session. The bashTool
+   * (and derivatives: bash_spawn, bash_get_output, bash_kill) delegate here
+   * instead of talking to `child_process` directly, which allows swapping the
+   * backend (local, container, remote) without touching the tools.
    */
   executor: Executor
 }
 
 /**
- * Una tool registrada. El tipo del input vive **adentro** del closure de
- * `defineTool` (parseInput valida y castea); el contrato público es uniforme
- * para que un `Tool` sea libremente almacenable en arrays/registry sin
- * romper la varianza.
+ * A registered tool. The input type lives **inside** the `defineTool` closure
+ * (parseInput validates and casts); the public contract is uniform so that a
+ * `Tool` can be freely stored in arrays/registry without breaking variance.
  */
 export interface Tool {
   name: string
   description: string
-  /** JSON Schema enviado al provider. */
+  /** JSON Schema sent to the provider. */
   inputSchema: Record<string, unknown>
-  /** Valida y parsea input crudo proveniente del modelo. */
+  /** Validates and parses raw input coming from the model. */
   parseInput: (raw: unknown) => unknown
   execute: (input: unknown, ctx: ToolContext) => Promise<string>
 }
@@ -170,24 +169,24 @@ export interface ContextOptimizerOptions {
 // ---------- Provider ----------
 
 /**
- * Pedido de salida tipada al provider (structured output — forzar que la
- * respuesta del modelo cumpla un JSON Schema). Cada provider lo mapea a su
- * mecanismo nativo:
+ * Request for typed output from the provider (structured output — forcing the
+ * model's response to satisfy a JSON Schema). Each provider maps it to its
+ * native mechanism:
  *   - OpenAI / OpenAI-compatible → `response_format: { type: 'json_schema' }`
- *     (constrained decoding: el modelo no puede emitir tokens fuera del schema).
- *   - Providers sin soporte nativo → lo ignoran; la garantía recae en el prompt
- *     y en la validación + reintentos del consumidor (ver `generateObject`).
+ *     (constrained decoding: the model cannot emit tokens outside the schema).
+ *   - Providers without native support → ignore it; the guarantee falls on the
+ *     prompt and on the consumer's validation + retries (see `generateObject`).
  *
- * Sólo aplica cuando NO se envían tools en la misma llamada: `response_format`
- * y `tool_choice` no conviven de forma confiable. El patrón "salida como tool
- * terminal" (`generateObject` en modo `'tool'`) cubre el caso con tools.
+ * Only applies when tools are NOT sent in the same call: `response_format` and
+ * `tool_choice` do not coexist reliably. The "output as a terminal tool"
+ * pattern (`generateObject` in `'tool'` mode) covers the case with tools.
  */
 export interface OutputFormat {
-  /** Nombre del schema (ej. "sentiment_result"). */
+  /** Schema name (e.g. "sentiment_result"). */
   name: string
-  /** JSON Schema que debe cumplir la respuesta. */
+  /** JSON Schema the response must satisfy. */
   schema: Record<string, unknown>
-  /** Modo estricto del provider (OpenAI `strict: true`). Default: true. */
+  /** Provider strict mode (OpenAI `strict: true`). Default: true. */
   strict?: boolean
 }
 
@@ -197,7 +196,7 @@ export interface ProviderStreamOptions {
   tools: Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>>
   abortSignal: AbortSignal
   maxTokens?: number
-  /** Salida tipada opcional (structured output). Ver {@link OutputFormat}. */
+  /** Optional typed output (structured output). See {@link OutputFormat}. */
   outputFormat?: OutputFormat
 }
 
@@ -217,11 +216,11 @@ export interface Provider {
 }
 
 /**
- * Conteo de tokens crudo reportado por el provider para una llamada.
- * Sin pricing ni conversión a USD — el consumidor calcula costo si quiere.
- * `cacheReadTokens` / `cacheCreationTokens` quedan opcionales porque no todos
- * los providers los exponen (Anthropic sí; OpenAI sólo `cached_tokens` cuando
- * el modelo cachea automáticamente; muchos OpenAI-compat no devuelven nada).
+ * Raw token count reported by the provider for a single call.
+ * No pricing or USD conversion — the consumer computes cost if it wants.
+ * `cacheReadTokens` / `cacheCreationTokens` stay optional because not all
+ * providers expose them (Anthropic does; OpenAI only `cached_tokens` when the
+ * model caches automatically; many OpenAI-compat servers return nothing).
  */
 export interface TokenUsage {
   inputTokens: number
@@ -233,23 +232,23 @@ export interface TokenUsage {
 // ---------- Retry ----------
 
 /**
- * Política opcional de reintentos para llamadas al provider.
- * Sólo reintenta errores transientes clasificables (HTTP 429, 5xx, timeouts
- * de red, streams cortados antes de cualquier chunk). Si el provider ya
- * emitió eventos en el intento actual, no se reintenta (evitamos duplicar
- * texto streameado al consumidor).
+ * Optional retry policy for provider calls.
+ * Only retries classifiable transient errors (HTTP 429, 5xx, network timeouts,
+ * streams cut before any chunk). If the provider already emitted events in the
+ * current attempt, it is not retried (we avoid duplicating text already
+ * streamed to the consumer).
  *
- * Default cuando se omite la opción: no hay reintentos — los errores
- * propagan y la sesión cierra con `session_end: error`.
+ * Default when the option is omitted: no retries — errors propagate and the
+ * session closes with `session_end: error`.
  */
 export interface RetryPolicy {
-  /** Cantidad total de intentos (incluye el primero). `1` o `<=1` deshabilita reintentos. */
+  /** Total number of attempts (includes the first). `1` or `<=1` disables retries. */
   maxAttempts: number
-  /** Delay base en ms para backoff exponencial. Default: 500. */
+  /** Base delay in ms for exponential backoff. Default: 500. */
   baseDelayMs?: number
-  /** Tope máximo del delay por intento. Default: 10_000. */
+  /** Maximum cap on the per-attempt delay. Default: 10_000. */
   maxDelayMs?: number
-  /** Si suma jitter aleatorio al delay (recomendado). Default: true. */
+  /** Whether to add random jitter to the delay (recommended). Default: true. */
   jitter?: boolean
 }
 

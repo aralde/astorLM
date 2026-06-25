@@ -63,8 +63,8 @@ export class AstorAgent {
   }
 
   /**
-   * Ejecuta una tarea en una sesión nueva o existente.
-   * Auto-inicializa la sesión, configura la salida/logs y ejecuta el prompt.
+   * Runs a task in a new or existing session.
+   * Auto-initializes the session, configures the output/logs and runs the prompt.
    */
   async run(
     input: string,
@@ -97,7 +97,7 @@ export class AstorAgent {
   }
 
   /**
-   * Crea una sesión hija branchada.
+   * Creates a branched child session.
    */
   async fork(opts: {
     parentId: string

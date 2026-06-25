@@ -13,7 +13,7 @@ import type { Message } from '../src/types.js'
 
 describe('SessionManager & Persistence', () => {
   describe('InMemorySessionManager', () => {
-    it('creación, recuperación, actualización, listado y eliminación', async () => {
+    it('create, retrieve, update, list and delete', async () => {
       const manager = SessionManager.inMemory()
 
       // Create
@@ -54,14 +54,14 @@ describe('SessionManager & Persistence', () => {
       expect(listAfterDelete).toHaveLength(0)
     })
 
-    it('branching de sesión (copiar todos o hasta un messageId)', async () => {
+    it('session branching (copy all or up to a messageId)', async () => {
       const manager = SessionManager.inMemory()
 
       const parent = await manager.create()
       parent.messages = [
-        { id: 'm1', role: 'user', content: [{ type: 'text', text: 'uno' }] },
-        { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'dos' }] },
-        { id: 'm3', role: 'user', content: [{ type: 'text', text: 'tres' }] },
+        { id: 'm1', role: 'user', content: [{ type: 'text', text: 'one' }] },
+        { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'two' }] },
+        { id: 'm3', role: 'user', content: [{ type: 'text', text: 'three' }] },
       ]
       await manager.save(parent)
 
@@ -94,7 +94,7 @@ describe('SessionManager & Persistence', () => {
   })
 
   describe('FileSessionManager', () => {
-    it('persistencia en archivos JSONL y meta.json', async () => {
+    it('persistence in JSONL files and meta.json', async () => {
       const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-sessions-'))
       const manager = new FileSessionManager({ dir })
 
@@ -145,14 +145,14 @@ describe('SessionManager & Persistence', () => {
       expect(await manager.get(state.id)).toBeNull()
     })
 
-    it('branching de sesión persiste correctamente', async () => {
+    it('session branching persists correctly', async () => {
       const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-branching-'))
       const manager = new FileSessionManager({ dir })
 
       const parent = await manager.create()
       parent.messages = [
-        { id: 'm1', role: 'user', content: [{ type: 'text', text: 'uno' }] },
-        { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'dos' }] },
+        { id: 'm1', role: 'user', content: [{ type: 'text', text: 'one' }] },
+        { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'two' }] },
       ]
       await manager.save(parent)
 
@@ -174,10 +174,10 @@ describe('SessionManager & Persistence', () => {
   })
 
   describe('Agent Integration', () => {
-    it('guarda los mensajes automáticamente durante el bucle y los inicializa al crear sesión', async () => {
+    it('saves messages automatically during the loop and initializes them when creating a session', async () => {
       const manager = SessionManager.inMemory()
       const provider = new MockProvider([
-        { text: 'Respuesta del modelo', stopReason: 'end_turn' },
+        { text: 'Model response', stopReason: 'end_turn' },
       ])
 
       // 1. Create a session with manager
@@ -195,7 +195,7 @@ describe('SessionManager & Persistence', () => {
       expect(list[0]!.messages).toEqual([])
 
       // 2. Call run (this will add user message and then run loop, which adds assistant message)
-      await session.run('hola agente')
+      await session.run('hello agent')
 
       // Get messages from session
       const msgs = session.getMessages()

@@ -1,6 +1,6 @@
 /**
- * Resolución de credenciales con prioridad: override → env.
- * Diseñado para extenderse a archivo `~/.astorlm/auth.json` en el futuro.
+ * Credential resolution with priority: override → env.
+ * Designed to be extended to a `~/.astorlm/auth.json` file in the future.
  */
 export class AuthStorage {
   constructor(private readonly overrides: Record<string, string> = {}) {}

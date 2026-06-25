@@ -19,7 +19,7 @@ function makeCtx(cwd: string) {
 }
 
 describe('tool', () => {
-  it('valida input con zod y genera inputSchema', async () => {
+  it('validates input with zod and generates inputSchema', async () => {
     const t = tool({
       name: 'echo',
       description: 'echo',
@@ -28,13 +28,13 @@ describe('tool', () => {
     })
     expect(t.inputSchema['type']).toBe('object')
     expect(() => t.parseInput({ text: 123 })).toThrow()
-    const out = await t.execute({ text: 'hola' }, makeCtx(process.cwd()))
-    expect(out).toBe('HOLA')
+    const out = await t.execute({ text: 'hello' }, makeCtx(process.cwd()))
+    expect(out).toBe('HELLO')
   })
 })
 
 describe('ToolRegistry', () => {
-  it('rechaza nombres duplicados', () => {
+  it('rejects duplicate names', () => {
     const reg = new ToolRegistry()
     const t = tool({
       name: 'x',
@@ -43,16 +43,16 @@ describe('ToolRegistry', () => {
       execute: async () => 'ok',
     })
     reg.register(t)
-    expect(() => reg.register(t)).toThrow(/ya registrada/)
+    expect(() => reg.register(t)).toThrow(/already registered/)
   })
 
-  it('run() devuelve isError=true con tool desconocida', async () => {
+  it('run() returns isError=true with an unknown tool', async () => {
     const reg = new ToolRegistry()
-    const res = await reg.run('inexistente', {}, makeCtx(process.cwd()))
+    const res = await reg.run('nonexistent', {}, makeCtx(process.cwd()))
     expect(res.isError).toBe(true)
   })
 
-  it('captura excepciones de execute como isError=true', async () => {
+  it('captures execute exceptions as isError=true', async () => {
     const reg = new ToolRegistry()
     reg.register(
       tool({
@@ -60,38 +60,38 @@ describe('ToolRegistry', () => {
         description: '',
         schema: z.object({}),
         execute: async () => {
-          throw new Error('explotó')
+          throw new Error('exploded')
         },
       }),
     )
     const res = await reg.run('boom', {}, makeCtx(process.cwd()))
     expect(res.isError).toBe(true)
-    expect(res.output).toContain('explotó')
+    expect(res.output).toContain('exploded')
   })
 })
 
 describe('built-in tools (read/write/edit)', () => {
-  it('write + read + edit en tmpdir', async () => {
+  it('write + read + edit in tmpdir', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-'))
     const ctx = makeCtx(dir)
 
-    await writeTool.execute({ path: 'a.txt', content: 'hola\nmundo' }, ctx)
+    await writeTool.execute({ path: 'a.txt', content: 'hello\nworld' }, ctx)
     const raw = await readFile(path.join(dir, 'a.txt'), 'utf8')
-    expect(raw).toBe('hola\nmundo')
+    expect(raw).toBe('hello\nworld')
 
     const readOut = await readTool.execute({ path: 'a.txt', offset: 1, limit: 100 }, ctx)
-    expect(readOut).toContain('hola')
-    expect(readOut).toContain('mundo')
+    expect(readOut).toContain('hello')
+    expect(readOut).toContain('world')
 
     await editTool.execute(
-      { path: 'a.txt', oldString: 'mundo', newString: 'pi', replaceAll: false },
+      { path: 'a.txt', oldString: 'world', newString: 'pi', replaceAll: false },
       ctx,
     )
     const edited = await readFile(path.join(dir, 'a.txt'), 'utf8')
-    expect(edited).toBe('hola\npi')
+    expect(edited).toBe('hello\npi')
   })
 
-  it('edit falla si oldString no es único', async () => {
+  it('edit fails if oldString is not unique', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-'))
     await writeFile(path.join(dir, 'b.txt'), 'x\nx\n', 'utf8')
     await expect(
@@ -99,13 +99,13 @@ describe('built-in tools (read/write/edit)', () => {
         { path: 'b.txt', oldString: 'x', newString: 'y', replaceAll: false },
         makeCtx(dir),
       ),
-    ).rejects.toThrow(/no es único/)
+    ).rejects.toThrow(/is not unique/)
   })
 
-  it('read rechaza paths fuera del cwd', async () => {
+  it('read rejects paths outside the cwd', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-'))
     await expect(
       readTool.execute({ path: '../etc/passwd' }, makeCtx(dir)),
-    ).rejects.toThrow(/fuera del cwd/)
+    ).rejects.toThrow(/outside the allowed cwd/)
   })
 })

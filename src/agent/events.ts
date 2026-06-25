@@ -1,6 +1,6 @@
 import type { AgentEvent, AgentEventListener } from '../types.js'
 
-/** Pub/sub minimal y síncrono. */
+/** Minimal, synchronous pub/sub. */
 export class EventBus {
   private listeners = new Set<AgentEventListener>()
 
@@ -14,7 +14,7 @@ export class EventBus {
       try {
         l(event)
       } catch {
-        // Un listener roto no debe romper el loop.
+        // A broken listener must not break the loop.
       }
     }
   }

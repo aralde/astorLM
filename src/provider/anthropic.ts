@@ -29,10 +29,10 @@ export interface AnthropicProviderOptions {
 
 
 /**
- * Provider sobre @anthropic-ai/sdk usando el streaming nativo.
- * Convierte:
- *   - nuestros `Message[]` → formato Anthropic
- *   - stream Anthropic → `ProviderEvent`s normalizados
+ * Provider over @anthropic-ai/sdk using its native streaming.
+ * Converts:
+ *   - our `Message[]` → Anthropic format
+ *   - Anthropic stream → normalized `ProviderEvent`s
  */
 export class AnthropicProvider implements Provider {
   readonly name = 'anthropic'
@@ -73,7 +73,7 @@ export class AnthropicProvider implements Provider {
       { signal: opts.abortSignal },
     )
 
-    // Buffer de bloques en construcción (para tool_use partial_json y thinking).
+    // Buffer of blocks under construction (for tool_use partial_json and thinking).
     type BlockBuf =
       | { type: 'text'; text: string }
       | { type: 'thinking'; thinking: string }

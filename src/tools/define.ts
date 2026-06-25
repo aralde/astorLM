@@ -10,9 +10,9 @@ export interface ToolOptions<S extends z.ZodTypeAny> {
 }
 
 /**
- * Define una tool tipada. Convierte el schema Zod a JSON Schema una vez,
- * deja la validación en `parseInput` para que el loop pueda fallar limpio
- * antes de ejecutar el `execute`.
+ * Defines a typed tool. Converts the Zod schema to JSON Schema once, and leaves
+ * validation in `parseInput` so the loop can fail cleanly before running
+ * `execute`.
  */
 export function tool<S extends z.ZodTypeAny>(opts: ToolOptions<S>): Tool {
   const jsonSchema = zodToJsonSchema(opts.schema, { target: 'openApi3' }) as Record<string, unknown>

@@ -8,9 +8,9 @@ import type {
 } from '../src/types.js'
 
 /**
- * MockProvider scriptado. Acepta una lista de "turnos"; en cada llamada
- * a stream() devuelve los eventos del próximo turno. Útil para testear
- * el agent loop sin tocar la API real.
+ * Scripted MockProvider. Accepts a list of "turns"; on each call to stream()
+ * it returns the events of the next turn. Useful for testing the agent loop
+ * without touching the real API.
  */
 export interface ScriptedTurn {
   text?: string
@@ -18,17 +18,17 @@ export interface ScriptedTurn {
   toolCalls?: Array<{ id: string; name: string; input: unknown }>
   stopReason?: StopReason
   /**
-   * Si está presente, el turno tira este error **antes** de emitir cualquier
-   * evento (simula HTTP fail al iniciar el stream). Usado por los tests de retry.
+   * If present, the turn throws this error **before** emitting any event
+   * (simulates an HTTP fail when starting the stream). Used by the retry tests.
    */
   failBeforeStream?: unknown
   /**
-   * Si está presente, emite los eventos normales hasta acá y luego tira
-   * (simula stream interrumpido a mitad). Usado para validar que NO se
-   * reintenta cuando ya se emitió algo.
+   * If present, emits the normal events up to here and then throws
+   * (simulates a stream interrupted halfway). Used to validate that it does
+   * NOT retry once something has already been emitted.
    */
   failAfterPartial?: unknown
-  /** Usage reportado por este turno (incluido en `message_end`). */
+  /** Usage reported by this turn (included in `message_end`). */
   usage?: TokenUsage
 }
 
@@ -43,7 +43,7 @@ export class MockProvider implements Provider {
   async *stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent> {
     this.calls.push(opts)
     const turn = this.turns[this.index++]
-    if (!turn) throw new Error('MockProvider: no quedan turnos scripteados')
+    if (!turn) throw new Error('MockProvider: no scripted turns left')
 
     if (turn.failBeforeStream !== undefined) {
       throw turn.failBeforeStream

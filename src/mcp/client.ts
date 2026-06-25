@@ -9,7 +9,7 @@ export type McpTransportConfig =
   | { type: 'http'; url: string; headers?: Record<string, string> }
 
 export interface MountMcpServerOptions {
-  /** Identificador local del server (se usa de prefijo de las tools: `<name>__<tool>`). */
+  /** Local identifier for the server (used as a prefix for the tools: `<name>__<tool>`). */
   name: string
   transport: McpTransportConfig
   clientName?: string
@@ -23,8 +23,8 @@ export interface MountedMcpServer {
 }
 
 /**
- * Conecta a un servidor MCP, lista sus tools y las adapta al sistema de tools
- * de la librería. Las tools se prefijan con `<server>__` para evitar colisiones.
+ * Connects to an MCP server, lists its tools and adapts them to the library's
+ * tool system. Tools are prefixed with `<server>__` to avoid collisions.
  */
 export async function mountMcpServer(opts: MountMcpServerOptions): Promise<MountedMcpServer> {
   const transport =

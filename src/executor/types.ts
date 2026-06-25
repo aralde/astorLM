@@ -1,29 +1,29 @@
 /**
- * Abstracción del backend que ejecuta comandos shell por cuenta del agente.
+ * Abstraction over the backend that executes shell commands on the agent's behalf.
  *
- * El bashTool (y sus derivados `bash_spawn`, `bash_get_output`, `bash_kill`)
- * no habla con `child_process` directo; le pide al `Executor` que corra el
- * comando. Eso permite swappear el backend de ejecución (local, container,
- * remoto) sin tocar las tools ni el agent loop.
+ * The bashTool (and its derivatives `bash_spawn`, `bash_get_output`, `bash_kill`)
+ * does not talk to `child_process` directly; it asks the `Executor` to run the
+ * command. That allows swapping the execution backend (local, container, remote)
+ * without touching the tools or the agent loop.
  *
- * Estas interfaces viven en `core` (no importan nada de Node) para que el
- * SDK pueda usarse desde runtimes alternativos. Los implementadores
- * concretos (LocalExecutor, DockerExecutor) viven en `node.ts`.
+ * These interfaces live in `core` (they import nothing from Node) so that the
+ * SDK can be used from alternative runtimes. The concrete implementations
+ * (LocalExecutor, DockerExecutor) live in `node.ts`.
  */
 
 export interface ExecResult {
   stdout: string
   stderr: string
-  /** Exit code numérico; `null` si el proceso fue matado por señal antes de exitear. */
+  /** Numeric exit code; `null` if the process was killed by a signal before exiting. */
   exitCode: number | null
-  /** Nombre de la señal que terminó el proceso, si aplica. */
+  /** Name of the signal that terminated the process, if applicable. */
   signal: string | null
-  /** True si el output fue truncado por superar `maxOutputBytes`. */
+  /** True if the output was truncated for exceeding `maxOutputBytes`. */
   truncated: boolean
 }
 
 export interface SpawnHandle {
-  /** Identificador opaco asignado por el executor — número de PID o container id. */
+  /** Opaque identifier assigned by the executor — a PID number or container id. */
   pid: string
 }
 
@@ -32,7 +32,7 @@ export interface ProcessStatus {
   running: boolean
   exitCode: number | null
   signal: string | null
-  /** Output stdout acumulado desde la última lectura. El buffer se vacía al consultar. */
+  /** stdout output accumulated since the last read. The buffer is drained on query. */
   stdout: string
   stderr: string
 }
@@ -52,41 +52,42 @@ export interface SpawnOptions {
   command: string
   cwd: string
   env?: Record<string, string>
-  /** Default 200 KB por stream antes de descartar lo viejo. */
+  /** Default 200 KB per stream before discarding the old data. */
   maxBufferBytes?: number
   abortSignal?: AbortSignal
 }
 
 export interface Executor {
-  /** Identificador legible — útil para logging y para que las tools sepan dónde corren. */
+  /** Human-readable identifier — useful for logging and so tools know where they run. */
   readonly name: string
 
-  /** Ejecuta un comando y bloquea hasta que termina o vence el timeout. */
+  /** Runs a command and blocks until it finishes or the timeout expires. */
   exec(opts: ExecOptions): Promise<ExecResult>
 
-  /** Arranca un proceso en background. Resuelve apenas spawnea, no espera al exit. */
+  /** Starts a process in the background. Resolves as soon as it spawns, does not wait for exit. */
   spawn(opts: SpawnOptions): Promise<SpawnHandle>
 
-  /** Lee el estado del proceso y drena el buffer de output acumulado. */
+  /** Reads the process status and drains the accumulated output buffer. */
   getOutput(pid: string): Promise<ProcessStatus>
 
-  /** Mata el proceso. No-op si ya terminó o si el pid no existe. */
+  /** Kills the process. No-op if it already finished or the pid does not exist. */
   kill(pid: string, signal?: string): Promise<void>
 
-  /** Cierra todos los procesos pendientes y libera recursos. */
+  /** Closes all pending processes and releases resources. */
   dispose(): Promise<void>
 }
 
 /**
- * Executor "vacío" que rechaza toda operación con un error claro. Es el default
- * en `createAgentSession` (core) para que el SDK no requiera Node: si vas a usar
- * el bashTool, configurá un executor real (LocalExecutor en Node, o uno custom).
+ * "Empty" executor that rejects every operation with a clear error. It is the
+ * default in `createAgentSession` (core) so the SDK does not require Node: if you
+ * are going to use the bashTool, configure a real executor (LocalExecutor in Node,
+ * or a custom one).
  */
 export function createNoopExecutor(): Executor {
   const fail = (op: string): never => {
     throw new Error(
-      `Operación "${op}" requiere un Executor configurado. ` +
-        `Pasá { executor } a createAgentSession() — por ejemplo, new LocalExecutor() de astorlm/node.`,
+      `Operation "${op}" requires a configured Executor. ` +
+        `Pass { executor } to createAgentSession() — for example, new LocalExecutor() from astorlm/node.`,
     )
   }
   return {

@@ -20,14 +20,14 @@ class TracingExecutor implements Executor {
   async dispose(): Promise<void> {}
 }
 
-describe('Executor injection en ToolContext', () => {
-  it('createAgent propaga executor al ToolContext que reciben las tools', async () => {
+describe('Executor injection into ToolContext', () => {
+  it('createAgent propagates the executor to the ToolContext that tools receive', async () => {
     const exec = new TracingExecutor()
 
     let capturedExecutorName: string | undefined
     const probe = tool({
       name: 'probe',
-      description: 'observa ctx',
+      description: 'observes ctx',
       schema: z.object({}),
       execute: async (_input, ctx) => {
         capturedExecutorName = ctx.executor.name
@@ -52,7 +52,7 @@ describe('Executor injection en ToolContext', () => {
     expect(exec.observed).toEqual(['exec:true'])
   })
 
-  it('sin executor configurado el ctx recibe noop que tira con mensaje claro', async () => {
+  it('with no configured executor the ctx receives a noop that throws with a clear message', async () => {
     let caughtMsg: string | undefined
     const probe = tool({
       name: 'probe',
@@ -61,7 +61,7 @@ describe('Executor injection en ToolContext', () => {
       execute: async (_input, ctx) => {
         try {
           await ctx.executor.exec({ command: 'x', cwd: ctx.cwd })
-          return 'no debería llegar'
+          return 'should not be reached'
         } catch (err) {
           caughtMsg = (err as Error).message
           throw err
@@ -74,6 +74,6 @@ describe('Executor injection en ToolContext', () => {
     ])
     const session = await createAgent({ provider, tools: [probe] })
     await session.run('go')
-    expect(caughtMsg).toMatch(/requiere un Executor/)
+    expect(caughtMsg).toMatch(/requires a configured Executor/)
   })
 })

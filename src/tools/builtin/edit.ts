@@ -6,7 +6,7 @@ import { resolveSafe } from '../../util/fs.js'
 export const editTool = tool({
   name: 'edit',
   description:
-    'Reemplaza una ocurrencia exacta de `oldString` por `newString` en el archivo indicado. `oldString` debe ser único (al menos por defecto). Útil para ediciones quirúrgicas sin reescribir el archivo entero.',
+    'Replaces an exact occurrence of `oldString` with `newString` in the given file. `oldString` must be unique (at least by default). Useful for surgical edits without rewriting the whole file.',
   schema: z.object({
     path: z.string(),
     oldString: z.string().min(1),
@@ -17,7 +17,7 @@ export const editTool = tool({
     const abs = resolveSafe(ctx.cwd, p)
     const raw = await readFile(abs, 'utf8')
     if (!raw.includes(oldString)) {
-      throw new Error(`No se encontró "oldString" en ${p}`)
+      throw new Error(`"oldString" not found in ${p}`)
     }
     let next: string
     if (replaceAll) {
@@ -27,12 +27,12 @@ export const editTool = tool({
       const second = raw.indexOf(oldString, first + 1)
       if (second !== -1) {
         throw new Error(
-          `"oldString" no es único en ${p} (aparece ≥2 veces). Ampliá el contexto o usá replaceAll.`,
+          `"oldString" is not unique in ${p} (appears ≥2 times). Widen the context or use replaceAll.`,
         )
       }
       next = raw.slice(0, first) + newString + raw.slice(first + oldString.length)
     }
     await writeFile(abs, next, 'utf8')
-    return `Edité ${p}`
+    return `Edited ${p}`
   },
 })

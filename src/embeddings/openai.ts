@@ -11,11 +11,11 @@
 import type { Embedder, EmbedManyResult, EmbedOptions, EmbedResult, EmbeddingUsage } from './types.js'
 
 export interface OpenAIEmbedderOptions {
-  /** Base URL of the OpenAI-compatible API, e.g. `http://127.0.0.1:11434/v1`. */
+  /** Base URL of the OpenAI-compatible API, e.g. `http://localhost:11434/v1`. */
   baseURL: string
   /** Embedding model id, e.g. `text-embedding-3-small`. */
   model: string
-  /** API key. Defaults to `'not-needed'` for local endpoints that ignore it. */
+  /** API key. Defaults to `'ollama'` for local endpoints that ignore it. */
   apiKey?: string
   /**
    * Requested output dimensionality. Only honored by models that support
@@ -42,7 +42,7 @@ function toUsage(raw: EmbeddingsResponse['usage']): EmbeddingUsage | undefined {
 }
 
 export function createOpenAIEmbedder(opts: OpenAIEmbedderOptions): Embedder {
-  const apiKey = opts.apiKey ?? 'not-needed'
+  const apiKey = opts.apiKey ?? 'ollama'
   const url = `${opts.baseURL.replace(/\/$/, '')}/embeddings`
   const fetchImpl = opts.fetch ?? fetch
   // Resolved lazily from the first response so `dimensions` reflects what

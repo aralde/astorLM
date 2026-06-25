@@ -16,7 +16,7 @@ export interface OpenAIProviderOptions {
   auth?: AuthStorage
   maxTokens?: number
   baseURL?: string
-  /** Permite usar otros endpoints compatibles (Groq, OpenRouter, Together, etc.). */
+  /** Allows using other compatible endpoints (Groq, OpenRouter, Together, etc.). */
   envVar?: string
   /**
    * Allows the client to run inside a browser-like environment (e.g. a Tauri or
@@ -26,14 +26,14 @@ export interface OpenAIProviderOptions {
 }
 
 /**
- * Provider sobre la Chat Completions API de OpenAI con streaming + tool calls.
+ * Provider over OpenAI's Chat Completions API with streaming + tool calls.
  *
- * Diferencias clave con Anthropic que este adapter resuelve:
- *  - Tools van como `{type:'function', function:{name, description, parameters}}`.
- *  - Los tool_use viven en `assistant.tool_calls` (array al costado del content),
- *    no como bloques inline. Los reagrupamos por id durante el stream.
- *  - Los tool_results se envían como mensajes separados con `role:'tool'`,
- *    uno por cada tool_call_id. Acá los desempaquetamos al mapear `Message[]`.
+ * Key differences from Anthropic that this adapter resolves:
+ *  - Tools go as `{type:'function', function:{name, description, parameters}}`.
+ *  - tool_use lives in `assistant.tool_calls` (an array alongside the content),
+ *    not as inline blocks. We regroup them by id during the stream.
+ *  - tool_results are sent as separate messages with `role:'tool'`, one per
+ *    tool_call_id. Here we unpack them when mapping `Message[]`.
  */
 export class OpenAIProvider implements Provider {
   readonly name = 'openai'
@@ -71,9 +71,9 @@ export class OpenAIProvider implements Provider {
       },
     }))
 
-    // Salida tipada (structured output). `response_format: json_schema` aplica
-    // constrained decoding — el modelo no puede salirse del schema. No convive
-    // con `tools`/`tool_choice`, así que sólo lo mandamos cuando no hay tools.
+    // Typed output (structured output). `response_format: json_schema` applies
+    // constrained decoding — the model cannot stray from the schema. It does not
+    // coexist with `tools`/`tool_choice`, so we only send it when there are no tools.
     const responseFormat =
       opts.outputFormat && tools.length === 0
         ? {
@@ -93,8 +93,8 @@ export class OpenAIProvider implements Provider {
         model: this.model,
         stream: true,
         temperature: 0,
-        // Pedimos usage en el último chunk (OpenAI y la mayoría de los compat lo soportan;
-        // los que no, simplemente devuelven `chunk.usage = null` y lo ignoramos).
+        // Request usage in the last chunk (OpenAI and most compat servers support it;
+        // those that don't simply return `chunk.usage = null` and we ignore it).
         stream_options: { include_usage: true },
         messages,
         ...(tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
@@ -104,7 +104,7 @@ export class OpenAIProvider implements Provider {
       { signal: opts.abortSignal },
     )
 
-    // Buffers para reconstruir el mensaje final.
+    // Buffers to reconstruct the final message.
     let textAcc = ''
     let reasoningAcc = ''
     type ToolCallBuf = { id: string; name: string; argsAcc: string; emittedStart: boolean }
@@ -112,7 +112,7 @@ export class OpenAIProvider implements Provider {
     let finishReason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] = null
     let usageRaw: OpenAI.Completions.CompletionUsage | null = null
 
-    // Parser de tags de pensamiento para modelos/proxies que devuelven <think>...</think> en content
+    // Thinking-tag parser for models/proxies that return <think>...</think> in content
     let inThinkingTag = false
     let tagBuffer = ''
     const startTag = '<think>'
@@ -121,8 +121,8 @@ export class OpenAIProvider implements Provider {
     const endPrefixes = ['</think', '</thin', '</thi', '</th', '</t', '</', '<']
 
     for await (const chunk of stream) {
-      // Con stream_options.include_usage, el último chunk trae `usage` y
-      // viene típicamente con `choices: []` — lo capturamos antes de saltarlo.
+      // With stream_options.include_usage, the last chunk carries `usage` and
+      // typically comes with `choices: []` — we capture it before skipping it.
       if (chunk.usage) usageRaw = chunk.usage
       const choice = chunk.choices[0]
       if (!choice) continue
@@ -167,7 +167,7 @@ export class OpenAIProvider implements Provider {
           }
         }
 
-        // Determinar si al final del buffer queda un prefijo del tag que estamos buscando
+        // Determine whether the end of the buffer holds a prefix of the tag we're looking for
         if (tagBuffer.length > 0) {
           const prefixes = inThinkingTag ? endPrefixes : startPrefixes
           let matchedPrefixLen = 0
@@ -219,7 +219,7 @@ export class OpenAIProvider implements Provider {
       if (choice.finish_reason) finishReason = choice.finish_reason
     }
 
-    // Flush del buffer del tag parser al terminar el stream
+    // Flush the tag parser's buffer when the stream ends
     if (tagBuffer.length > 0) {
       if (inThinkingTag) {
         reasoningAcc += tagBuffer
@@ -231,7 +231,7 @@ export class OpenAIProvider implements Provider {
       tagBuffer = ''
     }
 
-    // Cerrar tool_uses pendientes con su input parseado.
+    // Close pending tool_uses with their parsed input.
     const content: ContentBlock[] = []
     if (reasoningAcc.length) content.push({ type: 'thinking', thinking: reasoningAcc })
     if (textAcc.length) content.push({ type: 'text', text: textAcc })
@@ -267,9 +267,9 @@ function mapUsage(u: OpenAI.Completions.CompletionUsage | null | undefined): Tok
     inputTokens: u.prompt_tokens ?? 0,
     outputTokens: u.completion_tokens ?? 0,
   }
-  // OpenAI expone `prompt_tokens_details.cached_tokens` cuando el modelo usa
-  // automatic prompt caching. No hay equivalente claro a "cache creation"
-  // en la API de OpenAI — se omite.
+  // OpenAI exposes `prompt_tokens_details.cached_tokens` when the model uses
+  // automatic prompt caching. There is no clear equivalent to "cache creation"
+  // in OpenAI's API — it is omitted.
   const cached = (u as any).prompt_tokens_details?.cached_tokens
   if (typeof cached === 'number') usage.cacheReadTokens = cached
   return usage
@@ -284,10 +284,10 @@ function safeJson(s: string): unknown {
 }
 
 /**
- * Aplana nuestros `Message[]` al formato OpenAI:
- *   - assistant con tool_use → assistant con `tool_calls` (+ content opcional)
- *   - user con tool_result   → un mensaje `role:'tool'` por cada tool_result
- *   - texto plano queda igual
+ * Flattens our `Message[]` into the OpenAI format:
+ *   - assistant with tool_use → assistant with `tool_calls` (+ optional content)
+ *   - user with tool_result   → one `role:'tool'` message per tool_result
+ *   - plain text stays the same
  */
 function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompletionMessageParam[] {
   const out: OpenAI.Chat.ChatCompletionMessageParam[] = []
@@ -326,14 +326,14 @@ function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompl
       out.push(msg)
       continue
     }
-    // role === 'user' — puede contener texto o uno-o-más tool_result.
+    // role === 'user' — may contain text or one-or-more tool_result.
     const toolResults = m.content.filter((b) => b.type === 'tool_result')
     if (toolResults.length) {
       for (const b of toolResults) {
         if (b.type !== 'tool_result') continue
         out.push({ role: 'tool', tool_call_id: b.tool_use_id, content: b.content })
       }
-      // Si además había texto, agregarlo como user normal después.
+      // If there was also text, add it as a normal user message afterwards.
       const text = m.content
         .filter((b) => b.type === 'text')
         .map((b) => (b.type === 'text' ? b.text : ''))

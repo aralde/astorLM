@@ -7,7 +7,7 @@ const MAX_OUTPUT_BYTES = 200_000
 export const bashTool = tool({
   name: 'bash',
   description:
-    'Ejecuta un comando shell de forma bloqueante en el cwd del agente. Devuelve stdout y stderr combinados con el exit code. Para procesos largos (servers, watchers) usá `bash_spawn`.',
+    'Runs a shell command in a blocking manner in the agent cwd. Returns stdout and stderr combined with the exit code. For long-running processes (servers, watchers) use `bash_spawn`.',
   schema: z.object({
     command: z.string().min(1),
     timeoutMs: z.number().int().min(100).max(600_000).optional(),
@@ -21,9 +21,9 @@ export const bashTool = tool({
       abortSignal: ctx.abortSignal,
     })
 
-    // Mantenemos el shape histórico: stdout + stderr concatenados + truncado + exit code.
+    // We keep the historical shape: stdout + stderr concatenated + truncated + exit code.
     const combined = result.stdout + result.stderr
-    const truncated = result.truncated ? '\n[salida truncada]\n' : ''
+    const truncated = result.truncated ? '\n[output truncated]\n' : ''
     const exitMeta =
       result.exitCode != null
         ? `\n[exit code: ${result.exitCode}]`

@@ -8,8 +8,8 @@ const Sentiment = z.object({
   score: z.number(),
 })
 
-describe('generateObject — modo tool (tool terminal)', () => {
-  it('captura el input de la tool terminal como objeto tipado', async () => {
+describe('generateObject — tool mode (terminal tool)', () => {
+  it('captures the terminal tool input as a typed object', async () => {
     const provider = new MockProvider([
       {
         toolCalls: [
@@ -21,7 +21,7 @@ describe('generateObject — modo tool (tool terminal)', () => {
     const { object, mode, sessionId } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: "Clasificá: 'me encantó'",
+      prompt: "Classify: 'I loved it'",
       mode: 'tool',
     })
 
@@ -30,38 +30,38 @@ describe('generateObject — modo tool (tool terminal)', () => {
     expect(sessionId).toBeTruthy()
   })
 
-  it('corta el loop apenas se llama la tool terminal (no abre otro turno)', async () => {
+  it('stops the loop as soon as the terminal tool is called (does not open another turn)', async () => {
     const provider = new MockProvider([
       {
         toolCalls: [
           { id: 't1', name: 'provide_final_answer', input: { label: 'neu', score: 0.5 } },
         ],
       },
-      // Segundo turno scripteado: si el loop NO cortara, MockProvider lo consumiría.
-      { text: 'no debería llegar acá', stopReason: 'end_turn' },
+      // Second scripted turn: if the loop did NOT stop, MockProvider would consume it.
+      { text: 'should not be reached', stopReason: 'end_turn' },
     ])
 
     const { object } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: 'algo',
+      prompt: 'something',
       mode: 'tool',
     })
 
     expect(object.label).toBe('neu')
-    // Sólo se consumió 1 turno.
+    // Only 1 turn was consumed.
     expect(provider.calls).toHaveLength(1)
   })
 
-  it('repara automáticamente cuando el modelo manda un objeto inválido', async () => {
+  it('repairs automatically when the model sends an invalid object', async () => {
     const provider = new MockProvider([
-      // Primer intento: score como string → Zod falla → tool_result de error.
+      // First attempt: score as a string → Zod fails → error tool_result.
       {
         toolCalls: [
-          { id: 't1', name: 'provide_final_answer', input: { label: 'pos', score: 'alto' } },
+          { id: 't1', name: 'provide_final_answer', input: { label: 'pos', score: 'high' } },
         ],
       },
-      // Segundo intento: corregido.
+      // Second attempt: corrected.
       {
         toolCalls: [
           { id: 't2', name: 'provide_final_answer', input: { label: 'pos', score: 0.8 } },
@@ -72,7 +72,7 @@ describe('generateObject — modo tool (tool terminal)', () => {
     const { object } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: 'algo',
+      prompt: 'something',
       mode: 'tool',
     })
 
@@ -80,17 +80,17 @@ describe('generateObject — modo tool (tool terminal)', () => {
     expect(provider.calls).toHaveLength(2)
   })
 
-  it('tira GenerateObjectError si el modelo nunca llama la tool terminal', async () => {
-    const provider = new MockProvider([{ text: 'respuesta en prosa', stopReason: 'end_turn' }])
+  it('throws GenerateObjectError if the model never calls the terminal tool', async () => {
+    const provider = new MockProvider([{ text: 'a prose answer', stopReason: 'end_turn' }])
 
     await expect(
-      generateObject({ provider, schema: Sentiment, prompt: 'algo', mode: 'tool' }),
+      generateObject({ provider, schema: Sentiment, prompt: 'something', mode: 'tool' }),
     ).rejects.toBeInstanceOf(GenerateObjectError)
   })
 })
 
-describe('generateObject — modo native (response_format)', () => {
-  it('parsea y valida el JSON devuelto por el provider', async () => {
+describe('generateObject — native mode (response_format)', () => {
+  it('parses and validates the JSON returned by the provider', async () => {
     const provider = new MockProvider([
       { text: JSON.stringify({ label: 'neg', score: 0.1 }), stopReason: 'end_turn' },
     ])
@@ -98,18 +98,18 @@ describe('generateObject — modo native (response_format)', () => {
     const { object, mode } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: 'algo',
+      prompt: 'something',
       mode: 'native',
     })
 
     expect(mode).toBe('native')
     expect(object).toEqual({ label: 'neg', score: 0.1 })
-    // Verifica que se pasó outputFormat al provider.
+    // Verify outputFormat was passed to the provider.
     expect(provider.calls[0]?.outputFormat).toBeTruthy()
     expect(provider.calls[0]?.outputFormat?.schema).toBeTruthy()
   })
 
-  it('tolera fences markdown alrededor del JSON', async () => {
+  it('tolerates markdown fences around the JSON', async () => {
     const provider = new MockProvider([
       { text: '```json\n{"label":"pos","score":0.7}\n```', stopReason: 'end_turn' },
     ])
@@ -117,14 +117,14 @@ describe('generateObject — modo native (response_format)', () => {
     const { object } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: 'algo',
+      prompt: 'something',
       mode: 'native',
     })
 
     expect(object).toEqual({ label: 'pos', score: 0.7 })
   })
 
-  it('reintenta (repair) cuando la primera salida no valida', async () => {
+  it('retries (repair) when the first output fails validation', async () => {
     const provider = new MockProvider([
       { text: '{"label":"???","score":0.5}', stopReason: 'end_turn' },
       { text: '{"label":"neu","score":0.5}', stopReason: 'end_turn' },
@@ -133,7 +133,7 @@ describe('generateObject — modo native (response_format)', () => {
     const { object } = await generateObject({
       provider,
       schema: Sentiment,
-      prompt: 'algo',
+      prompt: 'something',
       mode: 'native',
       maxRepairAttempts: 1,
     })
@@ -143,8 +143,8 @@ describe('generateObject — modo native (response_format)', () => {
   })
 })
 
-describe('generateObject — selección de modo (auto)', () => {
-  it("usa 'tool' cuando hay tools de usuario", async () => {
+describe('generateObject — mode selection (auto)', () => {
+  it("uses 'tool' when there are user tools", async () => {
     const provider = new MockProvider([
       {
         toolCalls: [
@@ -152,7 +152,7 @@ describe('generateObject — selección de modo (auto)', () => {
         ],
       },
     ])
-    // provider.name === 'mock' → auto cae en 'tool' igual; este test fija el contrato.
+    // provider.name === 'mock' → auto falls back to 'tool' anyway; this test pins the contract.
     const { mode } = await generateObject({ provider, schema: Sentiment, prompt: 'x' })
     expect(mode).toBe('tool')
   })

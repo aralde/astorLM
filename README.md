@@ -86,9 +86,9 @@ graph TD
 import { createOpenAIEmbedder, createSemanticIndex } from 'astorlm'
 
 const embedder = createOpenAIEmbedder({
-  baseURL: 'http://127.0.0.1:11434/v1',
+  baseURL: 'http://localhost:11434/v1',
   model: 'nomic-embed-text',
-  apiKey: 'not-needed',
+  apiKey: 'ollama',
 })
 
 const index = createSemanticIndex({ embedder })
@@ -117,12 +117,12 @@ import { createErrorRegistry, errorRegistryHooks } from 'astorlm/experimental/er
 const registry = createErrorRegistry({
   storePath: '.astorlm/error-registry.jsonl',
   // Optional — if omitted, falls back to Jaccard over tokens:
-  // embeddings: { baseURL: 'http://127.0.0.1:11434/v1', model: 'nomic-embed-text' },
+  // embeddings: { baseURL: 'http://localhost:11434/v1', model: 'nomic-embed-text' },
 })
 await registry.init()
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
   hooks: errorRegistryHooks({
     registry,
@@ -152,7 +152,7 @@ import { attachTracer, createInMemoryExporter } from 'astorlm/experimental/traci
 import { createOtlpSpanExporter } from 'astorlm/experimental/tracing/otel'
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
 })
 
@@ -243,7 +243,9 @@ if (report.summary.passRate < 0.8) process.exit(1) // CI gate
 
 ## 🚀 Quick Use Examples
 
-> **All snippets use `OpenAIProvider`** pointed at a local OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, …). `AnthropicProvider` exists in the public API with the same shape — swap it in if you prefer Anthropic.
+> **All snippets use `OpenAIProvider`** pointed at a local OpenAI-compatible endpoint. The examples assume [Ollama](https://ollama.com) (`http://localhost:11434/v1`, model `qwen2.5-coder`, `apiKey: 'ollama'` — a placeholder local endpoints ignore), but any OpenAI-compatible server works (LM Studio `http://localhost:1234/v1`, vLLM `http://localhost:8000/v1`, …).
+>
+> **Hosted providers:** point `baseURL` at the vendor and pass a real key — e.g. OpenAI (`https://api.openai.com/v1`, `gpt-4o-mini`), Groq, OpenRouter or Together. If you omit `apiKey`, the provider reads it from `OPENAI_API_KEY` (override the env var name with `envVar`). `AnthropicProvider` exists in the public API with the same shape — swap it in if you prefer Anthropic.
 
 ### 🔌 1. Minimal Usage (custom tool)
 
@@ -263,7 +265,7 @@ const getWeather = tool({
 //    Note: createAgent is async — it loads any persisted state from the
 //    session manager before returning. Always await it.
 const agent = await createAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: [getWeather],
 })
 
@@ -285,7 +287,7 @@ import { createCodingTools } from 'astorlm/tools'
 
 const agent = await createLocalAgent({
   cwd: process.cwd(), // safe working directory
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(), // read, write, edit, bash, bash_spawn, bash_get_output, bash_kill, ls, grep, glob
 })
 
@@ -313,7 +315,7 @@ const sessionManager = new FileSessionManager({ dir: './.astor-sessions' })
 const agent = await createLocalAgent({
   sessionId: 'my-refactor-session',
   sessionManager,
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
 })
 
 await agent.run('Write an optimized fibonacci function.')
@@ -343,7 +345,7 @@ To streamline recurring flows, `AstorAgent` wraps lifecycle management, output s
 import { AstorAgent, FileSessionManager, OpenAIProvider } from 'astorlm'
 
 const agent = new AstorAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   sessionManager: new FileSessionManager({ dir: './.astor-sessions' }),
   defaultOutputMode: 'verbose', // 'silent' | 'console' | 'verbose' | (event) => void
 })
@@ -370,7 +372,7 @@ import { createLocalAgent, createSubagentTool, OpenAIProvider } from 'astorlm'
 import { createReadOnlyTools, createCodingTools } from 'astorlm/tools'
 
 const provider = () =>
-  new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' })
+  new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
 
 // A focused subagent with a read-only tool surface.
 const explorer = createSubagentTool({
@@ -411,7 +413,7 @@ import { createLocalAgent, OpenAIProvider } from 'astorlm'
 import { createCodingTools } from 'astorlm/tools'
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
   hooks: {
     beforeProviderCall: async ({ messages, systemPrompt }) => {
@@ -443,7 +445,7 @@ import { createCodingTools } from 'astorlm/tools'
 const controller = createSteeringController() // optionally wraps an existing SessionHooks
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
   hooks: controller.hooks,
 })
@@ -477,7 +479,7 @@ const mcpServer = await mountMcpServer({
 })
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: [...createCodingTools(), ...mcpServer.tools],
 })
 ```
@@ -532,7 +534,7 @@ import { createLocalAgent, createFileSystemSkillSource, OpenAIProvider } from 'a
 import { createCodingTools } from 'astorlm/tools'
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
   skillSources: [createFileSystemSkillSource({ dir: './.astor-skills' })],
   skillMode: 'filesystem',
@@ -608,7 +610,7 @@ import { createLocalAgent, DockerExecutor, OpenAIProvider } from 'astorlm'
 import { createCodingTools } from 'astorlm/tools'
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: createCodingTools(),
   executor: new DockerExecutor({ image: 'node:20-alpine' }),
 })
@@ -635,7 +637,7 @@ import { QuickJsCodeRunner, createCodeRunnerTool } from 'astorlm/experimental/wa
 const runner = new QuickJsCodeRunner({ timeoutMs: 3_000 })
 
 const agent = await createLocalAgent({
-  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
   tools: [...createReadOnlyTools(), createCodeRunnerTool({ runner })],
 })
 ```

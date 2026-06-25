@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { tool } from '../define.js'
 import { resolveSafe } from '../../util/fs.js'
 
-/** Convierte un patrón glob simple a RegExp. Soporta `*`, `**`, `?`. */
+/** Converts a simple glob pattern to a RegExp. Supports `*`, `**`, `?`. */
 function globToRegex(pattern: string): RegExp {
   let out = '^'
   for (let i = 0; i < pattern.length; i++) {
@@ -53,7 +53,7 @@ async function walk(dir: string, base: string, out: string[], skip: Set<string>)
 export const globTool = tool({
   name: 'glob',
   description:
-    'Busca archivos por patrón glob (soporta `*`, `**`, `?`). Ignora node_modules, .git y dist por defecto.',
+    'Finds files by glob pattern (supports `*`, `**`, `?`). Ignores node_modules, .git and dist by default.',
   schema: z.object({
     pattern: z.string(),
   }),
@@ -63,6 +63,6 @@ export const globTool = tool({
     await walk(base, base, files, new Set(['node_modules', '.git', 'dist']))
     const re = globToRegex(pattern)
     const matches = files.filter((f) => re.test(f)).sort()
-    return matches.length ? matches.join('\n') : '(sin coincidencias)'
+    return matches.length ? matches.join('\n') : '(no matches)'
   },
 })

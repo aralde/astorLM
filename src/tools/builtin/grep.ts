@@ -27,7 +27,7 @@ async function walk(dir: string, out: string[]) {
 export const grepTool = tool({
   name: 'grep',
   description:
-    'Busca un patrón (regex) en archivos del cwd. Devuelve líneas con número de línea. Ignora node_modules/.git/dist.',
+    'Searches for a pattern (regex) in files under the cwd. Returns lines with their line number. Ignores node_modules/.git/dist.',
   schema: z.object({
     pattern: z.string(),
     path: z.string().optional().default('.'),
@@ -56,6 +56,6 @@ export const grepTool = tool({
         }
       }
     }
-    return results.length ? results.join('\n') : '(sin coincidencias)'
+    return results.length ? results.join('\n') : '(no matches)'
   },
 })

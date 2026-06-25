@@ -5,10 +5,10 @@ import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
 
 describe('AstorAgent Facade', () => {
-  it('run ejecuta correctamente e inicializa automáticamente', async () => {
+  it('run executes correctly and auto-initializes', async () => {
     const manager = SessionManager.inMemory()
     const provider = new MockProvider([
-      { text: 'Respuesta facade', stopReason: 'end_turn' },
+      { text: 'Facade response', stopReason: 'end_turn' },
     ])
 
     const agent = new AstorAgent({
@@ -18,21 +18,21 @@ describe('AstorAgent Facade', () => {
       defaultOutputMode: 'silent',
     })
 
-    const result = await agent.run('hola facade', { sessionId: 'test-facade' })
+    const result = await agent.run('hello facade', { sessionId: 'test-facade' })
     expect(result.sessionId).toBe('test-facade')
-    expect(result.text).toBe('Respuesta facade')
+    expect(result.text).toBe('Facade response')
 
-    // Verificar que persistió en el manager
+    // Verify it persisted in the manager
     const saved = await manager.get('test-facade')
     expect(saved).not.toBeNull()
     expect(saved!.messages).toHaveLength(2)
     expect(saved!.messages[0]!.content[0]!.type).toBe('text')
-    expect((saved!.messages[0]!.content[0] as any).text).toBe('hola facade')
+    expect((saved!.messages[0]!.content[0] as any).text).toBe('hello facade')
   })
 
-  it('soporta custom logger / outputMode callback', async () => {
+  it('supports a custom logger / outputMode callback', async () => {
     const provider = new MockProvider([
-      { text: 'Respuesta logger', stopReason: 'end_turn' },
+      { text: 'Logger response', stopReason: 'end_turn' },
     ])
 
     const agent = new AstorAgent({
@@ -49,15 +49,15 @@ describe('AstorAgent Facade', () => {
     await agent.run('test callback', { outputMode: customCallback })
 
     expect(events.length).toBeGreaterThan(0)
-    // Debería contener text_delta
+    // Should contain text_delta
     const textDeltas = events.filter((e) => e.type === 'text_delta')
     expect(textDeltas.length).toBeGreaterThan(0)
   })
 
-  it('fork realiza branching y permite correr instrucción sobre la rama hija', async () => {
+  it('fork performs branching and allows running an instruction on the child branch', async () => {
     const manager = SessionManager.inMemory()
     const provider = new MockProvider([
-      { text: 'Respuesta branch', stopReason: 'end_turn' },
+      { text: 'Branch response', stopReason: 'end_turn' },
     ])
 
     const agent = new AstorAgent({
@@ -67,28 +67,28 @@ describe('AstorAgent Facade', () => {
       defaultOutputMode: 'silent',
     })
 
-    // Crear sesión padre e inicializarla con algún mensaje
-    const parent = await manager.create({ id: 'padre' })
+    // Create the parent session and seed it with some messages
+    const parent = await manager.create({ id: 'parent' })
     parent.messages = [
-      { id: 'm1', role: 'user', content: [{ type: 'text', text: 'origen' }] },
-      { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'respuesta' }] },
+      { id: 'm1', role: 'user', content: [{ type: 'text', text: 'origin' }] },
+      { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'response' }] },
     ]
     await manager.save(parent)
 
-    // Crear branch e interactuar
+    // Create the branch and interact
     const branchAgent = await agent.fork({
-      parentId: 'padre',
+      parentId: 'parent',
       branchFromMessageId: 'm2',
-      newSessionId: 'hija',
+      newSessionId: 'child',
     })
 
-    const result = await branchAgent.run('continuación')
+    const result = await branchAgent.run('continuation')
 
-    expect(result.sessionId).toBe('hija')
-    expect(result.text).toBe('Respuesta branch')
+    expect(result.sessionId).toBe('child')
+    expect(result.text).toBe('Branch response')
 
-    // Verificar que la hija tiene 4 mensajes (m1, m2 de herencia, y el nuevo prompt/respuesta)
-    const childState = await manager.get('hija')
+    // Verify the child has 4 messages (inherited m1, m2, plus the new prompt/response)
+    const childState = await manager.get('child')
     expect(childState!.messages).toHaveLength(4)
     expect(childState!.messages[0]!.id).toBe('m1')
     expect(childState!.messages[1]!.id).toBe('m2')

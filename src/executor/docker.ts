@@ -9,13 +9,13 @@ import type {
 } from './types.js'
 
 export interface DockerExecutorOptions {
-  /** Imagen base que se usa para cada container. Default `node:20-alpine`. */
+  /** Base image used for each container. Default `node:20-alpine`. */
   image?: string
-  /** Configuración de red. Default `none` (sin red, máximo aislamiento). */
+  /** Network configuration. Default `none` (no network, maximum isolation). */
   network?: 'none' | 'bridge' | 'host' | string
-  /** Args extra para `docker run`. Útil para `--memory`, `--cpus`, `-e`, etc. */
+  /** Extra args for `docker run`. Useful for `--memory`, `--cpus`, `-e`, etc. */
   extraDockerArgs?: string[]
-  /** Binario de docker. Default `docker`. Cambialo si usás podman o ruta no estándar. */
+  /** Docker binary. Default `docker`. Change it if you use podman or a non-standard path. */
   dockerBin?: string
 }
 
@@ -23,16 +23,16 @@ const DEFAULT_TIMEOUT_MS = 120_000
 const DEFAULT_MAX_OUTPUT_BYTES = 200_000
 
 /**
- * Executor que corre cada comando dentro de un container efímero. Usa el binario
- * `docker` por CLI (no dockerode) para no agregar deps pesadas.
+ * Executor that runs each command inside an ephemeral container. Uses the
+ * `docker` binary via CLI (not dockerode) to avoid adding heavy deps.
  *
  * - `exec(cmd)` → `docker run --rm -v cwd:/work -w /work <image> sh -c <cmd>`.
- * - `spawn(cmd)` → `docker run -d --rm ...` devolviendo container id como pid;
- *   `getOutput` usa `docker logs`; `kill` usa `docker kill`.
+ * - `spawn(cmd)` → `docker run -d --rm ...` returning the container id as the pid;
+ *   `getOutput` uses `docker logs`; `kill` uses `docker kill`.
  *
- * Notas de portabilidad: el bind-mount de `cwd` requiere que Docker Desktop
- * (Windows) o el daemon (Linux/Mac) tenga acceso al filesystem del host. En
- * Windows con rutas tipo `T:\...`, Docker las traduce automáticamente.
+ * Portability notes: the `cwd` bind-mount requires Docker Desktop (Windows) or
+ * the daemon (Linux/Mac) to have access to the host filesystem. On Windows with
+ * paths like `T:\...`, Docker translates them automatically.
  */
 export class DockerExecutor implements Executor {
   readonly name = 'docker'
@@ -111,7 +111,7 @@ export class DockerExecutor implements Executor {
         clearTimeout(timer)
         resolve({
           stdout: '',
-          stderr: `[error invocando docker: ${err.message}. ¿Está corriendo el daemon?]`,
+          stderr: `[error invoking docker: ${err.message}. Is the daemon running?]`,
           exitCode: null,
           signal: null,
           truncated: false,
@@ -147,7 +147,7 @@ export class DockerExecutor implements Executor {
       child.stderr?.on('data', (d: Buffer) => { stderr += d.toString('utf8') })
       child.on('close', (code) => {
         if (code === 0) resolve(stdout.trim())
-        else reject(new Error(`docker run -d falló (exit ${code}): ${stderr.trim()}`))
+        else reject(new Error(`docker run -d failed (exit ${code}): ${stderr.trim()}`))
       })
       child.on('error', (err) => reject(err))
     })
@@ -157,8 +157,8 @@ export class DockerExecutor implements Executor {
   }
 
   async getOutput(pid: string): Promise<ProcessStatus> {
-    // `docker inspect` para estado, `docker logs` para output. Hacemos los dos
-    // en paralelo. Si no existe, asumimos que ya terminó y fue limpiado.
+    // `docker inspect` for status, `docker logs` for output. We do both in
+    // parallel. If it doesn't exist, we assume it already finished and was cleaned up.
     const [inspectRes, logsRes] = await Promise.all([
       this.runDocker(['inspect', '--format', '{{.State.Running}}|{{.State.ExitCode}}', pid]),
       this.runDocker(['logs', pid]),

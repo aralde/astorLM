@@ -26,13 +26,13 @@ interface SpawnedProcess {
 }
 
 /**
- * Executor que ejecuta comandos en el proceso host con `child_process.spawn`.
- * Es el default cuando se crea una sesión con `createNodeAgentSession` y
- * preserva el comportamiento histórico del bashTool: shell nativa, output
- * combinado o separado, truncado por tamaño, exit code anexado.
+ * Executor that runs commands in the host process with `child_process.spawn`.
+ * It is the default when a session is created with `createNodeAgentSession` and
+ * preserves the bashTool's historical behavior: native shell, combined or
+ * separate output, size-based truncation, appended exit code.
  *
- * NO aísla — el comando hereda los permisos del proceso. Para ejecución
- * aislada usá `DockerExecutor` o un executor remoto custom.
+ * It does NOT isolate — the command inherits the process's permissions. For
+ * isolated execution use `DockerExecutor` or a custom remote executor.
  */
 export class LocalExecutor implements Executor {
   readonly name = 'local'
@@ -165,7 +165,7 @@ export class LocalExecutor implements Executor {
   async getOutput(pid: string): Promise<ProcessStatus> {
     const state = this.processes.get(pid)
     if (!state) {
-      throw new Error(`Proceso "${pid}" no existe (puede haber sido limpiado).`)
+      throw new Error(`Process "${pid}" does not exist (it may have been cleaned up).`)
     }
     const stdout = state.stdout.join('')
     const stderr = state.stderr.join('')
@@ -199,9 +199,9 @@ export class LocalExecutor implements Executor {
   }
 
   private killChild(state: SpawnedProcess, signal: string): void {
-    // En Windows, `spawn(cmd, { shell: true })` arranca cmd.exe que a su vez
-    // arranca el proceso real. Matar sólo cmd.exe deja al hijo huérfano,
-    // así que usamos `taskkill /F /T` para terminar el árbol entero.
+    // On Windows, `spawn(cmd, { shell: true })` starts cmd.exe which in turn
+    // starts the real process. Killing only cmd.exe orphans the child, so we
+    // use `taskkill /F /T` to terminate the whole tree.
     if (process.platform === 'win32' && state.child.pid != null) {
       try {
         nodeSpawn('taskkill', ['/pid', String(state.child.pid), '/T', '/F'])
@@ -211,7 +211,7 @@ export class LocalExecutor implements Executor {
     try {
       state.child.kill(signal as NodeJS.Signals)
     } catch {
-      // Ya muerto o sin permisos — no-op.
+      // Already dead or no permissions — no-op.
     }
   }
 }

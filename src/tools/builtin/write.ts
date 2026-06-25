@@ -7,7 +7,7 @@ import { resolveSafe } from '../../util/fs.js'
 export const writeTool = tool({
   name: 'write',
   description:
-    'Escribe (o sobreescribe) un archivo de texto. Crea directorios padre automáticamente.',
+    'Writes (or overwrites) a text file. Creates parent directories automatically.',
   schema: z.object({
     path: z.string(),
     content: z.string(),
@@ -16,6 +16,6 @@ export const writeTool = tool({
     const abs = resolveSafe(ctx.cwd, p)
     await mkdir(path.dirname(abs), { recursive: true })
     await writeFile(abs, content, 'utf8')
-    return `Escribí ${content.length} bytes en ${p}`
+    return `Wrote ${content.length} bytes to ${p}`
   },
 })

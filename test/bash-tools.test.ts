@@ -13,7 +13,7 @@ class MockExecutor implements Executor {
   killCalls: Array<{ pid: string; signal?: string }> = []
   outputs = new Map<string, ProcessStatus>()
   execResult: ExecResult = {
-    stdout: 'hola\n',
+    stdout: 'hello\n',
     stderr: '',
     exitCode: 0,
     signal: null,
@@ -40,7 +40,7 @@ class MockExecutor implements Executor {
   }
   async getOutput(pid: string): Promise<ProcessStatus> {
     const status = this.outputs.get(pid)
-    if (!status) throw new Error(`no existe ${pid}`)
+    if (!status) throw new Error(`does not exist ${pid}`)
     const snap = { ...status }
     status.stdout = ''
     status.stderr = ''
@@ -59,24 +59,24 @@ function ctx(executor: Executor) {
 }
 
 describe('bashTool', () => {
-  it('delega en executor.exec y anexa [exit code: N]', async () => {
+  it('delegates to executor.exec and appends [exit code: N]', async () => {
     const m = new MockExecutor()
-    const out = await bashTool.execute({ command: 'echo hola' }, ctx(m))
+    const out = await bashTool.execute({ command: 'echo hello' }, ctx(m))
     expect(m.execCalls).toHaveLength(1)
-    expect(m.execCalls[0]?.command).toBe('echo hola')
-    expect(out).toContain('hola')
+    expect(m.execCalls[0]?.command).toBe('echo hello')
+    expect(out).toContain('hello')
     expect(out).toContain('[exit code: 0]')
   })
 
-  it('reporta truncado cuando executor lo marca', async () => {
+  it('reports truncation when the executor marks it', async () => {
     const m = new MockExecutor()
     m.execResult = { stdout: 'X'.repeat(10), stderr: '', exitCode: 0, signal: null, truncated: true }
     const out = await bashTool.execute({ command: 'cat big' }, ctx(m))
-    expect(out).toContain('[salida truncada]')
+    expect(out).toContain('[output truncated]')
     expect(out).toContain('[exit code: 0]')
   })
 
-  it('reporta signal cuando exitCode es null', async () => {
+  it('reports signal when exitCode is null', async () => {
     const m = new MockExecutor()
     m.execResult = { stdout: '', stderr: '', exitCode: null, signal: 'SIGTERM', truncated: false }
     const out = await bashTool.execute({ command: 'sleep 100' }, ctx(m))
@@ -85,7 +85,7 @@ describe('bashTool', () => {
 })
 
 describe('bash_spawn / bash_get_output / bash_kill', () => {
-  it('flujo completo: spawn → get_output → kill', async () => {
+  it('full flow: spawn → get_output → kill', async () => {
     const m = new MockExecutor()
     const spawnOut = await bashSpawnTool.execute(
       { command: 'node server.js' },
@@ -98,9 +98,9 @@ describe('bash_spawn / bash_get_output / bash_kill', () => {
     expect(getOut).toContain('running=true')
     expect(getOut).toContain('server up')
 
-    // Segunda lectura: el buffer se drenó en la primera
+    // Second read: the buffer was drained on the first one
     const getOut2 = await bashGetOutputTool.execute({ pid: 'mock-1' }, ctx(m))
-    expect(getOut2).toContain('[sin output nuevo]')
+    expect(getOut2).toContain('[no new output]')
 
     const killOut = await bashKillTool.execute({ pid: 'mock-1' }, ctx(m))
     expect(killOut).toContain('mock-1')
@@ -111,7 +111,7 @@ describe('bash_spawn / bash_get_output / bash_kill', () => {
     expect(finalOut).toContain('exitCode=0')
   })
 
-  it('bash_kill acepta signal custom', async () => {
+  it('bash_kill accepts a custom signal', async () => {
     const m = new MockExecutor()
     await bashSpawnTool.execute({ command: 'x' }, ctx(m))
     await bashKillTool.execute({ pid: 'mock-1', signal: 'SIGKILL' }, ctx(m))

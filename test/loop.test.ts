@@ -9,17 +9,17 @@ import { MockProvider } from './mock-provider.js'
 import type { AgentEvent } from '../src/types.js'
 
 describe('agent loop', () => {
-  it('ejecuta tool_use y continúa hasta end_turn', async () => {
+  it('executes tool_use and continues until end_turn', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'astorlm-'))
 
     const calls: string[] = []
     const greet = tool({
       name: 'greet',
-      description: 'saluda',
+      description: 'greets',
       schema: z.object({ name: z.string() }),
       execute: async ({ name }) => {
         calls.push(name)
-        return `hola ${name}`
+        return `hello ${name}`
       },
     })
 
@@ -28,18 +28,18 @@ describe('agent loop', () => {
         toolCalls: [{ id: 'tu_1', name: 'greet', input: { name: 'ariel' } }],
         stopReason: 'tool_use',
       },
-      { text: 'Listo, te saludé.', stopReason: 'end_turn' },
+      { text: 'Done, I greeted you.', stopReason: 'end_turn' },
     ])
 
     const events: AgentEvent[] = []
     const session = await createAgent({ provider, cwd: dir, tools: [greet] })
     session.on('event', (e) => events.push(e))
 
-    const final = await session.run('saludá a ariel')
+    const final = await session.run('greet ariel')
 
     expect(calls).toEqual(['ariel'])
     expect(provider.calls).toHaveLength(2)
-    expect(final.content.some((b) => b.type === 'text' && b.text.includes('Listo'))).toBe(true)
+    expect(final.content.some((b) => b.type === 'text' && b.text.includes('Done'))).toBe(true)
 
     const types = events.map((e) => e.type)
     expect(types).toContain('turn_start')
@@ -49,7 +49,7 @@ describe('agent loop', () => {
     expect(types[types.length - 1]).toBe('session_end')
   })
 
-  it('agrega token usage por turno y lo acumula a nivel sesión', async () => {
+  it('adds token usage per turn and accumulates it at session level', async () => {
     const echo = tool({
       name: 'echo',
       description: '',
@@ -87,14 +87,14 @@ describe('agent loop', () => {
     })
   })
 
-  it('getUsage devuelve ceros si el provider no reporta usage', async () => {
-    const provider = new MockProvider([{ text: 'hola' }])
+  it('getUsage returns zeros if the provider does not report usage', async () => {
+    const provider = new MockProvider([{ text: 'hi' }])
     const session = await createAgent({ provider })
     await session.run('hi')
     expect(session.getUsage()).toEqual({ inputTokens: 0, outputTokens: 0 })
   })
 
-  it('tool_result se reinyecta como mensaje user', async () => {
+  it('tool_result is reinjected as a user message', async () => {
     const echo = tool({
       name: 'echo',
       description: '',
@@ -116,7 +116,7 @@ describe('agent loop', () => {
     expect(toolResult.content[0]?.type).toBe('tool_result')
   })
 
-  it('captura errores de tool como tool_result is_error=true', async () => {
+  it('captures tool errors as tool_result with is_error=true', async () => {
     const bad = tool({
       name: 'bad',
       description: '',
@@ -127,7 +127,7 @@ describe('agent loop', () => {
     })
     const provider = new MockProvider([
       { toolCalls: [{ id: 't1', name: 'bad', input: {} }] },
-      { text: 'me enteré' },
+      { text: 'noted' },
     ])
     const events: AgentEvent[] = []
     const session = await createAgent({ provider, tools: [bad] })
@@ -141,10 +141,10 @@ describe('agent loop', () => {
     expect(errEv.output).toContain('kaboom')
   })
 
-  it('session.abort() cancela el prompt en vuelo', async () => {
+  it('session.abort() cancels the in-flight prompt', async () => {
     const slow = tool({
       name: 'slow',
-      description: 'demora',
+      description: 'slow',
       schema: z.object({}),
       execute: async (_input, ctx) => {
         await new Promise<void>((resolve) => {
@@ -163,7 +163,7 @@ describe('agent loop', () => {
     })
     const provider = new MockProvider([
       { toolCalls: [{ id: 't1', name: 'slow', input: {} }] },
-      { text: 'no debería llegar acá' },
+      { text: 'should not be reached' },
     ])
     const events: AgentEvent[] = []
     const session = await createAgent({ provider, tools: [slow] })
@@ -179,16 +179,16 @@ describe('agent loop', () => {
     expect((last as Extract<AgentEvent, { type: 'session_end' }>).reason).toBe('aborted')
   })
 
-  it('session.abort() sin prompt en vuelo es no-op', async () => {
+  it('session.abort() with no in-flight prompt is a no-op', async () => {
     const provider = new MockProvider([])
     const session = await createAgent({ provider })
     expect(() => session.abort()).not.toThrow()
   })
 
-  it('ejecuta los SessionHooks correctamente y permite interceptar el ciclo de vida', async () => {
+  it('runs the SessionHooks correctly and allows intercepting the lifecycle', async () => {
     const double = tool({
       name: 'double',
-      description: 'duplica',
+      description: 'doubles',
       schema: z.object({ n: z.number() }),
       execute: async ({ n }) => `${n * 2}`,
     })
@@ -198,7 +198,7 @@ describe('agent loop', () => {
         toolCalls: [{ id: 'tu_double', name: 'double', input: { n: 10 } }],
         stopReason: 'tool_use',
       },
-      { text: 'Resultado final.', stopReason: 'end_turn' },
+      { text: 'Final result.', stopReason: 'end_turn' },
     ])
 
     const hooksLog: string[] = []
@@ -231,7 +231,7 @@ describe('agent loop', () => {
       },
     })
 
-    await session.run('Calcula el doble de 10')
+    await session.run('Compute double of 10')
 
     expect(hooksLog).toHaveLength(8)
     expect(hooksLog[0]).toBe('beforeTurn:1:1')
@@ -255,10 +255,10 @@ describe('agent loop', () => {
     })
   })
 
-  it('beforeToolExecution puede denegar autorizacion o mockear resultados', async () => {
+  it('beforeToolExecution can deny authorization or mock results', async () => {
     const compute = tool({
       name: 'compute',
-      description: 'calcula',
+      description: 'computes',
       schema: z.object({ x: z.number() }),
       execute: async () => 'real result',
     })
@@ -271,7 +271,7 @@ describe('agent loop', () => {
         ],
         stopReason: 'tool_use',
       },
-      { text: 'Fin.', stopReason: 'end_turn' },
+      { text: 'Done.', stopReason: 'end_turn' },
     ])
 
     const session = await createAgent({
@@ -290,7 +290,7 @@ describe('agent loop', () => {
       },
     })
 
-    await session.run('Ejecuta las tools')
+    await session.run('Run the tools')
     const msgs = session.getMessages()
     const toolResultMsg = msgs[2]!
     expect(toolResultMsg.content).toEqual([
@@ -309,11 +309,11 @@ describe('agent loop', () => {
     ])
   })
 
-  it('emite thinking_delta y guarda thinking blocks', async () => {
+  it('emits thinking_delta and stores thinking blocks', async () => {
     const provider = new MockProvider([
       {
-        thinking: 'Pienso luego existo.',
-        text: 'La respuesta es 42.',
+        thinking: 'I think therefore I am.',
+        text: 'The answer is 42.',
         stopReason: 'end_turn',
       },
     ])
@@ -322,28 +322,28 @@ describe('agent loop', () => {
     const session = await createAgent({ provider })
     session.on('event', (e) => events.push(e))
 
-    const final = await session.run('¿Cuál es el sentido de la vida?')
+    const final = await session.run('What is the meaning of life?')
 
-    // Verificar que se guardó el bloque de thinking
+    // Verify the thinking block was stored
     expect(final.content[0]).toEqual({
       type: 'thinking',
-      thinking: 'Pienso luego existo.',
+      thinking: 'I think therefore I am.',
     })
     expect(final.content[1]).toEqual({
       type: 'text',
-      text: 'La respuesta es 42.',
+      text: 'The answer is 42.',
     })
 
-    // Verificar que se emitió el evento thinking_delta
+    // Verify the thinking_delta event was emitted
     const thinkingDeltas = events.filter((e) => e.type === 'thinking_delta')
     expect(thinkingDeltas).toHaveLength(1)
-    expect((thinkingDeltas[0] as any).thinking).toBe('Pienso luego existo.')
+    expect((thinkingDeltas[0] as any).thinking).toBe('I think therefore I am.')
   })
 
-  it('soporta steering del usuario interrumpiendo y recibiendo feedback en beforeToolExecution', async () => {
+  it('supports user steering by interrupting and receiving feedback in beforeToolExecution', async () => {
     const doSomething = tool({
       name: 'doSomething',
-      description: 'hace algo',
+      description: 'does something',
       schema: z.object({}),
       execute: async () => 'real result',
     })
@@ -356,7 +356,7 @@ describe('agent loop', () => {
         ],
         stopReason: 'tool_use',
       },
-      { text: 'Fin.', stopReason: 'end_turn' },
+      { text: 'Done.', stopReason: 'end_turn' },
     ])
 
     const events: AgentEvent[] = []
@@ -369,7 +369,7 @@ describe('agent loop', () => {
             return {
               authorize: false,
               steer: true,
-              feedback: 'No hagas eso, haz otra cosa'
+              feedback: 'Do not do that, do something else'
             }
           }
           return { authorize: true }
@@ -378,7 +378,7 @@ describe('agent loop', () => {
     })
     session.on('event', (e) => events.push(e))
 
-    await session.run('Ejecuta')
+    await session.run('Run it')
 
     const msgs = session.getMessages()
     const toolResultMsg = msgs[2]!
@@ -387,7 +387,7 @@ describe('agent loop', () => {
       {
         type: 'tool_result',
         tool_use_id: 'tu_steer',
-        content: 'No hagas eso, haz otra cosa',
+        content: 'Do not do that, do something else',
         is_error: true,
       },
       {
@@ -398,7 +398,7 @@ describe('agent loop', () => {
       },
       {
         type: 'text',
-        text: '[User Steering Feedback]: No hagas eso, haz otra cosa',
+        text: '[User Steering Feedback]: Do not do that, do something else',
       }
     ])
 
@@ -408,6 +408,6 @@ describe('agent loop', () => {
     >
     expect(steerEv).toBeDefined()
     expect(steerEv.toolUseId).toBe('tu_steer')
-    expect(steerEv.feedback).toBe('No hagas eso, haz otra cosa')
+    expect(steerEv.feedback).toBe('Do not do that, do something else')
   })
 })

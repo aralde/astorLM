@@ -7,15 +7,15 @@ export interface ToolExecutionResult {
 }
 
 /**
- * Registro de tools. Permite registrar, listar y ejecutar tools por nombre.
- * El loop habla con esta clase y nunca con tools sueltas.
+ * Tool registry. Lets you register, list and execute tools by name.
+ * The loop talks to this class and never to loose tools.
  */
 export class ToolRegistry {
   private readonly tools = new Map<string, Tool>()
 
   register(tool: Tool): void {
     if (this.tools.has(tool.name)) {
-      throw new Error(`Tool "${tool.name}" ya registrada`)
+      throw new Error(`Tool "${tool.name}" already registered`)
     }
     this.tools.set(tool.name, tool)
   }
@@ -36,7 +36,7 @@ export class ToolRegistry {
     return [...this.tools.values()]
   }
 
-  /** Schemas listos para enviar al modelo. */
+  /** Schemas ready to send to the model. */
   toSchemas(): Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>> {
     return this.list().map((t) => ({
       name: t.name,
@@ -50,7 +50,7 @@ export class ToolRegistry {
     const started = performance.now()
     if (!tool) {
       return {
-        output: `Tool desconocida: "${name}"`,
+        output: `Unknown tool: "${name}"`,
         isError: true,
         durationMs: performance.now() - started,
       }

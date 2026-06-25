@@ -22,7 +22,7 @@ describe('createSteeringController', () => {
     const calls: string[] = []
     const provider = new MockProvider([
       { toolCalls: [{ id: 't1', name: 'act', input: {} }], stopReason: 'tool_use' },
-      { text: 'Reconsidero.', stopReason: 'end_turn' },
+      { text: 'Reconsidering.', stopReason: 'end_turn' },
     ])
 
     const controller = createSteeringController()
@@ -34,7 +34,7 @@ describe('createSteeringController', () => {
     })
     session.on('event', (e) => events.push(e))
 
-    controller.steer('Mejor usá otro enfoque')
+    controller.steer('Better use a different approach')
     await session.run('go')
 
     // The real tool never ran; the queued feedback was consumed.
@@ -42,10 +42,10 @@ describe('createSteeringController', () => {
     expect(controller.pending).toBeNull()
 
     const blocks = session.getMessages()[2]!.content
-    expect(blocks[0]).toMatchObject({ is_error: true, content: 'Mejor usá otro enfoque' } as Partial<ToolResultBlock>)
+    expect(blocks[0]).toMatchObject({ is_error: true, content: 'Better use a different approach' } as Partial<ToolResultBlock>)
     expect(blocks.at(-1)).toEqual({
       type: 'text',
-      text: '[User Steering Feedback]: Mejor usá otro enfoque',
+      text: '[User Steering Feedback]: Better use a different approach',
     })
 
     const steerEv = events.find((e) => e.type === 'user_steering')

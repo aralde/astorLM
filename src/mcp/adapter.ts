@@ -13,9 +13,9 @@ export interface AdapterOptions {
 }
 
 /**
- * Adapta una tool descripta por un servidor MCP a una `Tool` nativa.
- * El nombre final es `<serverName>__<originalName>` (Anthropic permite el doble underscore).
- * El input se reenvía tal cual (MCP ya valida del lado del servidor).
+ * Adapts a tool described by an MCP server into a native `Tool`.
+ * The final name is `<serverName>__<originalName>` (Anthropic allows the double underscore).
+ * The input is forwarded as-is (MCP already validates on the server side).
  */
 export function mcpToolToTool(opts: AdapterOptions): Tool {
   const localName = `${opts.serverName}__${opts.mcpTool.name}`
@@ -33,7 +33,7 @@ export function mcpToolToTool(opts: AdapterOptions): Tool {
         isError?: boolean
       }
       if (result.isError) {
-        throw new Error(stringifyContent(result.content) || 'MCP tool reportó error')
+        throw new Error(stringifyContent(result.content) || 'MCP tool reported an error')
       }
       return stringifyContent(result.content)
     },

@@ -6,11 +6,11 @@ import { resolveSafe } from '../../util/fs.js'
 export const readTool = tool({
   name: 'read',
   description:
-    'Lee el contenido de un archivo de texto. Devuelve hasta `limit` líneas a partir de `offset` (1-indexed). Útil para inspeccionar código antes de editarlo.',
+    'Reads the contents of a text file. Returns up to `limit` lines starting from `offset` (1-indexed). Useful for inspecting code before editing it.',
   schema: z.object({
-    path: z.string().describe('Ruta relativa al cwd del agente'),
-    offset: z.number().int().min(1).optional().describe('Línea inicial (1-indexed)'),
-    limit: z.number().int().min(1).max(5000).optional().describe('Cantidad máxima de líneas'),
+    path: z.string().describe('Path relative to the agent cwd'),
+    offset: z.number().int().min(1).optional().describe('Starting line (1-indexed)'),
+    limit: z.number().int().min(1).max(5000).optional().describe('Maximum number of lines'),
   }),
   execute: async ({ path: p, offset = 1, limit = 2000 }, ctx) => {
     const abs = resolveSafe(ctx.cwd, p)

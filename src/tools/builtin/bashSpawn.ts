@@ -4,8 +4,8 @@ import { tool } from '../define.js'
 export const bashSpawnTool = tool({
   name: 'bash_spawn',
   description:
-    'Arranca un comando shell en background y devuelve un PID inmediatamente. ' +
-    'Útil para servers, watchers o procesos largos. Usá `bash_get_output` para leer su stdout/stderr y `bash_kill` para terminarlo.',
+    'Starts a shell command in the background and returns a PID immediately. ' +
+    'Useful for servers, watchers or long-running processes. Use `bash_get_output` to read its stdout/stderr and `bash_kill` to terminate it.',
   schema: z.object({
     command: z.string().min(1),
     env: z.record(z.string()).optional(),

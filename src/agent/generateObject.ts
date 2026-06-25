@@ -6,84 +6,83 @@ import type { AgentEvent, Message, Provider, Tool } from '../types.js'
 import type { Executor } from '../executor/types.js'
 
 /**
- * Estrategia para obtener la salida tipada:
+ * Strategy for obtaining the typed output:
  *
- *   - `'tool'`   — "tool terminal": se registra una tool sintética cuyo schema
- *                  es el deseado y se instruye al modelo a llamarla para
- *                  entregar la respuesta. El input de esa tool ES el objeto.
- *                  Funciona en cualquier provider y convive con otras tools.
- *                  La validación Zod + el repair loop del agente corrigen
- *                  desvíos automáticamente.
- *   - `'native'` — `response_format: json_schema` del provider (constrained
- *                  decoding en OpenAI). Garantía más fuerte, pero NO admite
- *                  tools en la misma llamada. Si el provider no lo soporta,
- *                  degrada a prompt + validación + reintentos.
- *   - `'auto'`   — (default) `'native'` si no hay tools y el provider es
- *                  OpenAI-compatible; `'tool'` en cualquier otro caso.
+ *   - `'tool'`   — "terminal tool": a synthetic tool whose schema is the desired
+ *                  one is registered, and the model is instructed to call it to
+ *                  deliver the answer. That tool's input IS the object. Works on
+ *                  any provider and coexists with other tools. Zod validation +
+ *                  the agent's repair loop fix deviations automatically.
+ *   - `'native'` — the provider's `response_format: json_schema` (constrained
+ *                  decoding on OpenAI). Stronger guarantee, but does NOT allow
+ *                  tools in the same call. If the provider doesn't support it,
+ *                  degrades to prompt + validation + retries.
+ *   - `'auto'`   — (default) `'native'` when there are no tools and the provider
+ *                  is OpenAI-compatible; `'tool'` otherwise.
  */
 export type GenerateObjectMode = 'auto' | 'tool' | 'native'
 
 export interface GenerateObjectOptions<S extends z.ZodTypeAny> {
-  /** Provider del modelo. */
+  /** Model provider. */
   provider: Provider
-  /** Schema Zod que la respuesta debe cumplir. Tipa el resultado. */
+  /** Zod schema the response must satisfy. Types the result. */
   schema: S
-  /** Instrucción/prompt del usuario. */
+  /** User instruction/prompt. */
   prompt: string
-  /** System prompt opcional. Si se omite, se usa uno mínimo orientado a la tarea. */
+  /** Optional system prompt. If omitted, a minimal task-oriented one is used. */
   system?: string
-  /** Tools adicionales que el agente puede usar antes de entregar la respuesta. Fuerza modo `'tool'`. */
+  /** Extra tools the agent may use before delivering the answer. Forces `'tool'` mode. */
   tools?: Tool[]
-  /** Directorio de trabajo (relevante sólo si las tools tocan el filesystem). */
+  /** Working directory (relevant only if the tools touch the filesystem). */
   cwd?: string
-  /** Estrategia. Default `'auto'`. */
+  /** Strategy. Default `'auto'`. */
   mode?: GenerateObjectMode
-  /** Backend de ejecución para las tools (modo `'tool'`). */
+  /** Execution backend for the tools (`'tool'` mode). */
   executor?: Executor
-  /** Tope de turnos del agente en modo `'tool'`. Default 8 (deja margen para repair). */
+  /** Cap on the agent's turns in `'tool'` mode. Default 8 (leaves room for repair). */
   maxTurns?: number
-  /** Reintentos de reparación en modo `'native'` cuando la salida no valida. Default 2. */
+  /** Repair retries in `'native'` mode when the output fails validation. Default 2. */
   maxRepairAttempts?: number
-  /** Nombre de la tool terminal en modo `'tool'`. Default `'provide_final_answer'`. */
+  /** Name of the terminal tool in `'tool'` mode. Default `'provide_final_answer'`. */
   toolName?: string
-  /** Descripción de la tool terminal. */
+  /** Description of the terminal tool. */
   toolDescription?: string
-  /** Suscripción a los eventos del agente (stream, tools, etc.). */
+  /** Subscription to the agent's events (stream, tools, etc.). */
   onEvent?: (event: AgentEvent) => void
-  /** Señal de cancelación. */
+  /** Cancellation signal. */
   abortSignal?: AbortSignal
 }
 
 export interface GenerateObjectResult<T> {
-  /** El objeto tipado y validado contra el schema. */
+  /** The typed object, validated against the schema. */
   object: T
-  /** Mensaje del assistant que produjo (o cerró) la respuesta. */
+  /** The assistant message that produced (or closed) the answer. */
   message: Message
-  /** Id de sesión (sólo en modo `'tool'`, que corre un agente real). */
+  /** Session id (only in `'tool'` mode, which runs a real agent). */
   sessionId?: string
-  /** Estrategia efectivamente usada. */
+  /** Strategy actually used. */
   mode: Exclude<GenerateObjectMode, 'auto'>
 }
 
 const DEFAULT_TOOL_NAME = 'provide_final_answer'
 
 /**
- * Genera un objeto tipado a partir de un prompt, validándolo contra un schema Zod.
+ * Generates a typed object from a prompt, validating it against a Zod schema.
  *
- * Es la API de alto nivel para "salida estructurada" (structured output) del SDK.
- * El primitivo general es la **tool terminal** (modo `'tool'`), que reutiliza la
- * validación de tools y el repair loop del agente; el modo `'native'` aprovecha
- * `response_format` del provider cuando no hay tools y se quiere garantía dura.
+ * This is the SDK's high-level API for structured output. The general primitive
+ * is the **terminal tool** (`'tool'` mode), which reuses tool validation and the
+ * agent's repair loop; `'native'` mode leverages the provider's `response_format`
+ * when there are no tools and a hard guarantee is wanted.
  *
  * @example
  * ```ts
  * const Sentiment = z.object({ label: z.enum(['pos','neg','neu']), score: z.number() })
  * const { object } = await generateObject({
- *   provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'x' }),
+ *   provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
  *   schema: Sentiment,
- *   prompt: "Clasificá: 'me encantó el servicio'",
+ *   prompt: "Classify: 'I loved the service'",
  * })
- * object.label // 'pos' (tipado)
+ * object.label // 'pos' (typed)
  * ```
  */
 export async function generateObject<S extends z.ZodTypeAny>(
@@ -108,7 +107,7 @@ export async function generateObject<S extends z.ZodTypeAny>(
   return runTool(opts, jsonSchema)
 }
 
-// ---------- Modo tool terminal ----------
+// ---------- Terminal tool mode ----------
 
 async function runTool<S extends z.ZodTypeAny>(
   opts: GenerateObjectOptions<S>,
@@ -118,26 +117,26 @@ async function runTool<S extends z.ZodTypeAny>(
   let captured: z.infer<S> | undefined
   let didCapture = false
 
-  // La tool terminal: su `parseInput` (Zod) valida; si el modelo se desvía,
-  // el throw se convierte en un tool_result de error que el modelo ve y corrige.
+  // The terminal tool: its `parseInput` (Zod) validates; if the model deviates,
+  // the throw becomes an error tool_result that the model sees and corrects.
   const terminalTool = tool({
     name: toolName,
     description:
       opts.toolDescription ??
-      'Entregá la respuesta final como un objeto que cumpla exactamente este schema. ' +
-        'Llamá esta tool UNA sola vez, cuando tengas la respuesta completa.',
+      'Deliver the final answer as an object that exactly satisfies this schema. ' +
+        'Call this tool ONCE, when you have the complete answer.',
     schema: opts.schema,
     execute: async (input) => {
       captured = input as z.infer<S>
       didCapture = true
-      return 'Respuesta registrada.'
+      return 'Answer recorded.'
     },
   })
 
   const system =
     (opts.system ? opts.system + '\n\n' : '') +
-    `Cuando tengas la respuesta final, devolvela llamando a la tool "${toolName}" ` +
-    `con un objeto que cumpla su schema. No escribas la respuesta como texto suelto.`
+    `When you have the final answer, return it by calling the "${toolName}" tool ` +
+    `with an object that satisfies its schema. Do not write the answer as free text.`
 
   const agent = await createAgent({
     provider: opts.provider,
@@ -155,8 +154,8 @@ async function runTool<S extends z.ZodTypeAny>(
 
   if (!didCapture) {
     throw new GenerateObjectError(
-      `El modelo terminó sin llamar a la tool terminal "${toolName}". ` +
-        `Probá subir maxTurns o reforzar el system prompt.`,
+      `The model finished without calling the terminal tool "${toolName}". ` +
+        `Try raising maxTurns or reinforcing the system prompt.`,
       { mode: 'tool', message },
     )
   }
@@ -164,7 +163,7 @@ async function runTool<S extends z.ZodTypeAny>(
   return { object: captured as z.infer<S>, message, sessionId: agent.id, mode: 'tool' }
 }
 
-// ---------- Modo nativo (response_format) ----------
+// ---------- Native mode (response_format) ----------
 
 async function runNative<S extends z.ZodTypeAny>(
   opts: GenerateObjectOptions<S>,
@@ -172,7 +171,7 @@ async function runNative<S extends z.ZodTypeAny>(
 ): Promise<GenerateObjectResult<z.infer<S>>> {
   const system =
     opts.system ??
-    'Respondé únicamente con un objeto JSON que cumpla el schema solicitado. Sin texto adicional.'
+    'Respond only with a JSON object that satisfies the requested schema. No additional text.'
 
   const messages: Message[] = [{ role: 'user', content: [{ type: 'text', text: opts.prompt }] }]
   const maxAttempts = (opts.maxRepairAttempts ?? 2) + 1
@@ -204,7 +203,7 @@ async function runNative<S extends z.ZodTypeAny>(
       return { object: parsed as z.infer<S>, message, mode: 'native' }
     } catch (err) {
       lastError = err
-      // Repair: devolvemos el intento y el error de validación para que corrija.
+      // Repair: return the attempt and the validation error so it can fix it.
       messages.push(message)
       messages.push({
         role: 'user',
@@ -212,8 +211,8 @@ async function runNative<S extends z.ZodTypeAny>(
           {
             type: 'text',
             text:
-              `Tu salida anterior no cumplió el schema: ${errorMessage(err)}. ` +
-              `Devolvé SÓLO el JSON válido, sin explicaciones.`,
+              `Your previous output did not satisfy the schema: ${errorMessage(err)}. ` +
+              `Return ONLY the valid JSON, with no explanations.`,
           },
         ],
       })
@@ -221,7 +220,7 @@ async function runNative<S extends z.ZodTypeAny>(
   }
 
   throw new GenerateObjectError(
-    `generateObject (native) no obtuvo una salida válida tras ${maxAttempts} intentos: ${errorMessage(lastError)}`,
+    `generateObject (native) did not obtain a valid output after ${maxAttempts} attempts: ${errorMessage(lastError)}`,
     { mode: 'native' },
   )
 }
@@ -248,7 +247,7 @@ function normalizeSchema(schema: Record<string, unknown>): Record<string, unknow
   return { type: 'object', properties: {}, ...schema }
 }
 
-/** Extrae el primer bloque JSON de un texto, tolerando fences markdown. */
+/** Extracts the first JSON block from a text, tolerating markdown fences. */
 function extractJson(text: string): string {
   const trimmed = text.trim()
   const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
