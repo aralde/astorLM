@@ -5,6 +5,7 @@
  */
 
 import type { Embedder } from '../../embeddings/types.js'
+import type { Provider } from '../../types.js'
 
 // ---------- Public tuning options ----------
 
@@ -52,6 +53,18 @@ export interface ContextDietOptions {
    * is untouched). Default: undefined (no replacement).
    */
   compactSystemPrompt?: string
+  /**
+   * Optional LLM digest: instead of structurally truncating an evicted
+   * tool_result, summarize it with a (cheap) provider. Each block is summarized
+   * at most once (cached by message id + block index). On failure or a 10s
+   * timeout it falls back to structural truncation. Default: undefined (truncate).
+   */
+  digest?: {
+    /** Provider used to summarize. Inject a cheap model — this is app policy. */
+    provider: Provider
+    /** Max chars of the produced summary. Default: `toolResultMaxChars`. */
+    maxChars?: number
+  }
 }
 
 export interface SynthesisOptions {
@@ -144,6 +157,7 @@ export interface ResolvedContextDiet {
   toolResultMaxChars: number
   keepRecentToolRounds: number
   compactSystemPrompt?: string
+  digest?: { provider: Provider; maxChars: number }
 }
 
 export interface ResolvedSynthesis {
@@ -217,6 +231,23 @@ export const OPTIMIZER_DEFAULTS: ResolvedOptimizer = {
 
 // ---------- Resolution ----------
 
+function resolveContextDiet(value: ContextDietOptions | false | undefined): ResolvedContextDiet | null {
+  if (value === false) return null
+  const merged = { ...CONTEXT_DIET_DEFAULTS, ...(value ?? {}) }
+  const resolved: ResolvedContextDiet = {
+    toolResultMaxChars: merged.toolResultMaxChars,
+    keepRecentToolRounds: merged.keepRecentToolRounds,
+    compactSystemPrompt: value?.compactSystemPrompt,
+  }
+  if (value?.digest) {
+    resolved.digest = {
+      provider: value.digest.provider,
+      maxChars: value.digest.maxChars ?? merged.toolResultMaxChars,
+    }
+  }
+  return resolved
+}
+
 /**
  * Resolves the (possibly partial or absent) tuning into fully-defaulted config.
  * A section set to `false` resolves to `null` (disabled). An omitted section
@@ -228,10 +259,7 @@ export function resolveEdgeBoostTuning(tuning?: EdgeBoostTuning): ResolvedEdgeBo
       tuning?.guard === false
         ? null
         : { ...GUARD_DEFAULTS, ...(tuning?.guard ?? {}) },
-    contextDiet:
-      tuning?.contextDiet === false
-        ? null
-        : { ...CONTEXT_DIET_DEFAULTS, ...(tuning?.contextDiet ?? {}) },
+    contextDiet: resolveContextDiet(tuning?.contextDiet),
     synthesis:
       tuning?.synthesis === false
         ? null
