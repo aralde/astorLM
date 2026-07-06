@@ -4,6 +4,8 @@
  * `index.ts` for what edge-boost defends against.
  */
 
+import type { Embedder } from '../../embeddings/types.js'
+
 // ---------- Public tuning options ----------
 
 export interface GuardOptions {
@@ -86,6 +88,23 @@ export interface OptimizerTuning {
 }
 
 /**
+ * Options for the semantic tool-pruning hook. Requires an {@link Embedder}, so
+ * it is DISABLED by default (unlike the other sections) — enable it explicitly.
+ *
+ * NOTE: relevance-based tool selection is a general context-management
+ * capability, not a weak-model defense per se. It ships here for convenience but
+ * is a candidate for extraction into its own module if it matures.
+ */
+export interface ToolPruningOptions {
+  /** Embedder from `astorlm/embeddings` (or any compatible implementation). */
+  embedder: Embedder
+  /** Max tools exposed per call. Default: 6. */
+  topK?: number
+  /** Tool names always kept regardless of score (e.g. plan tools, load_skill). */
+  alwaysKeep?: string[]
+}
+
+/**
  * The full edge-boost tuning surface. Every section defaults to enabled with the
  * documented defaults; pass `false` to disable a section.
  */
@@ -104,6 +123,12 @@ export interface EdgeBoostTuning {
    * caller's optimizer setting untouched.
    */
   optimizer?: OptimizerTuning | false
+  /**
+   * Semantic tool pruning. DISABLED by default (needs an embedder + a running
+   * embeddings endpoint); enable by passing options. Never fails a turn if the
+   * embedder errors — it passes tools through unpruned.
+   */
+  toolPruning?: ToolPruningOptions | false
 }
 
 // ---------- Resolved (fully-defaulted) config ----------
@@ -141,12 +166,19 @@ export interface ResolvedOptimizer {
   keepRecentTurns: number
 }
 
+export interface ResolvedToolPruning {
+  embedder: Embedder
+  topK: number
+  alwaysKeep: string[]
+}
+
 export interface ResolvedEdgeBoostTuning {
   guard: ResolvedGuard | null
   contextDiet: ResolvedContextDiet | null
   synthesis: ResolvedSynthesis | null
   sampling: ResolvedSampling | null
   optimizer: ResolvedOptimizer | null
+  toolPruning: ResolvedToolPruning | null
 }
 
 // ---------- Defaults ----------
@@ -212,5 +244,14 @@ export function resolveEdgeBoostTuning(tuning?: EdgeBoostTuning): ResolvedEdgeBo
       tuning?.optimizer === false
         ? null
         : { ...OPTIMIZER_DEFAULTS, ...(tuning?.optimizer ?? {}) },
+    // Tool pruning is opt-in: disabled unless an options object is provided
+    // (a truthy value here is a ToolPruningOptions, never `false`).
+    toolPruning: tuning?.toolPruning
+      ? {
+          embedder: tuning.toolPruning.embedder,
+          topK: tuning.toolPruning.topK ?? 6,
+          alwaysKeep: tuning.toolPruning.alwaysKeep ?? [],
+        }
+      : null,
   }
 }

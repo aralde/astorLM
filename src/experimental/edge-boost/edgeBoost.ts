@@ -3,6 +3,7 @@ import type { SessionHooks } from '../../types.js'
 import { createGuardedProvider } from './guardedProvider.js'
 import { buildContextDietHook } from './contextDiet.js'
 import { buildSynthesisHook } from './synthesis.js'
+import { buildToolPruningHook } from './toolPruning.js'
 import { mergeSessionHooks } from './mergeHooks.js'
 import {
   resolveEdgeBoostTuning,
@@ -14,14 +15,15 @@ import {
 const EDGE_BOOST_MARK = Symbol.for('astorlm.edgeBoost')
 
 /**
- * Builds the composed edge-boost `SessionHooks` from resolved tuning: the diet
- * runs first, then synthesis (synthesis may still clear tools / set toolChoice
- * after the diet trimmed the history). Returns `null` when no hook section is
- * enabled.
+ * Builds the composed edge-boost `SessionHooks` from resolved tuning. The
+ * fragments run in order: diet (trims tool_results) → tool pruning (selects the
+ * relevant tools) → synthesis (may still clear tools / set toolChoice). Returns
+ * `null` when no hook section is enabled.
  */
 function buildEdgeBoostHooks(resolved: ResolvedEdgeBoostTuning): SessionHooks | null {
   const fragments: Array<NonNullable<SessionHooks['beforeProviderCall']>> = []
   if (resolved.contextDiet) fragments.push(buildContextDietHook(resolved.contextDiet))
+  if (resolved.toolPruning) fragments.push(buildToolPruningHook(resolved.toolPruning))
   if (resolved.synthesis) fragments.push(buildSynthesisHook(resolved.synthesis))
   if (fragments.length === 0) return null
 

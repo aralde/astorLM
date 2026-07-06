@@ -22,6 +22,7 @@ export { createGuardedProvider, DegenerationError } from './guardedProvider.js'
 export type { CreateGuardedProviderOptions } from './guardedProvider.js'
 export { buildContextDietHook } from './contextDiet.js'
 export { buildSynthesisHook } from './synthesis.js'
+export { buildToolPruningHook } from './toolPruning.js'
 export { mergeSessionHooks } from './mergeHooks.js'
 export {
   resolveEdgeBoostTuning,
@@ -39,10 +40,12 @@ export type {
   SynthesisOptions,
   SamplingDefaults,
   OptimizerTuning,
+  ToolPruningOptions,
   ResolvedEdgeBoostTuning,
   ResolvedGuard,
   ResolvedContextDiet,
   ResolvedSynthesis,
   ResolvedSampling,
   ResolvedOptimizer,
+  ResolvedToolPruning,
 } from './types.js'
