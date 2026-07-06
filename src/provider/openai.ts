@@ -23,6 +23,30 @@ export interface OpenAIProviderOptions {
    * Electron webview). Off by default, matching the OpenAI SDK's safe default.
    */
   dangerouslyAllowBrowser?: boolean
+  /**
+   * Default sampling temperature. A per-call `sampling.temperature` overrides it.
+   * When neither is set, the provider keeps its historical default of `0`.
+   */
+  temperature?: number
+  /** Default nucleus sampling (`top_p`). Overridable per call via `sampling.topP`. */
+  topP?: number
+  /**
+   * Default OpenAI-style repetition penalty. Overridable per call via
+   * `sampling.frequencyPenalty`. Useful to reduce degenerate token loops on
+   * weak/quantized models.
+   */
+  frequencyPenalty?: number
+  /** Default OpenAI-style presence penalty. Overridable per call. */
+  presencePenalty?: number
+}
+
+/** Resolved sampling defaults carried by the provider instance. */
+interface SamplingDefaultsInternal {
+  maxTokens?: number
+  temperature?: number
+  topP?: number
+  frequencyPenalty?: number
+  presencePenalty?: number
 }
 
 /**
@@ -40,7 +64,7 @@ export class OpenAIProvider implements Provider {
   readonly model: string
   readonly contextLimit: number
   private readonly client: OpenAI
-  private readonly maxTokens?: number
+  private readonly samplingDefaults: SamplingDefaultsInternal
 
   constructor(opts: OpenAIProviderOptions) {
     const auth = opts.auth ?? AuthStorage.default()
@@ -52,7 +76,13 @@ export class OpenAIProvider implements Provider {
       dangerouslyAllowBrowser: opts.dangerouslyAllowBrowser ?? false,
     })
     this.model = opts.model
-    this.maxTokens = opts.maxTokens
+    this.samplingDefaults = {
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+      topP: opts.topP,
+      frequencyPenalty: opts.frequencyPenalty,
+      presencePenalty: opts.presencePenalty,
+    }
     this.contextLimit = opts.model.includes('gpt-3.5') ? 16385 : 128000
   }
 
@@ -71,38 +101,16 @@ export class OpenAIProvider implements Provider {
       },
     }))
 
-    // Typed output (structured output). `response_format: json_schema` applies
-    // constrained decoding — the model cannot stray from the schema. It does not
-    // coexist with `tools`/`tool_choice`, so we only send it when there are no tools.
-    const responseFormat =
-      opts.outputFormat && tools.length === 0
-        ? {
-            response_format: {
-              type: 'json_schema' as const,
-              json_schema: {
-                name: opts.outputFormat.name,
-                schema: opts.outputFormat.schema,
-                strict: opts.outputFormat.strict ?? true,
-              },
-            },
-          }
-        : {}
+    const params = buildChatCompletionParams(opts, {
+      model: this.model,
+      messages,
+      tools,
+      defaults: this.samplingDefaults,
+    })
 
-    const stream = await this.client.chat.completions.create(
-      {
-        model: this.model,
-        stream: true,
-        temperature: 0,
-        // Request usage in the last chunk (OpenAI and most compat servers support it;
-        // those that don't simply return `chunk.usage = null` and we ignore it).
-        stream_options: { include_usage: true },
-        messages,
-        ...(tools.length > 0 ? { tools, tool_choice: 'auto' as const } : {}),
-        ...responseFormat,
-        ...(opts.maxTokens ?? this.maxTokens ? { max_tokens: opts.maxTokens ?? this.maxTokens } : {}),
-      },
-      { signal: opts.abortSignal },
-    )
+    const stream = await this.client.chat.completions.create(params, {
+      signal: opts.abortSignal,
+    })
 
     // Buffers to reconstruct the final message.
     let textAcc = ''
@@ -261,6 +269,76 @@ export class OpenAIProvider implements Provider {
   }
 }
 
+/**
+ * Builds the Chat Completions request body from our stream options plus the
+ * provider's configured defaults. Extracted as a pure function so the parameter
+ * resolution (sampling precedence, tool_choice, response_format) is unit-testable
+ * without an HTTP client.
+ *
+ * Resolution order for every sampling knob: per-call `opts.sampling.*` >
+ * constructor default > hard default (`temperature: 0`; the rest omitted when
+ * unset). `tool_choice` defaults to `'auto'` and only appears when tools are sent.
+ *
+ * @internal
+ */
+export function buildChatCompletionParams(
+  opts: ProviderStreamOptions,
+  cfg: {
+    model: string
+    messages: OpenAI.Chat.ChatCompletionMessageParam[]
+    tools: OpenAI.Chat.ChatCompletionTool[]
+    defaults: {
+      maxTokens?: number
+      temperature?: number
+      topP?: number
+      frequencyPenalty?: number
+      presencePenalty?: number
+    }
+  },
+): OpenAI.Chat.ChatCompletionCreateParamsStreaming {
+  const s = opts.sampling
+  const temperature = s?.temperature ?? cfg.defaults.temperature ?? 0
+  const topP = s?.topP ?? cfg.defaults.topP
+  const frequencyPenalty = s?.frequencyPenalty ?? cfg.defaults.frequencyPenalty
+  const presencePenalty = s?.presencePenalty ?? cfg.defaults.presencePenalty
+  const maxTokens = opts.maxTokens ?? cfg.defaults.maxTokens
+
+  // Typed output (structured output). `response_format: json_schema` applies
+  // constrained decoding — the model cannot stray from the schema. It does not
+  // coexist with `tools`/`tool_choice`, so we only send it when there are no tools.
+  const responseFormat =
+    opts.outputFormat && cfg.tools.length === 0
+      ? {
+          response_format: {
+            type: 'json_schema' as const,
+            json_schema: {
+              name: opts.outputFormat.name,
+              schema: opts.outputFormat.schema,
+              strict: opts.outputFormat.strict ?? true,
+            },
+          },
+        }
+      : {}
+
+  return {
+    model: cfg.model,
+    stream: true,
+    temperature,
+    // Request usage in the last chunk (OpenAI and most compat servers support it;
+    // those that don't simply return `chunk.usage = null` and we ignore it).
+    stream_options: { include_usage: true },
+    messages: cfg.messages,
+    ...(cfg.tools.length > 0
+      ? { tools: cfg.tools, tool_choice: opts.toolChoice ?? ('auto' as const) }
+      : {}),
+    ...(topP !== undefined ? { top_p: topP } : {}),
+    ...(frequencyPenalty !== undefined ? { frequency_penalty: frequencyPenalty } : {}),
+    ...(presencePenalty !== undefined ? { presence_penalty: presencePenalty } : {}),
+    ...responseFormat,
+    ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+  }
+}
+
 function mapUsage(u: OpenAI.Completions.CompletionUsage | null | undefined): TokenUsage | undefined {
   if (!u) return undefined
   const usage: TokenUsage = {
@@ -288,8 +366,10 @@ function safeJson(s: string): unknown {
  *   - assistant with tool_use → assistant with `tool_calls` (+ optional content)
  *   - user with tool_result   → one `role:'tool'` message per tool_result
  *   - plain text stays the same
+ *
+ * @internal - exported for unit testing the message flattening.
  */
-function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompletionMessageParam[] {
+export function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompletionMessageParam[] {
   const out: OpenAI.Chat.ChatCompletionMessageParam[] = []
   for (const m of msgs) {
     if (m.role === 'system') {
@@ -317,7 +397,11 @@ function flattenMessages(msgs: Message[], model?: string): OpenAI.Chat.ChatCompl
       }
       const msg: OpenAI.Chat.ChatCompletionAssistantMessageParam = {
         role: 'assistant',
-        content: text || null,
+        // Send "" (not null) even when the assistant message only carries
+        // tool_calls. Both are spec-valid, but several OpenAI-compatible backends
+        // (free OpenRouter tiers, local servers) have chat templates that
+        // mishandle a null content — the empty string is the safer serialization.
+        content: text,
       }
       if (reasoning && model && (model.startsWith('o1') || model.startsWith('o3') || model.includes('reasoner') || model.includes('deepseek'))) {
         (msg as any).reasoning_content = reasoning

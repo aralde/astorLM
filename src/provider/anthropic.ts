@@ -57,6 +57,10 @@ export class AnthropicProvider implements Provider {
   }
 
   async *stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent> {
+    // Sampling: Anthropic supports temperature and top_p. The OpenAI-style
+    // penalties (frequency/presence) have no equivalent and are ignored.
+    const temperature = opts.sampling?.temperature
+    const topP = opts.sampling?.topP
     const stream = this.client.messages.stream(
       {
         model: this.model,
@@ -68,6 +72,9 @@ export class AnthropicProvider implements Provider {
           description: t.description,
           input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
         })),
+        ...(mapToolChoice(opts.toolChoice) ? { tool_choice: mapToolChoice(opts.toolChoice)! } : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(topP !== undefined ? { top_p: topP } : {}),
         ...(this.thinking ? { thinking: { type: 'enabled', budget_tokens: this.thinking.budget_tokens } } : {}),
       },
       { signal: opts.abortSignal },
@@ -157,6 +164,24 @@ function safeJson(s: string): unknown {
     return JSON.parse(s)
   } catch {
     return {}
+  }
+}
+
+/**
+ * Maps our provider-agnostic {@link ToolChoice} to Anthropic's `tool_choice`.
+ * `undefined`/`'auto'` → no field (provider default). The pinned SDK (`^0.40`)
+ * supports `{ type: 'none' }`, so no strip-tools fallback is needed.
+ */
+function mapToolChoice(choice: ProviderStreamOptions['toolChoice']): Anthropic.ToolChoice | undefined {
+  switch (choice) {
+    case 'none':
+      return { type: 'none' }
+    case 'required':
+      return { type: 'any' }
+    case 'auto':
+      return { type: 'auto' }
+    default:
+      return undefined
   }
 }
 

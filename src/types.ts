@@ -132,6 +132,12 @@ export interface SessionHooks {
     messages: Message[]
     systemPrompt: string
     tools?: Array<Pick<Tool, 'name' | 'description' | 'inputSchema'>>
+    /**
+     * Optional per-call tool choice override for this provider call. When
+     * omitted, the loop leaves the provider default in place ('auto'). See
+     * {@link ProviderStreamOptions.toolChoice}.
+     */
+    toolChoice?: ToolChoice
   }>
   beforeToolExecution?: (context: {
     toolName: string
@@ -190,6 +196,33 @@ export interface OutputFormat {
   strict?: boolean
 }
 
+/**
+ * Per-call tool choice. Providers map it to their native mechanism:
+ *   - `'auto'` (default): the model decides whether to call a tool.
+ *   - `'none'`: tools stay declared but the model cannot call them (useful to
+ *     force a final answer after enough tool rounds).
+ *   - `'required'`: the model must call at least one tool.
+ *
+ * Providers/endpoints without support for a value fall back gracefully (see each
+ * provider's mapping), never erroring.
+ */
+export type ToolChoice = 'auto' | 'none' | 'required'
+
+/**
+ * Optional per-call sampling overrides. Each provider maps what it supports and
+ * ignores the rest — never errors on an unsupported field.
+ */
+export interface SamplingOptions {
+  /** Overrides the provider's default temperature for this call. */
+  temperature?: number
+  /** Nucleus sampling probability mass. */
+  topP?: number
+  /** OpenAI-style repetition penalty. Providers without support ignore it. */
+  frequencyPenalty?: number
+  /** OpenAI-style presence penalty. Providers without support ignore it. */
+  presencePenalty?: number
+}
+
 export interface ProviderStreamOptions {
   systemPrompt: string
   messages: Message[]
@@ -198,6 +231,10 @@ export interface ProviderStreamOptions {
   maxTokens?: number
   /** Optional typed output (structured output). See {@link OutputFormat}. */
   outputFormat?: OutputFormat
+  /** Optional per-call sampling overrides. See {@link SamplingOptions}. */
+  sampling?: SamplingOptions
+  /** Optional per-call tool choice. Defaults to `'auto'`. See {@link ToolChoice}. */
+  toolChoice?: ToolChoice
 }
 
 export type ProviderEvent =
