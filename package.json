@@ -42,6 +42,11 @@
       "import": "./dist/experimental/contract/index.js",
       "require": "./dist/experimental/contract/index.cjs"
     },
+    "./experimental/edge-boost": {
+      "types": "./dist/experimental/edge-boost/index.d.ts",
+      "import": "./dist/experimental/edge-boost/index.js",
+      "require": "./dist/experimental/edge-boost/index.cjs"
+    },
     "./experimental/wasm-runner": {
       "types": "./dist/experimental/wasm-runner/index.d.ts",
       "import": "./dist/experimental/wasm-runner/index.js",
