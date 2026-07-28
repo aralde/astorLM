@@ -106,6 +106,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       providerSystemPrompt += planStr
     }
     let toolSchemas = opts.registry.toSchemas()
+    let toolChoice: 'auto' | 'none' | 'required' | undefined = undefined
 
     if (opts.hooks?.beforeProviderCall) {
       const hookRes = await opts.hooks.beforeProviderCall({
@@ -120,6 +121,9 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
       if (hookRes.tools) {
         toolSchemas = hookRes.tools
       }
+      if (hookRes.toolChoice) {
+        toolChoice = hookRes.toolChoice
+      }
     }
 
     const stream = streamWithRetry({
@@ -129,6 +133,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
         messages: providerMessages,
         tools: toolSchemas,
         abortSignal: opts.abortSignal,
+        ...(toolChoice ? { toolChoice } : {}),
       },
       policy: opts.retry,
       bus: opts.bus,

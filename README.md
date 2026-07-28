@@ -239,6 +239,35 @@ if (report.summary.passRate < 0.8) process.exit(1) // CI gate
 * **Description**: `CodeRunner` — runs untrusted *source code* (not shell commands) inside a memory-safe WebAssembly sandbox with no host access. The daemon-free, runtime-agnostic isolation tier, complementary to `DockerExecutor`. See ["WASM code sandbox"](#-wasm-code-sandbox-astorlmexperimentalwasm-runner) below.
 * **Key exports**: `QuickJsCodeRunner` (JS via QuickJS-wasm), `createCodeRunnerTool({ runner })` (opt-in `run_code` tool), plus the `CodeRunner` / `RunCodeOptions` / `RunCodeResult` types.
 
+### 11. `astorlm/experimental/edge-boost` (Experimental — hardening for weak models)
+> ⚠️ **Experimental**. Dedicated subpath, volatile API. Not re-exported from the main barrel.
+
+* **Description**: `edgeBoost(options, tuning?)` — a pure options-transformer that hardens an agent for weak / local / free-tier models (free OpenRouter tiers, small Ollama/vLLM models, heavily quantized checkpoints). It defends against the failure where a model, on a long multi-turn tool context (typically the synthesis turn after several tool round-trips), degenerates into an infinite repetition loop or stalls without producing content until a timeout fires. Four opt-in defenses, none of which change default behavior unless applied:
+  - **Stream guard** (`createGuardedProvider`) — detects degeneration (identical-delta repetition, no-content stall, reasoning-budget blowout) and retries cheaply against the same endpoint. Owns *degeneration* retries; the loop-level `retry` policy still owns *network/HTTP* retries. Model failover between endpoints is out of scope by design (that belongs to a routing proxy).
+  - **Context diet** — per-call truncation of old `tool_result` blocks (idempotent, coexists with the core optimizer's markers) + an optional compact system prompt; never mutates session history. Optional LLM `digest` summarizes an evicted block with an injected cheap provider instead of truncating (cached per block, falls back to truncation on failure/timeout).
+  - **Forced synthesis** — after N tool rounds in the current request, appends a synthesis instruction and forces `toolChoice: 'none'` (or strips tools) so the model stops calling tools and answers.
+  - **Sampling defaults** — injects `max_tokens` and a `frequencyPenalty` (repetition penalty) when the call omits them. Plus optional **semantic tool pruning** (top-K relevant tools per turn via an embedder; disabled by default, degrades gracefully if the embedder is down).
+* **Key exports**: `edgeBoost`, `edgeBoostHooks`, `createGuardedProvider`, `DegenerationError`, `mergeSessionHooks` (generally useful hook composition), `buildContextDietHook` / `buildSynthesisHook` / `buildToolPruningHook`, `resolveEdgeBoostTuning`, plus the `EdgeBoostTuning` / `GuardOptions` / `ContextDietOptions` / `SynthesisOptions` / `SamplingDefaults` / `ToolPruningOptions` types.
+
+```ts
+import { createLocalAgent } from 'astorlm/core'
+import { OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+import { edgeBoost } from 'astorlm/experimental/edge-boost'
+
+// Wrap the same options you already pass to createLocalAgent — one call, no layers.
+const agent = await createLocalAgent(edgeBoost({
+  cwd: process.cwd(),
+  provider: new OpenAIProvider({ model: 'myproxyllm', baseURL: 'http://127.0.0.1:11434/v1', apiKey: 'not-needed' }),
+  tools: createCodingTools(),
+}))
+
+// Tune any section; pass `false` to disable one. Example: force synthesis earlier.
+const tuned = edgeBoost(options, { synthesis: { forceAfterToolRounds: 2 } })
+```
+
+See the runnable example `34-edge-boost` in the examples repo (`pnpm start 34`, with optional `--prune` / `--digest` flags).
+
 ---
 
 ## 🚀 Quick Use Examples

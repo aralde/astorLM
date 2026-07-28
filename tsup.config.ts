@@ -9,6 +9,7 @@ export default defineConfig({
     'src/embeddings/index.ts',
     'src/experimental/error-registry/index.ts',
     'src/experimental/contract/index.ts',
+    'src/experimental/edge-boost/index.ts',
     'src/experimental/wasm-runner/index.ts',
   ],
   format: ['esm', 'cjs'],
