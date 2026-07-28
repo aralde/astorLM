@@ -484,6 +484,34 @@ const agent = await createLocalAgent({
 })
 ```
 
+### MCP Apps — interactive UI (SEP-1865)
+
+A mounted tool can return, alongside the text for the model, a sandboxed UI
+component (a `ui://` resource, mimeType `text/html;profile=mcp-app`) linked via
+`_meta.ui.resourceUri`. astorlm surfaces it on a side channel: the text still
+goes to the model, the UI travels separately (it never pollutes the context).
+
+```typescript
+const mcp = await mountMcpServer({
+  name: 'docs',
+  transport: { type: 'stdio', command: 'npx', args: ['tsx', 'server.ts'] },
+  // Fires when a tool result carries _meta.ui.resourceUri.
+  onToolUi: (ui) => {
+    // ui = { toolName, resourceUri, structuredContent, content }
+    console.log(ui.toolName, ui.resourceUri, ui.structuredContent)
+  },
+})
+
+// Read the ui:// template to render it host-side.
+const view = await mcp.readUiResource('ui://semantic/results')
+// view.text = component HTML · view.mimeType = 'text/html;profile=mcp-app'
+```
+
+`onToolUi` receives `{ toolName, resourceUri, structuredContent, content }`.
+`readUiResource(uri)` / `readResource(uri)` read resources from the mounted
+server. See `examples/35-mcp-apps-semantic` for a full server (semantic search
+over the embeddings module) + host that renders the component.
+
 ---
 
 ## 📚 Skills (loadable knowledge packs)

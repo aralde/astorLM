@@ -152,7 +152,13 @@ export function createLocalAgent(opts: CreateLocalAgentOptions): Promise<Agent> 
 
 // Re-export Node-specific MCP Client
 export { mountMcpServer } from './mcp/client.js'
-export type { MountMcpServerOptions, MountedMcpServer, McpTransportConfig } from './mcp/client.js'
+export type {
+  MountMcpServerOptions,
+  MountedMcpServer,
+  McpTransportConfig,
+  McpToolUi,
+  McpUiResource,
+} from './mcp/client.js'
 
 // Re-export AstorAgent
 export { AstorAgent } from './agent/facade.js'
