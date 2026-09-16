@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="astorlm">
+  <title>astorlm</title>
+  <defs>
+    <linearGradient id="ai-bg" x1="0" y1="128" x2="128" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B1226"/>
+      <stop offset="1" stop-color="#8E1B3A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#ai-bg)"/>
+
+  <g transform="translate(64,64) scale(0.74) translate(-64,-64)">
+    <rect x="6" y="26" width="24" height="76" rx="7" fill="#F1D9A8"/>
+    <rect x="98" y="26" width="24" height="76" rx="7" fill="#F1D9A8"/>
+    <path d="M30 30 L47 42 L64 30 L81 42 L98 30 L98 98 L81 86 L64 98 L47 86 L30 98 Z"
+          fill="#E8A33D"/>
+    <g stroke="#5B1226" stroke-opacity="0.55" stroke-width="3.4" stroke-linecap="round">
+      <path d="M47 44 V84"/>
+      <path d="M64 33 V95"/>
+      <path d="M81 44 V84"/>
+    </g>
+    <g fill="#5B1226" fill-opacity="0.55">
+      <circle cx="18" cy="46" r="3.8"/>
+      <circle cx="18" cy="64" r="3.8"/>
+      <circle cx="18" cy="82" r="3.8"/>
+      <circle cx="110" cy="46" r="3.8"/>
+      <circle cx="110" cy="64" r="3.8"/>
+      <circle cx="110" cy="82" r="3.8"/>
+    </g>
+  </g>
+</svg>

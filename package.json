@@ -53,7 +53,7 @@
       "require": "./dist/experimental/wasm-runner/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "assets", "README.md", "CHANGELOG.md", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -81,6 +81,7 @@
   "optionalDependencies": {
     "quickjs-emscripten": "^0.31.0"
   },
+  "packageManager": "pnpm@10.29.2",
   "engines": {
     "node": ">=20"
   }

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 160" width="560" height="160" role="img" aria-label="astorlm — embeddable agentic SDK">
+  <title>astorlm — embeddable agentic SDK</title>
+  <defs>
+    <linearGradient id="al-bellows" x1="22" y1="118" x2="138" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8E1B3A"/>
+      <stop offset="0.52" stop-color="#C6452F"/>
+      <stop offset="1" stop-color="#E8A33D"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(16,16)">
+    <rect x="6" y="26" width="24" height="76" rx="7" fill="url(#al-bellows)"/>
+    <rect x="98" y="26" width="24" height="76" rx="7" fill="url(#al-bellows)"/>
+    <path d="M30 30 L47 42 L64 30 L81 42 L98 30 L98 98 L81 86 L64 98 L47 86 L30 98 Z"
+          fill="url(#al-bellows)"/>
+    <g stroke="#2B0A14" stroke-opacity="0.45" stroke-width="3" stroke-linecap="round">
+      <path d="M47 44 V84"/>
+      <path d="M64 33 V95"/>
+      <path d="M81 44 V84"/>
+    </g>
+    <g fill="#2B0A14" fill-opacity="0.5">
+      <circle cx="18" cy="44" r="3.4"/>
+      <circle cx="18" cy="64" r="3.4"/>
+      <circle cx="18" cy="84" r="3.4"/>
+      <circle cx="110" cy="44" r="3.4"/>
+      <circle cx="110" cy="64" r="3.4"/>
+      <circle cx="110" cy="84" r="3.4"/>
+    </g>
+  </g>
+
+  <text x="176" y="90" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="68" font-weight="700" letter-spacing="-1.5" fill="#2B0A14">astorlm</text>
+  <text x="180" y="122" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="17" font-weight="500" letter-spacing="5.2" fill="#8E1B3A">EMBEDDABLE AGENTIC SDK</text>
+</svg>

@@ -1,4 +1,18 @@
-# astorlm 🚀
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" alt="astorlm" width="420">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/aralde/astorLM/actions/workflows/ci.yml"><img src="https://github.com/aralde/astorLM/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8E1B3A" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D20-8E1B3A" alt="Node >= 20">
+  <img src="https://img.shields.io/badge/types-TypeScript-8E1B3A" alt="TypeScript">
+</p>
+
+---
 
 Embeddable agentic library in TypeScript. Designed with an **SDK-first** approach (no coupled CLI or TUI), letting you integrate a coding agent natively into any TypeScript application.
 

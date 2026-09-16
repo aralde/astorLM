@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in the library does not behave as documented.
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** use this form for security
+        issues — see [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+      placeholder: |
+        Expected: the loop stops after the first `end_turn`.
+        Actual: it keeps running until maxTurns.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: >
+        The smallest snippet that shows the problem. Prefer `test/mock-provider.ts`
+        over a real model so the behaviour is deterministic.
+      render: typescript
+    validations:
+      required: true
+
+  - type: dropdown
+    id: entrypoint
+    attributes:
+      label: Which entrypoint?
+      multiple: true
+      options:
+        - astorlm (main barrel)
+        - astorlm/core (Node runner)
+        - astorlm/tools
+        - astorlm/embeddings
+        - astorlm/prompt
+        - astorlm/experimental/error-registry
+        - astorlm/experimental/edge-boost
+        - astorlm/experimental/wasm-runner
+        - astorlm/experimental/contract
+        - other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: astorlm version
+      placeholder: "0.1.0, or a commit SHA if installed from git"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, OS, and the provider/model you were running against.
+      placeholder: "Node 22.11 on Windows 11, OpenAIProvider against a local Ollama endpoint"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack trace
+      description: Paste any error output. It is automatically formatted as code.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I redacted any API keys, tokens or private content from the snippets above.
+          required: true
