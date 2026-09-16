@@ -37,10 +37,16 @@ describe('LocalExecutor.spawn / getOutput / kill', () => {
     const handle = await exec.spawn({ command: cmd, cwd: process.cwd() })
     expect(handle.pid).toBeTruthy()
 
-    // Wait a bit so it prints something
-    await new Promise((r) => setTimeout(r, 200))
+    // Poll until the child has printed something. A fixed sleep makes this
+    // flaky: interpreter start-up easily exceeds it while the rest of the suite
+    // runs in parallel.
+    let out1 = await exec.getOutput(handle.pid)
+    const outputDeadline = Date.now() + 10_000
+    while (!/tick/.test(out1.stdout) && Date.now() < outputDeadline) {
+      await new Promise((r) => setTimeout(r, 25))
+      out1 = await exec.getOutput(handle.pid)
+    }
 
-    const out1 = await exec.getOutput(handle.pid)
     expect(out1.running).toBe(true)
     expect(out1.stdout).toMatch(/tick/)
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-09-16
+
+Everything below landed after the initial release: structured output, the
+edge-boost profile for weak models, MCP Apps UI, a WASM code sandbox,
+first-class embeddings, the full observability stack (tracing, metrics, replay,
+evals) and the repository infrastructure for going public.
+
 ### Added — Project infrastructure
 
 Repository plumbing ahead of the public release. No runtime changes.
@@ -17,8 +26,14 @@ Repository plumbing ahead of the public release. No runtime changes.
   PR expectations), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and
   `SECURITY.md` — the latter includes an explicit threat model covering the
   executor, path confinement, prompt injection and MCP trust boundaries.
+- **Release workflow** (`.github/workflows/release.yml`): publishes to npm with
+  provenance when a `v*` tag is pushed, after re-running typecheck, tests and
+  build and verifying the tag matches `package.json`.
 - **Issue and PR templates**, plus a monthly Dependabot config for npm and
   GitHub Actions.
+- De-flaked `executor-local.test.ts`: it waited a fixed 200 ms for a spawned
+  interpreter to produce output, which is not enough while the rest of the
+  suite runs in parallel. It now polls with a deadline.
 - **Brand assets** in `assets/`: bandoneón-bellows logo (lockup in light and
   dark, standalone mark, and a rounded-square app icon), now used in the README
   header alongside status badges.
@@ -196,3 +211,6 @@ Embeddable, runtime-agnostic agentic TypeScript SDK with:
 - MCP client (stdio + HTTP)
 - Experimental federated error registry under
   `astorlm/experimental/error-registry`.
+
+[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aralde/astorLM/releases/tag/v0.2.0
