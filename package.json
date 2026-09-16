@@ -72,14 +72,14 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "quickjs-emscripten": "^0.31.0",
+    "quickjs-emscripten": "^0.32.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
   "optionalDependencies": {
-    "quickjs-emscripten": "^0.31.0"
+    "quickjs-emscripten": "^0.32.0"
   },
   "packageManager": "pnpm@10.29.2",
   "engines": {
