@@ -25,6 +25,9 @@ Repository plumbing ahead of the public release. No runtime changes.
 - `packageManager` is pinned in `package.json` so CI and contributors resolve
   the same pnpm version.
 - `files` now ships `assets/`, `CHANGELOG.md` and `LICENSE` in the npm tarball.
+- **Package metadata**: `author`, `repository`, `homepage`, `bugs` and
+  `publishConfig.access` — without them the npm page would carry no link back
+  to the repository or its issue tracker.
 
 ### Fixed — `LocalExecutor` orphaned shell children on POSIX
 

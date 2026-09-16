@@ -3,6 +3,18 @@
   "version": "0.1.0",
   "description": "Embeddable agentic coding library (SDK-first). Inspired by @earendil-works/pi-coding-agent.",
   "type": "module",
+  "author": "Ariel Deibe <80920987+aralde@users.noreply.github.com> (https://github.com/aralde)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aralde/astorLM.git"
+  },
+  "homepage": "https://github.com/aralde/astorLM#readme",
+  "bugs": {
+    "url": "https://github.com/aralde/astorLM/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
