@@ -34,6 +34,10 @@ Repository plumbing ahead of the public release. No runtime changes.
 - De-flaked `executor-local.test.ts`: it waited a fixed 200 ms for a spawned
   interpreter to produce output, which is not enough while the rest of the
   suite runs in parallel. It now polls with a deadline.
+- **README opening rewritten**: tagline, a runnable quickstart, a short
+  comparison against coding CLIs / agent frameworks / vendor SDKs, a
+  capability table and a table of contents. The reference material below it is
+  unchanged.
 - **Brand assets** in `assets/`: bandoneón-bellows logo (lockup in light and
   dark, standalone mark, and a rounded-square app icon), now used in the README
   header alongside status badges.

@@ -14,9 +14,91 @@
 
 ---
 
-Embeddable agentic library in TypeScript. Designed with an **SDK-first** approach (no coupled CLI or TUI), letting you integrate a coding agent natively into any TypeScript application.
+**The agent loop as a library, not as an app.**
 
-AstorLM is modular and **runtime-agnostic** at its core, separating the agnostic agent loop from environment adapters and OS-native tooling.
+astorlm gives you the machinery behind a coding agent — the loop, tools, providers, sessions, hooks and executors — as plain TypeScript objects you compose inside your own process. No CLI, no TUI, no daemon to shell out to and no output to scrape.
+
+- **Embed it.** `await createAgent({ ... })` returns an object you own. Your process, your logging, your permission prompts, your UI.
+- **Swap every part.** `Provider`, `Executor`, `SessionManager`, `SkillSource` and `CodeRunner` are interfaces. The built-ins are conveniences, not requirements.
+- **Bring your own model.** Anthropic, or anything OpenAI-compatible — OpenAI, Groq, OpenRouter, Together, vLLM, Ollama, a local proxy. Small local models are a supported target, not an afterthought.
+- **Runtime-agnostic core.** The loop, providers, tools, sessions, skills and embeddings import zero Node built-ins. Everything OS-bound lives behind `astorlm/core`.
+
+## ⚡ Quickstart
+
+```bash
+pnpm add astorlm   # Node >= 20
+```
+
+```typescript
+import { createAgent, OpenAIProvider, tool } from 'astorlm'
+import { z } from 'zod'
+
+const getWeather = tool({
+  name: 'get_weather',
+  description: 'Returns the current temperature for a city',
+  schema: z.object({ city: z.string() }),
+  execute: async ({ city }) => `Weather in ${city}: 22°C, sunny.`,
+})
+
+// createAgent is async: it loads any persisted state before returning.
+const agent = await createAgent({
+  provider: new OpenAIProvider({
+    model: 'qwen2.5-coder',
+    baseURL: 'http://localhost:11434/v1', // any OpenAI-compatible endpoint
+    apiKey: 'ollama',
+  }),
+  tools: [getWeather],
+})
+
+agent.on('text', (chunk) => process.stdout.write(chunk))
+
+await agent.run('How is the weather in Buenos Aires?')
+console.log(agent.getUsage()) // { inputTokens, outputTokens, ... }
+```
+
+That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for [`createLocalAgent`](#-quick-use-examples) and pass `createCodingTools()`.
+
+## 🤔 How it compares
+
+|  | astorlm |
+| --- | --- |
+| **vs. a coding CLI** (Claude Code, Codex CLI, Aider) | Those are applications you drive. astorlm is the machinery they are built out of, running in *your* process — so the UI, the audit log and the approval flow are yours to write. |
+| **vs. an agent framework** (LangGraph, Mastra) | No graph DSL and no workflow engine to learn. One loop, five hooks, and interfaces you implement. The whole public surface is `src/index.ts` and `src/core.ts`. |
+| **vs. a vendor SDK** | Provider-neutral by construction. Local and weak models get first-class support through [`experimental/edge-boost`](#-quick-use-examples), not a "best effort" disclaimer. |
+
+## 📋 What's in the box
+
+| | |
+| --- | --- |
+| **Loop** | Multi-turn, parallel tool execution, token streaming, thinking blocks, cooperative cancellation, `REACT` or `PLAN_EXECUTE` [patterns](#-loop-patterns) |
+| **Tools** | `read`, `write`, `edit`, `bash` (plus [background spawn/poll/kill](#-background-processes-bash_spawn--bash_get_output--bash_kill)), `ls`, `grep`, `glob` — or [define your own](#-quick-use-examples) from a Zod schema |
+| **Isolation** | Swappable [executors](#-executors-sandboxing--swappable-backends): local, Docker, or your own. Plus a [WASM code sandbox](#-wasm-code-sandbox-astorlmexperimentalwasm-runner) that needs no daemon |
+| **Control** | Five [hooks](#-control-hooks-sessionhooks) covering permissions, mocking, prompt rewriting and output sanitising; [steering](#-subagents-agent-as-tool) at tool boundaries |
+| **Memory** | Session persistence and native branching, [context auto-compaction](#-context-optimizer-auto-compaction), [token accounting](#-token-usage-tracking) |
+| **Interop** | [MCP](#-mcp-connectivity-model-context-protocol) over stdio and HTTP (including MCP Apps UI), and [Agent Skills](#-skills-loadable-knowledge-packs) in the same filesystem format Claude Code and Codex use |
+| **Composition** | [Subagents as tools](#-subagents-agent-as-tool), goal loops, [heartbeats](#-heartbeat-proactive-loop) |
+| **Observability** | Tracing with an OTLP exporter, metrics with cost accounting, deterministic record & replay, and an offline eval harness — all under `astorlm/experimental/*` |
+
+## 📖 Table of contents
+
+- [⚡ Quickstart](#-quickstart)
+- [🤔 How it compares](#-how-it-compares)
+- [📋 What's in the box](#-whats-in-the-box)
+- [📦 Module Layout (Entrypoints)](#-module-layout-entrypoints)
+- [🚀 Quick Use Examples](#-quick-use-examples)
+- [🧬 Subagents (agent-as-tool)](#-subagents-agent-as-tool)
+- [🪝 Control Hooks (`SessionHooks`)](#-control-hooks-sessionhooks)
+- [🔌 MCP Connectivity (Model Context Protocol)](#-mcp-connectivity-model-context-protocol)
+- [📚 Skills (loadable knowledge packs)](#-skills-loadable-knowledge-packs)
+- [🐳 Executors (sandboxing & swappable backends)](#-executors-sandboxing--swappable-backends)
+- [🧪 WASM code sandbox (`astorlm/experimental/wasm-runner`)](#-wasm-code-sandbox-astorlmexperimentalwasm-runner)
+- [⏱️ Background processes (`bash_spawn` / `bash_get_output` / `bash_kill`)](#-background-processes-bash_spawn--bash_get_output--bash_kill)
+- [🧭 Loop patterns](#-loop-patterns)
+- [📉 Context optimizer (auto-compaction)](#-context-optimizer-auto-compaction)
+- [🔁 Retry policy for transient provider errors](#-retry-policy-for-transient-provider-errors)
+- [📊 Token usage tracking](#-token-usage-tracking)
+- [🫀 Heartbeat (proactive loop)](#-heartbeat-proactive-loop)
+- [🛠️ Development Commands](#-development-commands)
 
 ---
 
