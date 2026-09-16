@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/aralde/astorLM/discussions
+    about: Ask how to use the library, or float an idea before it becomes a proposal.
+  - name: Report a security vulnerability
+    url: https://github.com/aralde/astorLM/security/advisories/new
+    about: Please report vulnerabilities privately, never as a public issue.

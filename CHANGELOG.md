@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Project infrastructure
+
+Repository plumbing ahead of the public release. No runtime changes.
+
+- **CI workflow** (`.github/workflows/ci.yml`): typecheck, test, build and
+  `pnpm pack` on Node 20/22/24 (Linux) plus Node 22 on Windows.
+- **Community files**: `CONTRIBUTING.md` (setup, architecture map, conventions,
+  PR expectations), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and
+  `SECURITY.md` — the latter includes an explicit threat model covering the
+  executor, path confinement, prompt injection and MCP trust boundaries.
+- **Issue and PR templates**, plus a monthly Dependabot config for npm and
+  GitHub Actions.
+- **Brand assets** in `assets/`: bandoneón-bellows logo (lockup in light and
+  dark, standalone mark, and a rounded-square app icon), now used in the README
+  header alongside status badges.
+- `packageManager` is pinned in `package.json` so CI and contributors resolve
+  the same pnpm version.
+- `files` now ships `assets/`, `CHANGELOG.md` and `LICENSE` in the npm tarball.
+
 ### Added — Structured output (`generateObject`)
 
 Typed, schema-validated model output as a first-class API.
