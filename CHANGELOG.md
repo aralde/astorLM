@@ -26,6 +26,20 @@ Repository plumbing ahead of the public release. No runtime changes.
   the same pnpm version.
 - `files` now ships `assets/`, `CHANGELOG.md` and `LICENSE` in the npm tarball.
 
+### Fixed — `LocalExecutor` orphaned shell children on POSIX
+
+Surfaced by the new CI matrix, which runs the suite on Linux for the first time.
+
+- `spawn(cmd, { shell: true })` returns the pid of the shell, not of the command
+  it runs. `kill()` signalled only that shell, so the real process survived,
+  kept the inherited stdio pipes open, and `'close'` never fired — meaning
+  `getOutput()` reported `running: true` forever and the process was orphaned.
+  Windows already handled this with `taskkill /T`; POSIX did not.
+- POSIX spawns are now detached into their own process group and terminated
+  with a negative pid, so the whole tree goes down. This covers `kill()`,
+  `dispose()`, `exec()`'s timeout path and abort via `abortSignal` (Node's own
+  `signal` handling also reaches the shell only).
+
 ### Added — Structured output (`generateObject`)
 
 Typed, schema-validated model output as a first-class API.

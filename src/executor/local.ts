@@ -12,6 +12,44 @@ const DEFAULT_TIMEOUT_MS = 120_000
 const DEFAULT_MAX_OUTPUT_BYTES = 200_000
 const DEFAULT_MAX_BUFFER_BYTES = 200_000
 
+/**
+ * Terminate a shell-spawned command and every process it started.
+ *
+ * `spawn(cmd, { shell: true })` returns the pid of the shell, not of the command
+ * the shell runs. Signalling only the shell orphans the real process, which then
+ * keeps the inherited stdio pipes open — so `'close'` never fires and the
+ * process is reported as running forever. On Windows `taskkill /T` walks the
+ * tree; on POSIX a negative pid signals the whole process group, which is why
+ * both spawn paths below pass `detached: true` there.
+ */
+function killTree(child: ChildProcess, signal: string): void {
+  if (child.pid == null) return
+
+  if (process.platform === 'win32') {
+    try {
+      nodeSpawn('taskkill', ['/pid', String(child.pid), '/T', '/F'])
+    } catch {
+      // Already dead or taskkill unavailable — no-op.
+    }
+    return
+  }
+
+  try {
+    process.kill(-child.pid, signal as NodeJS.Signals)
+  } catch {
+    // No process group (the child died before it could lead one) — fall back
+    // to signalling the child directly.
+    try {
+      child.kill(signal as NodeJS.Signals)
+    } catch {
+      // Already dead or no permissions — no-op.
+    }
+  }
+}
+
+/** POSIX needs its own process group so `killTree` can signal the whole tree. */
+const DETACH_FOR_GROUP_KILL = process.platform !== 'win32'
+
 interface SpawnedProcess {
   pid: string
   child: ChildProcess
@@ -49,7 +87,12 @@ export class LocalExecutor implements Executor {
         shell: true,
         env: opts.env ? { ...process.env, ...opts.env } : process.env,
         signal: opts.abortSignal,
+        detached: DETACH_FOR_GROUP_KILL,
       })
+
+      // Node's own `signal` handling kills the shell only, so tear down the
+      // whole tree on abort as well.
+      opts.abortSignal?.addEventListener('abort', () => killTree(child, 'SIGTERM'), { once: true })
 
       let stdoutBytes = 0
       let stderrBytes = 0
@@ -80,7 +123,7 @@ export class LocalExecutor implements Executor {
         stderrBytes = errCounter.v
       })
 
-      const timer = setTimeout(() => child.kill('SIGTERM'), timeoutMs)
+      const timer = setTimeout(() => killTree(child, 'SIGTERM'), timeoutMs)
 
       child.on('close', (code, signal) => {
         clearTimeout(timer)
@@ -113,8 +156,10 @@ export class LocalExecutor implements Executor {
       shell: true,
       env: opts.env ? { ...process.env, ...opts.env } : process.env,
       signal: opts.abortSignal,
-      detached: false,
+      detached: DETACH_FOR_GROUP_KILL,
     })
+
+    opts.abortSignal?.addEventListener('abort', () => killTree(child, 'SIGTERM'), { once: true })
 
     const pid = child.pid != null ? String(child.pid) : `local-${this.nextId++}`
     const maxBuffer = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
@@ -199,19 +244,6 @@ export class LocalExecutor implements Executor {
   }
 
   private killChild(state: SpawnedProcess, signal: string): void {
-    // On Windows, `spawn(cmd, { shell: true })` starts cmd.exe which in turn
-    // starts the real process. Killing only cmd.exe orphans the child, so we
-    // use `taskkill /F /T` to terminate the whole tree.
-    if (process.platform === 'win32' && state.child.pid != null) {
-      try {
-        nodeSpawn('taskkill', ['/pid', String(state.child.pid), '/T', '/F'])
-      } catch { /* no-op */ }
-      return
-    }
-    try {
-      state.child.kill(signal as NodeJS.Signals)
-    } catch {
-      // Already dead or no permissions — no-op.
-    }
+    killTree(state.child, signal)
   }
 }
