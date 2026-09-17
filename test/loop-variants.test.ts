@@ -6,6 +6,23 @@ import { MockProvider } from './mock-provider.js'
 import { InMemorySessionManager } from '../src/agent/sessionManager.js'
 import type { AgentEvent } from '../src/types.js'
 
+/**
+ * Waits until `predicate` holds, polling on a short interval.
+ *
+ * Heartbeat assertions used to sleep for a fixed span and then check a call
+ * count. That is flaky under parallel load, where timers do not reliably fire
+ * inside the window: the test failed roughly one run in five. Polling asserts
+ * the same invariant without betting on scheduling. Note this only replaces
+ * waits for something to HAPPEN — asserting that nothing happens still needs a
+ * real wait.
+ */
+async function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
+
 describe('loop variants & heartbeat', () => {
   it('initializes with the correct pattern', async () => {
     const provider = new MockProvider([{ text: 'ok' }])
@@ -275,7 +292,7 @@ describe('loop variants & heartbeat', () => {
 
     // Change the condition to true
     conditionValue = true
-    await new Promise((resolve) => setTimeout(resolve, 30))
+    await waitFor(() => provider.calls.length >= 1)
     agent.stopHeartbeat()
 
     expect(provider.calls.length).toBeGreaterThanOrEqual(1) // The LLM must have been called
@@ -297,13 +314,13 @@ describe('loop variants & heartbeat', () => {
       },
     })
 
-    // Wait enough ticks for it to shut off via maxTicks
-    await new Promise((resolve) => setTimeout(resolve, 40))
-    // When it shuts off via maxTicks (2 ticks), it must not keep calling
-    const callsAfterTicks = provider.calls.length
-    expect(callsAfterTicks).toBe(2)
+    // Poll until both allotted ticks have fired.
+    await waitFor(() => provider.calls.length >= 2)
+    expect(provider.calls.length).toBe(2)
 
-    await new Promise((resolve) => setTimeout(resolve, 20))
+    // maxTicks has been reached, so it must not fire again. Asserting absence
+    // does need a wait — several intervals' worth.
+    await new Promise((resolve) => setTimeout(resolve, 100))
     expect(provider.calls.length).toBe(2) // Must not have incremented
   })
 
@@ -324,7 +341,7 @@ describe('loop variants & heartbeat', () => {
 
     // Start it manually
     agent.startHeartbeat()
-    await new Promise((resolve) => setTimeout(resolve, 25))
+    await waitFor(() => provider.calls.length >= 1)
     agent.stopHeartbeat()
     expect(provider.calls.length).toBeGreaterThanOrEqual(1)
   })
