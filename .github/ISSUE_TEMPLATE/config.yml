@@ -1,8 +1,8 @@
-blank_issues_enabled: false
+# Blank issues are enabled so questions have somewhere to go. If GitHub
+# Discussions is turned on for this repository, move questions there and add it
+# back as a contact link.
+blank_issues_enabled: true
 contact_links:
-  - name: Question or idea
-    url: https://github.com/aralde/astorLM/discussions
-    about: Ask how to use the library, or float an idea before it becomes a proposal.
   - name: Report a security vulnerability
     url: https://github.com/aralde/astorLM/security/advisories/new
     about: Please report vulnerabilities privately, never as a public issue.

@@ -6,8 +6,16 @@ pull request looks like.
 
 ## Getting started
 
-Requirements: **Node >= 20** and **pnpm** (the repo pins its version through the
-`packageManager` field — `corepack enable` is enough to pick it up).
+Requirements: **Node 20, 22 or 24** and **pnpm**.
+
+The published package supports Node >= 20; the development toolchain is
+narrower, because the test runner declares `^20 || ^22 || >=24`. Odd-numbered
+releases such as Node 23 are outside that range and fail at startup — CI runs
+the matrix that is actually supported.
+
+pnpm's version is pinned through the `packageManager` field, so `corepack
+enable` picks it up. If corepack fails to verify npm's signing keys, it is
+outdated — update it, or install pnpm directly.
 
 ```bash
 pnpm install

@@ -73,8 +73,13 @@ The observability stack was documented and tested but not packaged.
 
 - `openai` 4.104 → **7.17** (three majors), `@anthropic-ai/sdk` 0.40.1 → **0.126**,
   `@modelcontextprotocol/sdk` 1.29 → 1.30, `quickjs-emscripten` 0.31 → 0.32,
-  `vitest` 2 → 5 (with an explicit `vite` devDependency, which vitest 5 needs to
-  resolve its own runner), `tsx` 4.21 → 4.23.
+  `vitest` 2 → **4**, `tsx` 4.21 → 4.23.
+- `vitest` stops at 4 rather than 5 on purpose: 5 declares
+  `engines: ^22.12 || ^24 || >=26`, which excludes Node 20 — the floor this
+  package promises. CI was passing on Node 20 with vitest 5 only because
+  nothing enforces `engines`, so the oldest supported runtime was being
+  verified by a runner that does not claim to work there. Version 4 declares
+  `^20 || ^22 || >=24` and covers the whole matrix honestly.
 - Held back on purpose: **`zod` 3 → 4** is a public-API migration, since
   consumers hand their own Zod schemas to `tool()` — it needs its own change.
   **`typescript` 5 → 7** typechecks clean but breaks the `.d.ts` build under
