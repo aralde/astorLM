@@ -11,7 +11,11 @@ export class AuthStorage {
 
   require(key: string): string {
     const v = this.get(key)
-    if (!v) throw new Error(`Falta credencial: ${key}. Definila por env o pasala como override.`)
+    if (!v) {
+      throw new Error(
+        `Missing credential: ${key}. Set it in the environment or pass it as an override.`,
+      )
+    }
     return v
   }
 

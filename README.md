@@ -362,7 +362,7 @@ const agent = await createLocalAgent(edgeBoost({
 const tuned = edgeBoost(options, { synthesis: { forceAfterToolRounds: 2 } })
 ```
 
-See the runnable example `34-edge-boost` in the examples repo (`pnpm start 34`, with optional `--prune` / `--digest` flags).
+A runnable `34-edge-boost` example (`pnpm start 34`, with optional `--prune` / `--digest` flags) lives in the companion examples repository, which is published separately from this one.
 
 ---
 
@@ -634,8 +634,9 @@ const view = await mcp.readUiResource('ui://semantic/results')
 
 `onToolUi` receives `{ toolName, resourceUri, structuredContent, content }`.
 `readUiResource(uri)` / `readResource(uri)` read resources from the mounted
-server. See `examples/35-mcp-apps-semantic` for a full server (semantic search
-over the embeddings module) + host that renders the component.
+server. A full server (semantic search over the embeddings module) plus a host that
+renders the component is available as `35-mcp-apps-semantic` in the companion
+examples repository, published separately from this one.
 
 ---
 
