@@ -370,7 +370,7 @@ See the runnable example `34-edge-boost` in the examples repo (`pnpm start 34`, 
 
 > **All snippets use `OpenAIProvider`** pointed at a local OpenAI-compatible endpoint. The examples assume [Ollama](https://ollama.com) (`http://localhost:11434/v1`, model `qwen2.5-coder`, `apiKey: 'ollama'` — a placeholder local endpoints ignore), but any OpenAI-compatible server works (LM Studio `http://localhost:1234/v1`, vLLM `http://localhost:8000/v1`, …).
 >
-> **Hosted providers:** point `baseURL` at the vendor and pass a real key — e.g. OpenAI (`https://api.openai.com/v1`, `gpt-4o-mini`), Groq, OpenRouter or Together. If you omit `apiKey`, the provider reads it from `OPENAI_API_KEY` (override the env var name with `envVar`). `AnthropicProvider` exists in the public API with the same shape — swap it in if you prefer Anthropic.
+> **Hosted providers:** point `baseURL` at the vendor and pass a real key — e.g. OpenAI (`https://api.openai.com/v1`, `gpt-4o-mini`), Groq, OpenRouter or Together. If you omit `apiKey`, the provider reads it from `OPENAI_API_KEY` (override the env var name with `envVar`). `AnthropicProvider` exists in the public API with the same shape — swap it in if you prefer Anthropic. It additionally takes `thinking` (`{ type: 'adaptive', display? }` on current models, or `{ budget_tokens }` on older ones), `effort` (`'low'` … `'max'`), and `contextLimit`, which defaults to a conservative 200k — raise it to match the model you target.
 
 ### 🔌 1. Minimal Usage (custom tool)
 

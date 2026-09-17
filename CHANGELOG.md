@@ -16,6 +16,30 @@ edge-boost profile for weak models, MCP Apps UI, a WASM code sandbox,
 first-class embeddings, the full observability stack (tracing, metrics, replay,
 evals) and the repository infrastructure for going public.
 
+### Fixed — `AnthropicProvider` sent a thinking config current models reject
+
+- The provider hardcoded `thinking: { type: 'enabled', budget_tokens: n }`. That
+  form is removed on current models, which reject it with a 400 — the code
+  compiled and failed only at runtime, and only for callers who set `thinking`.
+- `thinking` now accepts `{ type: 'adaptive', display? }` (the current form, in
+  which the model decides how much to think) and keeps `{ budget_tokens }` for
+  callers still targeting older models.
+- New `effort` option (`'low'` … `'max'`), mapped to `output_config`.
+- `contextLimit` is now an option instead of a hardcoded 200000. The default is
+  unchanged and deliberately conservative: compacting earlier than necessary
+  wastes turns, compacting later than necessary fails the request. Callers on
+  larger-context models raise it.
+- `test/anthropic-wire.test.ts` gives this provider its first wire-level
+  coverage, asserting the request body against a real HTTP server.
+
+### Fixed — Flaky heartbeat tests
+
+- `heartbeat stops automatically via maxTicks and timeoutMs` failed roughly one
+  run in five: it slept a fixed 40 ms and then asserted an exact tick count,
+  which is a bet on timer scheduling that parallel load loses. Waits for
+  something to happen now poll with a deadline; waits asserting that nothing
+  happens stay as real sleeps, since those can only produce false passes.
+
 ### Changed — Dependency refresh
 
 - `openai` 4.104 → **7.17** (three majors), `@anthropic-ai/sdk` 0.40.1 → **0.126**,
