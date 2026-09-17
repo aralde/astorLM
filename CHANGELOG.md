@@ -16,6 +16,22 @@ edge-boost profile for weak models, MCP Apps UI, a WASM code sandbox,
 first-class embeddings, the full observability stack (tracing, metrics, replay,
 evals) and the repository infrastructure for going public.
 
+### Fixed — Four experimental modules never shipped
+
+The observability stack was documented and tested but not packaged.
+
+- `tracing`, `tracing/otel`, `metrics`, `replay` and `evals` existed under
+  `src/experimental/`, had passing tests and were described in the README, but
+  appeared in neither `tsup.config.ts` nor `package.json#exports`. They never
+  reached `dist/` — `dist/experimental/evals` was an empty directory — so
+  `import ... from 'astorlm/experimental/tracing'` failed with
+  `ERR_PACKAGE_PATH_NOT_EXPORTED` for anyone installing the package. Tests
+  never caught it because they import from `src/`, not from the built package.
+- All five are now built and exported.
+- `test/package-exports.test.ts` guards the contract: the tsup entry list and
+  the exports map must agree, every export must point at the file its entry
+  produces, and any `src/experimental/<name>/index.ts` must be exported.
+
 ### Fixed — `AnthropicProvider` sent a thinking config current models reject
 
 - The provider hardcoded `thinking: { type: 'enabled', budget_tokens: n }`. That
@@ -39,6 +55,7 @@ evals) and the repository infrastructure for going public.
   which is a bet on timer scheduling that parallel load loses. Waits for
   something to happen now poll with a deadline; waits asserting that nothing
   happens stay as real sleeps, since those can only produce false passes.
+
 
 ### Changed — Dependency refresh
 
