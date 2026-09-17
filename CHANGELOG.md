@@ -32,6 +32,14 @@ evals) and the repository infrastructure for going public.
 - `test/anthropic-wire.test.ts` gives this provider its first wire-level
   coverage, asserting the request body against a real HTTP server.
 
+### Fixed — Flaky heartbeat tests
+
+- `heartbeat stops automatically via maxTicks and timeoutMs` failed roughly one
+  run in five: it slept a fixed 40 ms and then asserted an exact tick count,
+  which is a bet on timer scheduling that parallel load loses. Waits for
+  something to happen now poll with a deadline; waits asserting that nothing
+  happens stay as real sleeps, since those can only produce false passes.
+
 ### Changed — Dependency refresh
 
 - `openai` 4.104 → **7.17** (three majors), `@anthropic-ai/sdk` 0.40.1 → **0.126**,
