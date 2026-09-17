@@ -17,9 +17,35 @@ export interface AnthropicProviderOptions {
   auth?: AuthStorage
   maxTokens?: number
   baseURL?: string
-  thinking?: {
-    budget_tokens: number
-  }
+  /**
+   * Extended thinking.
+   *
+   * `{ type: 'adaptive' }` lets the model decide when and how much to think,
+   * and is the only form current models accept. `display` controls whether the
+   * reasoning comes back summarized or redacted (a signature is still returned
+   * either way, so multi-turn continuity is preserved).
+   *
+   * `{ budget_tokens: n }` is the fixed-budget form. It is only valid on older
+   * models — current ones reject it with a 400 — and is kept for callers still
+   * pointing at those. Must be >= 1024 and below `maxTokens`.
+   */
+  thinking?:
+    | { type: 'adaptive'; display?: 'summarized' | 'omitted' }
+    | { budget_tokens: number }
+  /**
+   * How much effort the model spends on a response. Maps to `output_config`,
+   * and pairs with adaptive thinking to trade cost against thoroughness.
+   * Omitted by default, which the API treats as `'high'`.
+   */
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  /**
+   * Context window in tokens, used by the context optimizer to decide when to
+   * compact. Defaults to 200000, which is the conservative floor across the
+   * model line — raise it to match the model you actually target (current
+   * frontier models are an order of magnitude larger). Compacting earlier than
+   * necessary is wasteful; compacting later than necessary is a failed request.
+   */
+  contextLimit?: number
   /**
    * Allows the client to run inside a browser-like environment (e.g. a Tauri or
    * Electron webview). Off by default, matching the Anthropic SDK's safe default.
@@ -27,6 +53,32 @@ export interface AnthropicProviderOptions {
   dangerouslyAllowBrowser?: boolean
 }
 
+
+/**
+ * Conservative default context window. The model line spans a wide range, and
+ * the optimizer only needs a bound it will not exceed: compacting too early
+ * wastes turns, compacting too late fails the request. Callers targeting a
+ * larger window pass `contextLimit` explicitly.
+ */
+const DEFAULT_CONTEXT_LIMIT = 200000
+
+/**
+ * Maps our thinking option onto the SDK's config. The fixed-budget form is
+ * still accepted here because older models take it, but current models reject
+ * `budget_tokens` outright — adaptive thinking replaced it.
+ */
+function toThinkingParam(
+  thinking: AnthropicProviderOptions['thinking'],
+): Anthropic.ThinkingConfigParam | undefined {
+  if (!thinking) return undefined
+  if ('budget_tokens' in thinking) {
+    return { type: 'enabled', budget_tokens: thinking.budget_tokens }
+  }
+  return {
+    type: 'adaptive',
+    ...(thinking.display ? { display: thinking.display } : {}),
+  }
+}
 
 /**
  * Provider over @anthropic-ai/sdk using its native streaming.
@@ -40,7 +92,8 @@ export class AnthropicProvider implements Provider {
   readonly contextLimit: number
   private readonly client: Anthropic
   private readonly maxTokens: number
-  private readonly thinking?: { budget_tokens: number }
+  private readonly thinking?: AnthropicProviderOptions['thinking']
+  private readonly effort?: AnthropicProviderOptions['effort']
 
   constructor(opts: AnthropicProviderOptions) {
     const auth = opts.auth ?? AuthStorage.default()
@@ -52,8 +105,9 @@ export class AnthropicProvider implements Provider {
     })
     this.model = opts.model
     this.maxTokens = opts.maxTokens ?? 4096
-    this.contextLimit = 200000
+    this.contextLimit = opts.contextLimit ?? DEFAULT_CONTEXT_LIMIT
     this.thinking = opts.thinking
+    this.effort = opts.effort
   }
 
   async *stream(opts: ProviderStreamOptions): AsyncIterable<ProviderEvent> {
@@ -61,6 +115,7 @@ export class AnthropicProvider implements Provider {
     // penalties (frequency/presence) have no equivalent and are ignored.
     const temperature = opts.sampling?.temperature
     const topP = opts.sampling?.topP
+    const thinkingParam = toThinkingParam(this.thinking)
     const stream = this.client.messages.stream(
       {
         model: this.model,
@@ -75,7 +130,8 @@ export class AnthropicProvider implements Provider {
         ...(mapToolChoice(opts.toolChoice) ? { tool_choice: mapToolChoice(opts.toolChoice)! } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
         ...(topP !== undefined ? { top_p: topP } : {}),
-        ...(this.thinking ? { thinking: { type: 'enabled', budget_tokens: this.thinking.budget_tokens } } : {}),
+        ...(thinkingParam ? { thinking: thinkingParam } : {}),
+        ...(this.effort ? { output_config: { effort: this.effort } } : {}),
       },
       { signal: opts.abortSignal },
     )
