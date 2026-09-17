@@ -16,6 +16,31 @@ edge-boost profile for weak models, MCP Apps UI, a WASM code sandbox,
 first-class embeddings, the full observability stack (tracing, metrics, replay,
 evals) and the repository infrastructure for going public.
 
+### Changed — Dependency refresh
+
+- `openai` 4.104 → **7.17** (three majors), `@anthropic-ai/sdk` 0.40.1 → **0.126**,
+  `@modelcontextprotocol/sdk` 1.29 → 1.30, `quickjs-emscripten` 0.31 → 0.32,
+  `vitest` 2 → 5 (with an explicit `vite` devDependency, which vitest 5 needs to
+  resolve its own runner), `tsx` 4.21 → 4.23.
+- Held back on purpose: **`zod` 3 → 4** is a public-API migration, since
+  consumers hand their own Zod schemas to `tool()` — it needs its own change.
+  **`typescript` 5 → 7** typechecks clean but breaks the `.d.ts` build under
+  tsup. **`@types/node`** stays on 22 to match the supported Node floor
+  (`engines: >=20`); newer type packages describe APIs the supported runtimes
+  do not have.
+- GitHub Actions bumped in both workflows: `checkout` v5 → v7, `setup-node`
+  v5 → v7, `pnpm/action-setup` v4 → v6.
+
+### Added — Wire-level tests for `OpenAIProvider`
+
+- `test/openai-wire.test.ts` runs the agent against a real (minimal)
+  OpenAI-compatible HTTP server instead of a mock provider, covering the
+  request body, streamed text deltas, a tool call reassembled from split
+  `arguments` fragments, the tool-result round-trip, and usage on the final
+  chunk. The rest of the suite stops at the provider boundary, so nothing
+  exercised the SDK's HTTP and SSE paths — exactly what moves when `openai`
+  crosses a major version.
+
 ### Added — Project infrastructure
 
 Repository plumbing ahead of the public release. No runtime changes.

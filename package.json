@@ -65,7 +65,13 @@
       "require": "./dist/experimental/wasm-runner/index.cjs"
     }
   },
-  "files": ["dist", "assets", "README.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -73,25 +79,33 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["agent", "llm", "anthropic", "mcp", "coding-agent", "sdk"],
+  "keywords": [
+    "agent",
+    "llm",
+    "anthropic",
+    "mcp",
+    "coding-agent",
+    "sdk"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "openai": "^4.77.0",
+    "@anthropic-ai/sdk": "^0.126.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "openai": "^7.17.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "quickjs-emscripten": "^0.31.0",
+    "quickjs-emscripten": "^0.32.0",
     "tsup": "^8.3.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
   },
   "optionalDependencies": {
-    "quickjs-emscripten": "^0.31.0"
+    "quickjs-emscripten": "^0.32.0"
   },
   "packageManager": "pnpm@10.29.2",
   "engines": {
