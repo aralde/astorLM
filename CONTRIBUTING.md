@@ -21,8 +21,10 @@ iterate.
 
 ### Running the examples
 
-Runnable examples live in a separate repository that consumes this package
-through a `file:` link. Build the library first, then install the examples:
+Runnable examples live in a companion repository, published separately from
+this one, which consumes this package through a `file:` link. If you have it
+checked out beside this repository, build the library first, then install the
+examples:
 
 ```bash
 cd astorlm && pnpm build

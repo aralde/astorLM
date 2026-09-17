@@ -16,7 +16,7 @@ export interface ToolOptions<S extends z.ZodTypeAny> {
  */
 export function tool<S extends z.ZodTypeAny>(opts: ToolOptions<S>): Tool {
   const jsonSchema = zodToJsonSchema(opts.schema, { target: 'openApi3' }) as Record<string, unknown>
-  // Anthropic espera un objeto con `type: "object"` en el top-level — Zod a veces lo envuelve.
+  // Anthropic expects an object with a top-level `type: "object"`; Zod sometimes wraps it.
   const inputSchema = normalizeSchema(jsonSchema)
 
   return {
@@ -30,7 +30,7 @@ export function tool<S extends z.ZodTypeAny>(opts: ToolOptions<S>): Tool {
 
 function normalizeSchema(schema: Record<string, unknown>): Record<string, unknown> {
   if (schema['type'] === 'object') return schema
-  // Algunos wrappers (refs) los desempaquetamos a {} compatible.
+  // Some wrappers (refs) are unwrapped into a compatible {}.
   return { type: 'object', properties: {}, ...schema }
 }
 

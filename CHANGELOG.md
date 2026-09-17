@@ -56,6 +56,18 @@ The observability stack was documented and tested but not packaged.
   something to happen now poll with a deadline; waits asserting that nothing
   happens stay as real sleeps, since those can only produce false passes.
 
+### Changed — English-only strings and honest example pointers
+
+- `AuthStorage.require` threw its error in Spanish (`Falta credencial: ...`).
+  It is a message consumers of an English-language library see at runtime, so
+  it now reads `Missing credential: <key>. Set it in the environment or pass it
+  as an override.` Two leftover Spanish comments in `tools/define.ts` were
+  translated as well. The Spanish stopword list in the error registry's
+  fingerprinting stays — that one is data, not prose.
+- The README and CONTRIBUTING pointed at "the examples repo" as if it were
+  reachable. The examples are published separately, so the pointers now say so
+  instead of sending readers somewhere that does not exist yet.
+
 
 ### Changed — Dependency refresh
 
