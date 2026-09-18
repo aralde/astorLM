@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- `package.json#description` is now "The agent loop as a library: an
+  embeddable, SDK-first agentic runtime for TypeScript." It is the tagline npm
+  shows in search results, so it says what the package is instead of what it
+  was inspired by. npm renders the description of the newest published version,
+  so this appears on the package page with the next release.
 
 ## [0.2.0] — 2026-09-18
 
