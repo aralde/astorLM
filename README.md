@@ -56,7 +56,7 @@ await agent.run('How is the weather in Buenos Aires?')
 console.log(agent.getUsage()) // { inputTokens, outputTokens, ... }
 ```
 
-That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for [`createLocalAgent`](#-quick-use-examples) and pass `createCodingTools()`.
+That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for [`createLocalAgent`](#-2-full-coding-agent-nodejs) and pass `createCodingTools()`.
 
 ## 🤔 How it compares
 
@@ -64,19 +64,19 @@ That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for
 | --- | --- |
 | **vs. a coding CLI** (Claude Code, Codex CLI, Aider) | Those are applications you drive. astorlm is the machinery they are built out of, running in *your* process — so the UI, the audit log and the approval flow are yours to write. |
 | **vs. an agent framework** (LangGraph, Mastra) | No graph DSL and no workflow engine to learn. One loop, five hooks, and interfaces you implement. The whole public surface is `src/index.ts` and `src/core.ts`. |
-| **vs. a vendor SDK** | Provider-neutral by construction. Local and weak models get first-class support through [`experimental/edge-boost`](#-quick-use-examples), not a "best effort" disclaimer. |
+| **vs. a vendor SDK** | Provider-neutral by construction. Local and weak models get first-class support through [`experimental/edge-boost`](#12-astorlmexperimentaledge-boost-experimental--hardening-for-weak-models), not a "best effort" disclaimer. |
 
 ## 📋 What's in the box
 
 | | |
 | --- | --- |
 | **Loop** | Multi-turn, parallel tool execution, token streaming, thinking blocks, cooperative cancellation, `REACT` or `PLAN_EXECUTE` [patterns](#-loop-patterns) |
-| **Tools** | `read`, `write`, `edit`, `bash` (plus [background spawn/poll/kill](#-background-processes-bash_spawn--bash_get_output--bash_kill)), `ls`, `grep`, `glob` — or [define your own](#-quick-use-examples) from a Zod schema |
+| **Tools** | `read`, `write`, `edit`, `bash` (plus [background spawn/poll/kill](#-background-processes-bash_spawn--bash_get_output--bash_kill)), `ls`, `grep`, `glob` — or [define your own](#-1-minimal-usage-custom-tool) from a Zod schema |
 | **Isolation** | Swappable [executors](#-executors-sandboxing--swappable-backends): local, Docker, or your own. Plus a [WASM code sandbox](#-wasm-code-sandbox-astorlmexperimentalwasm-runner) that needs no daemon |
-| **Control** | Five [hooks](#-control-hooks-sessionhooks) covering permissions, mocking, prompt rewriting and output sanitising; [steering](#-subagents-agent-as-tool) at tool boundaries |
+| **Control** | Five [hooks](#-control-hooks-sessionhooks) covering permissions, mocking, prompt rewriting and output sanitising; [steering](#-steering-redirect-without-aborting) at tool boundaries |
 | **Memory** | Session persistence and native branching, [context auto-compaction](#-context-optimizer-auto-compaction), [token accounting](#-token-usage-tracking) |
 | **Interop** | [MCP](#-mcp-connectivity-model-context-protocol) over stdio and HTTP (including MCP Apps UI), and [Agent Skills](#-skills-loadable-knowledge-packs) in the same filesystem format Claude Code and Codex use |
-| **Composition** | [Subagents as tools](#-subagents-agent-as-tool), goal loops, [heartbeats](#-heartbeat-proactive-loop) |
+| **Composition** | [Subagents as tools](#-subagents-agent-as-tool), [goal loops](#-goal-loops-rungoalloop), [structured output](#-structured-output-generateobject), [heartbeats](#-heartbeat-proactive-loop) |
 | **Observability** | Tracing with an OTLP exporter, metrics with cost accounting, deterministic record & replay, and an offline eval harness — all under `astorlm/experimental/*` |
 
 ## 📖 Table of contents
@@ -94,6 +94,8 @@ That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for
 - [🧪 WASM code sandbox (`astorlm/experimental/wasm-runner`)](#-wasm-code-sandbox-astorlmexperimentalwasm-runner)
 - [⏱️ Background processes (`bash_spawn` / `bash_get_output` / `bash_kill`)](#-background-processes-bash_spawn--bash_get_output--bash_kill)
 - [🧭 Loop patterns](#-loop-patterns)
+- [🔄 Goal loops (`runGoalLoop`)](#-goal-loops-rungoalloop)
+- [🧱 Structured output (`generateObject`)](#-structured-output-generateobject)
 - [📉 Context optimizer (auto-compaction)](#-context-optimizer-auto-compaction)
 - [🔁 Retry policy for transient provider errors](#-retry-policy-for-transient-provider-errors)
 - [📊 Token usage tracking](#-token-usage-tracking)
@@ -104,34 +106,24 @@ That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for
 
 ## 📦 Module Layout (Entrypoints)
 
-AstorLM ships clearly separated entrypoints. The agnostic core lives behind `astorlm/core` so the loop, providers and abstractions stay portable; the main `astorlm` barrel re-exports both the core and the Node runner for convenience.
+AstorLM ships clearly separated entrypoints. The runtime-agnostic pieces — loop, providers, tools, sessions, skills, embeddings — live in the main `astorlm` barrel and import zero Node built-ins. Everything OS-bound lives behind `astorlm/core`.
 
-```mermaid
-graph TD
-    subgraph Core ["Agnostic core (loop, providers, abstractions)"]
-        A[createAgent]
-        B[InMemorySessionManager]
-        C[AnthropicProvider / OpenAIProvider]
-        D[SessionHooks / ToolRegistry]
-        S[createSubagentTool / createSteeringController]
-    end
+```text
+astorlm                    agnostic  createAgent · Anthropic/OpenAIProvider · tool
+                                     ToolRegistry · SessionHooks · InMemorySessionManager
+                                     createSubagentTool · createSteeringController
+  └─ re-exports ./core for convenience  ⚠️ pulls Node deps into the main barrel
 
-    subgraph NodeExt ["Node runner: 'astorlm/core'"]
-        E[createLocalAgent]
-        F[FileSessionManager]
-        G[AstorAgent - facade]
-        H[mountMcpServer]
-        L[LocalExecutor / DockerExecutor]
-        K[createFileSystemSkillSource / createLayeredSkillSource]
-    end
+astorlm/core               Node      createLocalAgent · FileSessionManager · AstorAgent
+                                     mountMcpServer · Local/DockerExecutor
+                                     create{FileSystem,Layered}SkillSource
 
-    subgraph NodeTools ["Tools: 'astorlm/tools'"]
-        I[createCodingTools / createReadOnlyTools]
-        J[read, write, edit, bash, bash_spawn, ls, grep, glob]
-    end
+astorlm/tools              Node      createCodingTools() / createReadOnlyTools()
+                                     read write edit bash bash_spawn ls grep glob
 
-    NodeExt -->|wraps| Core
-    NodeTools -->|injected into| Core
+astorlm/embeddings         agnostic  createOpenAIEmbedder · createSemanticIndex
+astorlm/experimental/*     varies    error-registry · tracing · metrics · replay
+                                     evals · wasm-runner · edge-boost
 ```
 
 ### 1. `astorlm` (main barrel)
@@ -144,6 +136,8 @@ graph TD
   - `tool`, `ToolRegistry`
   - `EventBus`, `buildSystemPrompt`, `estimateTokens`, `optimizeContext`, `isTransientError`, `computeBackoffDelay`
   - `createSubagentTool` (subagents / agent-as-tool), `createSteeringController` (out-of-hook steering)
+  - `generateObject` (schema-constrained output), `runGoalLoop` (iterate until a condition holds)
+  - `createNoopExecutor` (the safe default executor of the agnostic core)
   - `SkillRegistry`, `createInMemorySkillSource`, `parseSkillFrontmatter`, `renderSkillsBlock`, `createLoadSkillTool`
   - `validateSkillName`, `validateSkillDescription`, `validateSkillSpec`, `SkillValidationError`, `SKILL_VALIDATION_LIMITS`
   - `parseAllowedTools`, `restrictToolsHook` (per-skill tool gating)
@@ -197,7 +191,27 @@ const hits = await index.query('ran out of RAM while compiling', { topK: 1 })
 // → [{ id: 'oom', score: 0.8…, text: '…' }]
 ```
 
-### 5. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
+### 5. `astorlm/prompt` (System-prompt building & composition)
+* **Description**: The system-prompt layer, runtime-agnostic. `buildSystemPrompt` is what the loop uses internally; the prompt *compiler* is the opt-in half — it merges prompt fragments coming from different owners (a base identity, a product policy, a per-skill instruction) into a single string, deduping repeats and **reporting contradictions** instead of silently concatenating them.
+* **Key exports**:
+  - `buildSystemPrompt(opts)`, `DEFAULT_SYSTEM_PROMPT` — also reachable from the main barrel.
+  - `compilePrompts({ modules, layout?, deduplicate?, detectConflicts? })` → `{ systemPrompt, report, print() }`. Modules are emitted in `layout` order (default `identity → context → constraint → policy → format`); modules sharing an `id` resolve by `priority` (highest wins).
+  - `formatPromptReport(report)` — readable audit of what was kept, overridden, deduped or flagged as conflicting.
+
+```typescript
+import { compilePrompts, formatPromptReport } from 'astorlm/prompt'
+
+const { systemPrompt, report } = compilePrompts({
+  modules: [
+    { id: 'identity', kind: 'identity', content: 'You are a release engineer.' },
+    { id: 'lang',     kind: 'policy',   content: 'Always answer in English.' },
+    { id: 'lang',     kind: 'policy',   content: 'Always answer in Spanish.', priority: 10 }, // wins
+  ],
+})
+console.log(formatPromptReport(report)) // shows the override and any conflicts
+```
+
+### 6. `astorlm/experimental/error-registry` (Experimental — Federated Error Registry)
 > ⚠️ **Experimental**. Lives under a dedicated subpath, not the main barrel. The import path itself is the signal that the API is volatile and may change between minor releases.
 
 * **Description**: A registry of agent-encountered errors and human-approved resolutions. When an agent hits an error that another agent (or a previous run) has already resolved, the registry injects the fix as a hint into the next `tool_result` — the agent applies the known solution instead of fighting through it again. Honest single-org PoC; federation across organizations and full secret sanitization are out of scope.
@@ -231,7 +245,7 @@ const agent = await createLocalAgent({
 
 A human approves pending resolutions asynchronously (e.g. `registry.approveResolution(id, approver)`). Until approved, a candidate resolution is not suggested to other sessions.
 
-### 6. `astorlm/experimental/tracing` (Experimental — Observability)
+### 7. `astorlm/experimental/tracing` (Experimental — Observability)
 > ⚠️ **Experimental**. Volatile API behind a dedicated subpath. Runtime-agnostic (reads only the event bus; uses Web Crypto for ids).
 
 * **Description**: Derives a hierarchical span tree (`session → turn → provider_call | tool_execution`) from the agent's event bus **without touching the loop** — attaching a tracer is pure subscription. Spans carry OpenTelemetry GenAI semantic-convention attributes (`gen_ai.*`) plus astorlm-specific ones (TTFT, tool duration/errors, retries).
@@ -270,7 +284,7 @@ for (const s of memory.spans) console.log(s.kind, s.name, s.endTime! - s.startTi
 
 The OTLP exporter buffers spans and flushes by batch size (`maxBatch`, default 256) or on a timer (`flushIntervalMs`, default 5s, `unref()`-ed). Hex `trace_id`/`span_id` are forwarded verbatim per the OTLP/JSON convention.
 
-### 7. `astorlm/experimental/metrics` (Experimental — Cost & metrics)
+### 8. `astorlm/experimental/metrics` (Experimental — Cost & metrics)
 > ⚠️ **Experimental**. Runtime-agnostic (reads only the event bus).
 
 * **Description**: Aggregates operational metrics from the agent's event bus and, given a pricing table, the USD cost of a run. No prices are hardcoded — you supply the table (USD per 1M tokens).
@@ -288,7 +302,7 @@ await agent.run('...')
 const m = metrics.snapshot() // { costUsd, latency: { ttftMs: { avg, ... } }, tokens, ... }
 ```
 
-### 8. `astorlm/experimental/replay` (Experimental — Record & replay)
+### 9. `astorlm/experimental/replay` (Experimental — Record & replay)
 > ⚠️ **Experimental**. Runtime-agnostic; the `Recording` is a plain serializable object.
 
 * **Description**: Captures exactly the provider events a run produced and replays them later with no network and no token spend — the deterministic debugging primitive. Capture is at the provider boundary, so it's independent of tools, hooks and timing.
@@ -310,7 +324,7 @@ const replay = await createLocalAgent({ provider: createReplayProvider(recording
 await replay.run('...')
 ```
 
-### 9. `astorlm/experimental/evals` (Experimental — Offline evaluation)
+### 10. `astorlm/experimental/evals` (Experimental — Offline evaluation)
 > ⚠️ **Experimental**. Runtime-agnostic core; `llmJudge` needs a `Provider` (point it at a local OpenAI-compatible endpoint).
 
 * **Description**: Runs a dataset of cases through fresh agents, applies scorers, and aggregates a report (overall pass rate + per-scorer stats). Built for CI gating; pair the agent factory with the replay provider for fast, network-free regression runs.
@@ -329,13 +343,13 @@ const report = await runEval({
 if (report.summary.passRate < 0.8) process.exit(1) // CI gate
 ```
 
-### 10. `astorlm/experimental/wasm-runner` (Experimental — WASM code sandbox)
+### 11. `astorlm/experimental/wasm-runner` (Experimental — WASM code sandbox)
 > ⚠️ **Experimental**. Dedicated subpath, volatile API.
 
 * **Description**: `CodeRunner` — runs untrusted *source code* (not shell commands) inside a memory-safe WebAssembly sandbox with no host access. The daemon-free, runtime-agnostic isolation tier, complementary to `DockerExecutor`. See ["WASM code sandbox"](#-wasm-code-sandbox-astorlmexperimentalwasm-runner) below.
 * **Key exports**: `QuickJsCodeRunner` (JS via QuickJS-wasm), `createCodeRunnerTool({ runner })` (opt-in `run_code` tool), plus the `CodeRunner` / `RunCodeOptions` / `RunCodeResult` types.
 
-### 11. `astorlm/experimental/edge-boost` (Experimental — hardening for weak models)
+### 12. `astorlm/experimental/edge-boost` (Experimental — hardening for weak models)
 > ⚠️ **Experimental**. Dedicated subpath, volatile API. Not re-exported from the main barrel.
 
 * **Description**: `edgeBoost(options, tuning?)` — a pure options-transformer that hardens an agent for weak / local / free-tier models (free OpenRouter tiers, small Ollama/vLLM models, heavily quantized checkpoints). It defends against the failure where a model, on a long multi-turn tool context (typically the synthesis turn after several tool round-trips), degenerates into an infinite repetition loop or stalls without producing content until a timeout fires. Four opt-in defenses, none of which change default behavior unless applied:
@@ -363,6 +377,30 @@ const tuned = edgeBoost(options, { synthesis: { forceAfterToolRounds: 2 } })
 ```
 
 A runnable `34-edge-boost` example (`pnpm start 34`, with optional `--prune` / `--digest` flags) lives in the companion examples repository, which is published separately from this one.
+
+### 13. `astorlm/experimental/contract` (Experimental — Agent Contract)
+> ⚠️ **Experimental**. Dedicated subpath, volatile API. Node-bound (uses `node:path` for path matching).
+
+* **Description**: A declarative budget-and-permission envelope for a run, enforced through hooks instead of trust. You declare what the agent may spend and touch; `createContractHooks` turns that into a `SessionHooks` object that stops the run with a `ContractViolationError` the moment a rule is crossed. Complementary to `restrictToolsHook` (tools only) and to `DockerExecutor` (isolates, but does not budget).
+* **Key exports**:
+  - `createContractHooks(contract)` → `SessionHooks`, ready to pass to `createAgent` / `createLocalAgent`.
+  - `ContractValidator` — the enforcement engine on its own, if you'd rather drive it yourself.
+  - `ContractViolationError` (carries the `rule` that failed), `globToRegex`, plus the `AgentContract` / `AgentContractBudget` / `AgentContractTools` / `AgentContractSandbox` types.
+
+```typescript
+import { createContractHooks } from 'astorlm/experimental/contract'
+
+const hooks = createContractHooks({
+  budget:  { maxTurns: 12, maxTotalTokens: 200_000, maxDurationMs: 5 * 60_000 },
+  tools:   { allow: ['read', 'ls', 'grep', 'glob', 'bash'] },
+  sandbox: {
+    allowedPaths: ['src/**', 'tests/**'],
+    deniedPaths:  ['**/.env', '**/secrets/**'],
+    bash: { deniedCommands: ['rm', 'curl', 'git push'] },
+  },
+})
+// pass into createLocalAgent({ hooks })
+```
 
 ---
 
@@ -824,6 +862,61 @@ This is what lets the agent launch a dev server, inspect logs, and tear it down 
 `createAgent` / `createLocalAgent` accept `pattern: 'REACT' | 'PLAN_EXECUTE'` (default `'REACT'`).
 
 `'PLAN_EXECUTE'` auto-registers `add_plan_item` and `update_plan_item` tools that mutate a `PlanItem[]`. Each turn the loop injects the plan state into the system prompt (same idea as a visible, mutable to-do list). The plan persists in session metadata and survives resume/fork; read it with `agent.getPlan()`.
+
+## 🔄 Goal loops (`runGoalLoop`)
+
+A single `agent.run()` ends when the model stops calling tools — which is not the same as the job being *done*. `runGoalLoop` repeats the attempt until a condition you control returns true, giving each iteration a **fresh agent** (and therefore a clean context window) instead of letting one conversation grow unbounded.
+
+The stop condition is yours and should be cheap and deterministic — run the test suite and check the exit code, assert a file exists — which is what separates this from "ask the model if it's finished". `maxIterations` (default 10) is a mandatory fuse, so a condition that never holds cannot run forever.
+
+```typescript
+import { createLocalAgent, runGoalLoop, OpenAIProvider } from 'astorlm'
+import { createCodingTools } from 'astorlm/tools'
+
+const result = await runGoalLoop({
+  goal: 'Make the test suite pass. Run `pnpm test` to check your work.',
+  createIterationAgent: () =>
+    createLocalAgent({
+      cwd: process.cwd(),
+      provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
+      tools: createCodingTools(),
+    }),
+  isDone: async () => (await runTests()).exitCode === 0, // your own check
+  maxIterations: 5,
+  onIteration: ({ iteration, lastText }) => console.log(`#${iteration}: ${lastText.slice(0, 80)}`),
+})
+
+console.log(result) // { iterations, done, lastText, stopReason: 'done' | 'max_iterations' | 'aborted' }
+```
+
+> Iterations share on-disk state (same `cwd`), not conversation history. That is the point: the work accumulates in the repo, the context does not.
+
+## 🧱 Structured output (`generateObject`)
+
+When you want data back rather than prose, `generateObject` constrains the answer to a Zod schema and returns a parsed, typed object — with repair attempts if the model emits something invalid.
+
+```typescript
+import { generateObject, OpenAIProvider } from 'astorlm'
+import { z } from 'zod'
+
+const { object } = await generateObject({
+  provider: new OpenAIProvider({ model: 'qwen2.5-coder', baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' }),
+  schema: z.object({
+    severity: z.enum(['low', 'medium', 'high']),
+    files: z.array(z.string()),
+    summary: z.string(),
+  }),
+  prompt: 'Triage the failure described in the log below: ...',
+})
+
+object.severity // typed as 'low' | 'medium' | 'high'
+```
+
+`mode` picks how the constraint is applied:
+
+* `'tool'` — a synthetic terminal tool (`provide_final_answer`) whose schema *is* the shape. Runs a real agent, so it works on any endpoint with tool calls and reuses the loop's own repair behaviour (`maxTurns`, default 8). This is the mode that lets you pass `tools`, so the model can gather what it needs before delivering the object.
+* `'native'` — the provider's `response_format: json_schema`. Output failing validation is retried up to `maxRepairAttempts` (default 2), then throws `GenerateObjectError`.
+* `'auto'` (default) — `'native'` when no `tools` are passed and the provider is OpenAI-compatible; `'tool'` otherwise. The mode actually used comes back on the result.
 
 ## 📉 Context optimizer (auto-compaction)
 
