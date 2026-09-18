@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.2.2] — 2026-09-18
+
+Documentation only. No runtime changes, no API changes — `dist/` is identical
+to 0.2.1 apart from the version string. npm renders the README of the newest
+published version, so the corrections below cannot reach the package page
+without a release of its own.
+
+### Fixed
+
+- **The entrypoint map contradicted the code.** "Module Layout" claimed the
+  agnostic core lives behind `astorlm/core`, the opposite of the intro and of
+  `src/core.ts`, which is the Node runner. `astorlm` is the agnostic barrel.
+- **The diagram did not render on npm.** npm does not support Mermaid, so the
+  package page showed a raw wall of `graph TD` / `subgraph` / `-->` three
+  screens below the table that sells "No graph DSL" as the difference from
+  LangGraph. It is now a plain text block that renders identically on npm and
+  GitHub, and it carries the agnostic/Node split per entrypoint — the fact the
+  diagram was burying in its subgraph labels.
+- Four internal links pointed at the wrong section, including
+  `experimental/edge-boost` and `steering` in the feature tables.
+
+### Added
+
+- Sections for four public surfaces the README never documented:
+  `astorlm/prompt` (`compilePrompts`, `formatPromptReport`),
+  `astorlm/experimental/contract` (`createContractHooks`, `ContractValidator`),
+  `generateObject` (exported from the main barrel with no prose at all) and
+  `runGoalLoop` (two unlinked words in a table). Every subpath declared in
+  `package.json#exports` now has a documented section.
+
 ## [0.2.1] — 2026-09-18
 
 Metadata only. No runtime changes, no API changes — `dist/` is identical to
@@ -308,6 +338,7 @@ Embeddable, runtime-agnostic agentic TypeScript SDK with:
 - Experimental federated error registry under
   `astorlm/experimental/error-registry`.
 
-[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.1...HEAD
+[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/aralde/astorLM/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/aralde/astorLM/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aralde/astorLM/releases/tag/v0.2.0
