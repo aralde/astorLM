@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
-## [0.2.0] — 2026-09-16
+## [0.2.0] — 2026-09-18
 
 Everything below landed after the initial release: structured output, the
 edge-boost profile for weak models, MCP Apps UI, a WASM code sandbox,
@@ -68,7 +68,6 @@ The observability stack was documented and tested but not packaged.
   reachable. The examples are published separately, so the pointers now say so
   instead of sending readers somewhere that does not exist yet.
 
-
 ### Changed — Dependency refresh
 
 - `openai` 4.104 → **7.17** (three majors), `@anthropic-ai/sdk` 0.40.1 → **0.126**,
@@ -86,8 +85,8 @@ The observability stack was documented and tested but not packaged.
   tsup. **`@types/node`** stays on 22 to match the supported Node floor
   (`engines: >=20`); newer type packages describe APIs the supported runtimes
   do not have.
-- GitHub Actions bumped in both workflows: `checkout` v5 → v7, `setup-node`
-  v5 → v7, `pnpm/action-setup` v4 → v6.
+- GitHub Actions bumped: `checkout` v5 → v7, `setup-node` v5 → v7,
+  `pnpm/action-setup` v4 → v6.
 
 ### Added — Wire-level tests for `OpenAIProvider`
 
@@ -109,9 +108,6 @@ Repository plumbing ahead of the public release. No runtime changes.
   PR expectations), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and
   `SECURITY.md` — the latter includes an explicit threat model covering the
   executor, path confinement, prompt injection and MCP trust boundaries.
-- **Release workflow** (`.github/workflows/release.yml`): publishes to npm with
-  provenance when a `v*` tag is pushed, after re-running typecheck, tests and
-  build and verifying the tag matches `package.json`.
 - **Issue and PR templates**, plus a monthly Dependabot config for npm and
   GitHub Actions.
 - De-flaked `executor-local.test.ts`: it waited a fixed 200 ms for a spawned
