@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.1] — 2026-09-18
+
+Metadata only. No runtime changes, no API changes — `dist/` is identical to
+0.2.0 apart from the version string.
+
 ### Changed
 
 - `package.json#description` is now "The agent loop as a library: an
   embeddable, SDK-first agentic runtime for TypeScript." It is the tagline npm
-  shows in search results, so it says what the package is instead of what it
+  shows in search results, so it says what the package is rather than what it
   was inspired by. npm renders the description of the newest published version,
-  so this appears on the package page with the next release.
+  which is the reason this ships as a release of its own.
 
 ## [0.2.0] — 2026-09-18
 
@@ -301,5 +308,6 @@ Embeddable, runtime-agnostic agentic TypeScript SDK with:
 - Experimental federated error registry under
   `astorlm/experimental/error-registry`.
 
-[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/aralde/astorLM/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aralde/astorLM/releases/tag/v0.2.0
