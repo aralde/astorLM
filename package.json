@@ -1,7 +1,7 @@
 {
   "name": "astorlm",
   "version": "0.2.0",
-  "description": "Embeddable agentic coding library (SDK-first). Inspired by @earendil-works/pi-coding-agent.",
+  "description": "The agent loop as a library: an embeddable, SDK-first agentic runtime for TypeScript.",
   "type": "module",
   "author": "Ariel Deibe <80920987+aralde@users.noreply.github.com> (https://github.com/aralde)",
   "repository": {
