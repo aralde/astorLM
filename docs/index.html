@@ -1,0 +1,2231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>astorlm — embeddable agentic library for TypeScript</title>
+<meta name="description" content="astorlm is an SDK-first agentic library for TypeScript. No CLI, no TUI: import it and build your own harness. Tools, MCP, skills, subagents, sandboxed executors, tracing and evals — runtime-agnostic in the core." />
+<link rel="canonical" href="https://aralde.github.io/astorLM/" />
+<meta name="theme-color" content="#0c0d11" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://aralde.github.io/astorLM/" />
+<meta property="og:title" content="astorlm — embeddable agentic library for TypeScript" />
+<meta property="og:description" content="SDK-first agentic library for TypeScript. Import it and build your own harness: tools, MCP, skills, subagents, sandboxed executors, tracing and evals." />
+<meta property="og:site_name" content="astorlm" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="astorlm — embeddable agentic library for TypeScript" />
+<meta name="twitter:description" content="SDK-first agentic library for TypeScript. Import it and build your own harness." />
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236d5cf0'/%3E%3Cpath d='M9 22.5 16 9l7 13.5' stroke='white' stroke-width='2.4' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M12.2 18.6h7.6' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "astorlm",
+  "description": "Embeddable, SDK-first agentic library for TypeScript.",
+  "programmingLanguage": "TypeScript",
+  "runtimePlatform": "Node.js",
+  "codeRepository": "https://github.com/aralde/astorLM",
+  "license": "https://github.com/aralde/astorLM/blob/main/LICENSE",
+  "author": { "@type": "Person", "name": "aralde" }
+}
+</script>
+
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --bg-soft: #f7f8fa;
+    --bg-sunken: #f0f2f5;
+    --fg: #14161a;
+    --fg-muted: #5b6472;
+    --fg-faint: #6b7382;
+    --border: #e3e6eb;
+    --border-strong: #ccd2db;
+    --accent: #5b4bd6;
+    --accent-fg: #ffffff;
+    --accent-soft: #eeebfd;
+    --accent-border: #cdc5f7;
+
+    --code-bg: #f7f8fa;
+    --code-border: #e3e6eb;
+    --code-fg: #24292f;
+    --code-kw: #a3246d;
+    --code-str: #0a5a2f;
+    --code-com: #656d7b;
+    --code-fn: #5b3bb8;
+
+    --note-bg: #fff9e8;
+    --note-bd: #e0b341;
+    --note-fg: #4a3a12;
+
+    --pill-bg: #e7f0ff;   --pill-fg: #1f5bb8;
+    --exp-bg: #fdf0e3;    --exp-fg: #a3560c;
+    --node-bg: #e4f6e9;   --node-fg: #15702f;
+
+    --shadow-sm: 0 1px 2px rgba(16,20,28,.06), 0 1px 3px rgba(16,20,28,.04);
+    --shadow-lg: 0 12px 32px rgba(16,20,28,.12), 0 2px 8px rgba(16,20,28,.06);
+    --radius: 10px;
+    --sidebar-w: 268px;
+    --topbar-h: 56px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0c0d11;
+      --bg-soft: #131519;
+      --bg-sunken: #16181d;
+      --fg: #e7e9ee;
+      --fg-muted: #9aa3b2;
+      --fg-faint: #7b8494;
+      --border: #22252c;
+      --border-strong: #333843;
+      --accent: #9c8dff;
+      --accent-fg: #14121f;
+      --accent-soft: #1c1a2e;
+      --accent-border: #3a3459;
+
+      --code-bg: #0f1115;
+      --code-border: #22252c;
+      --code-fg: #d7dbe3;
+      --code-kw: #ff7b9c;
+      --code-str: #8fdba0;
+      --code-com: #7b8494;
+      --code-fn: #c4a8ff;
+
+      --note-bg: #1e1a10;
+      --note-bd: #a37c22;
+      --note-fg: #e8d9b0;
+
+      --pill-bg: #142440;  --pill-fg: #79b0ff;
+      --exp-bg: #2a1c0e;   --exp-fg: #f0a860;
+      --node-bg: #102a18;  --node-fg: #68d48c;
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+      --shadow-lg: 0 16px 40px rgba(0,0,0,.6), 0 2px 10px rgba(0,0,0,.4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c0d11;
+    --bg-soft: #131519;
+    --bg-sunken: #16181d;
+    --fg: #e7e9ee;
+    --fg-muted: #9aa3b2;
+    --fg-faint: #7b8494;
+    --border: #22252c;
+    --border-strong: #333843;
+    --accent: #9c8dff;
+    --accent-fg: #14121f;
+    --accent-soft: #1c1a2e;
+    --accent-border: #3a3459;
+
+    --code-bg: #0f1115;
+    --code-border: #22252c;
+    --code-fg: #d7dbe3;
+    --code-kw: #ff7b9c;
+    --code-str: #8fdba0;
+    --code-com: #7b8494;
+    --code-fn: #c4a8ff;
+
+    --note-bg: #1e1a10;
+    --note-bd: #a37c22;
+    --note-fg: #e8d9b0;
+
+    --pill-bg: #142440;  --pill-fg: #79b0ff;
+    --exp-bg: #2a1c0e;   --exp-fg: #f0a860;
+    --node-bg: #102a18;  --node-fg: #68d48c;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-lg: 0 16px 40px rgba(0,0,0,.6), 0 2px 10px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--topbar-h) + 16px); }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font); font-size: 15.5px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 60; height: var(--topbar-h);
+    display: flex; align-items: center; gap: 12px; padding: 0 20px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 16px; color: var(--fg); letter-spacing: -.01em; }
+  .brand:hover { text-decoration: none; }
+  .brand svg { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+  .ver {
+    font-size: 11.5px; font-weight: 600; font-family: var(--mono);
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-border); padding: 1px 7px; border-radius: 20px;
+  }
+  .topbar-spacer { flex: 1; }
+  .tb-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent;
+    background: transparent; color: var(--fg-muted); font: inherit; font-size: 13.5px;
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .tb-btn:hover { background: var(--bg-sunken); color: var(--fg); text-decoration: none; }
+  .tb-btn svg { width: 17px; height: 17px; }
+  .search-trigger {
+    display: flex; align-items: center; gap: 8px; height: 32px; min-width: 190px;
+    padding: 0 8px 0 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg-soft); color: var(--fg-faint); font: inherit; font-size: 13.5px;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .search-trigger:hover { border-color: var(--border-strong); }
+  .search-trigger svg { width: 15px; height: 15px; flex: none; }
+  .search-trigger .kbd-hint { margin-left: auto; }
+  kbd {
+    font-family: var(--mono); font-size: 11px; padding: 2px 5px; border-radius: 5px;
+    background: var(--bg-sunken); border: 1px solid var(--border); color: var(--fg-faint);
+    line-height: 1;
+  }
+  #menuBtn { display: none; }
+
+  .progress {
+    position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+    background: var(--accent); z-index: 70; transition: width .1s linear;
+  }
+
+  /* ---------- layout ---------- */
+  .shell { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+
+  .sidebar {
+    position: sticky; top: var(--topbar-h); align-self: start;
+    height: calc(100vh - var(--topbar-h)); overflow-y: auto;
+    padding: 24px 12px 60px; border-right: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .sidebar .group {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--fg-faint); margin: 20px 10px 6px;
+  }
+  .sidebar .group:first-child { margin-top: 0; }
+  .sidebar ul { list-style: none; margin: 0; padding: 0; }
+  .sidebar a {
+    display: block; padding: 5px 10px; border-radius: 7px; font-size: 13.8px;
+    color: var(--fg-muted); border-left: 2px solid transparent; margin-left: -2px;
+    transition: color .12s, background .12s;
+  }
+  .sidebar a:hover { background: var(--bg-sunken); color: var(--fg); text-decoration: none; }
+  .sidebar a.active {
+    color: var(--accent); background: var(--accent-soft);
+    border-left-color: var(--accent); font-weight: 560;
+  }
+  .sidebar .tag-exp {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--exp-fg); background: var(--exp-bg); padding: 1px 5px; border-radius: 4px; margin-left: 5px;
+  }
+
+  main { min-width: 0; }
+  .doc { padding: 8px 56px 96px; max-width: 880px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    padding: 72px 56px 64px; border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(900px 340px at 18% -8%, var(--accent-soft), transparent 68%),
+      var(--bg);
+  }
+  .hero-inner { max-width: 880px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border);
+    padding: 4px 11px; border-radius: 20px; margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 5.2vw, 52px); line-height: 1.08; letter-spacing: -.033em;
+    margin: 0 0 18px; font-weight: 700;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(100deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #14b8c4));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .lede { font-size: 18.5px; line-height: 1.6; color: var(--fg-muted); margin: 0 0 30px; max-width: 640px; }
+  .hero .lede strong { color: var(--fg); font-weight: 600; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; margin-bottom: 30px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 20px;
+    border-radius: 9px; font-size: 14.5px; font-weight: 570; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--bg-soft); color: var(--fg);
+    transition: transform .12s, box-shadow .15s, background .15s;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn.primary:hover { box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 38%, transparent); }
+  .btn svg { width: 17px; height: 17px; }
+
+  .install {
+    display: flex; align-items: center; gap: 10px; max-width: 360px;
+    font-family: var(--mono); font-size: 14px;
+    background: var(--code-bg); border: 1px solid var(--code-border);
+    border-radius: 9px; padding: 11px 13px; color: var(--code-fg);
+  }
+  .install .prompt { color: var(--fg-faint); user-select: none; }
+  .install .cmd { flex: 1; }
+  .install button {
+    border: 0; background: transparent; color: var(--fg-faint); cursor: pointer;
+    padding: 4px; border-radius: 6px; display: flex; line-height: 0;
+  }
+  .install button:hover { background: var(--bg-sunken); color: var(--fg); }
+  .install button svg { width: 15px; height: 15px; }
+
+  .feat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 14px; margin-top: 52px;
+  }
+  .feat {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 18px;
+    background: var(--bg-soft); transition: border-color .15s, transform .15s;
+  }
+  .feat:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+  .feat h3 { margin: 0 0 6px; font-size: 14.5px; font-weight: 640; letter-spacing: -.005em; }
+  .feat p { margin: 0; font-size: 13.4px; color: var(--fg-muted); line-height: 1.55; }
+  .feat .ico { font-size: 17px; line-height: 1; margin-bottom: 11px; display: block; }
+
+  /* ---------- content ---------- */
+  h2 {
+    font-size: 27px; font-weight: 670; letter-spacing: -.021em;
+    margin: 64px 0 4px; padding-bottom: 9px; border-bottom: 1px solid var(--border);
+    scroll-margin-top: calc(var(--topbar-h) + 20px);
+  }
+  h3 {
+    font-size: 17.5px; font-weight: 640; letter-spacing: -.011em; margin: 34px 0 2px;
+    scroll-margin-top: calc(var(--topbar-h) + 20px);
+  }
+  h4 {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--fg-faint); margin: 26px 0 8px;
+  }
+  .anchor {
+    opacity: 0; margin-left: 9px; font-weight: 400; color: var(--fg-faint);
+    font-size: .8em; transition: opacity .13s; text-decoration: none;
+  }
+  h2:hover .anchor, h3:hover .anchor, .anchor:focus { opacity: 1; }
+  p { margin: 13px 0; }
+  ul.compact { margin: 10px 0; padding-left: 24px; }
+  ul.compact li { margin: 5px 0; }
+  main ul:not(.compact) { padding-left: 24px; }
+  main ul:not(.compact) li { margin: 8px 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+
+  code {
+    font-family: var(--mono); font-size: .875em;
+    background: var(--bg-sunken); border: 1px solid var(--border);
+    padding: .1em .38em; border-radius: 5px; color: var(--fg);
+    overflow-wrap: break-word;
+  }
+  .code-wrap { position: relative; margin: 18px 0; }
+  pre {
+    margin: 0; background: var(--code-bg); color: var(--code-fg);
+    border: 1px solid var(--code-border); border-radius: var(--radius);
+    padding: 16px 18px; overflow-x: auto; font-size: 13.2px; line-height: 1.62;
+    tab-size: 2;
+  }
+  pre code { background: transparent; border: 0; padding: 0; color: inherit; font-size: inherit; }
+  .kw { color: var(--code-kw); }
+  .str { color: var(--code-str); }
+  .com { color: var(--code-com); font-style: italic; }
+  .fn { color: var(--code-fn); }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 5px;
+    height: 27px; padding: 0 8px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg-muted);
+    font: inherit; font-size: 11.5px; opacity: 0; transition: opacity .14s, color .14s;
+  }
+  .code-wrap:hover .copy-btn, .copy-btn:focus { opacity: 1; }
+  .copy-btn:hover { color: var(--fg); border-color: var(--border-strong); }
+  .copy-btn.done { color: var(--node-fg); border-color: var(--node-fg); opacity: 1; }
+  .copy-btn svg { width: 13px; height: 13px; }
+
+  .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.8px; }
+  th, td { padding: 9px 13px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg-soft); font-weight: 620; font-size: 12.4px; color: var(--fg-muted); letter-spacing: .01em; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--bg-soft); }
+  td code { white-space: nowrap; }
+
+  .note {
+    background: var(--note-bg); border: 1px solid var(--note-bd); border-left-width: 3px;
+    color: var(--note-fg); padding: 13px 16px; border-radius: 8px; margin: 18px 0; font-size: 14px;
+  }
+  .note code { background: color-mix(in srgb, var(--note-bd) 16%, transparent); border-color: color-mix(in srgb, var(--note-bd) 34%, transparent); color: inherit; }
+  .note a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+  .pill {
+    display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; padding: 2px 7px; border-radius: 20px; vertical-align: middle;
+    margin-left: 8px; background: var(--pill-bg); color: var(--pill-fg);
+  }
+  .pill.exp { background: var(--exp-bg); color: var(--exp-fg); }
+  .pill.node { background: var(--node-bg); color: var(--node-fg); }
+
+  /* ---------- search ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    background: rgba(10,12,16,.55); backdrop-filter: blur(3px);
+    padding: 12vh 20px 20px;
+  }
+  .overlay.open { display: block; }
+  .search-box {
+    max-width: 620px; margin: 0 auto; background: var(--bg);
+    border: 1px solid var(--border-strong); border-radius: 14px;
+    box-shadow: var(--shadow-lg); overflow: hidden;
+  }
+  .search-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .search-head svg { width: 18px; height: 18px; color: var(--fg-faint); flex: none; }
+  #searchInput {
+    flex: 1; border: 0; background: transparent; color: var(--fg);
+    font: inherit; font-size: 16px; outline: none;
+  }
+  #searchInput::placeholder { color: var(--fg-faint); }
+  #results { max-height: 58vh; overflow-y: auto; padding: 8px; }
+  .res {
+    display: block; padding: 10px 12px; border-radius: 9px; color: var(--fg);
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .res:hover, .res.sel { background: var(--accent-soft); border-color: var(--accent-border); text-decoration: none; }
+  .res .t { font-size: 14px; font-weight: 580; display: flex; align-items: center; gap: 8px; }
+  .res .crumb { font-size: 11px; color: var(--fg-faint); font-weight: 500; }
+  .res .s { font-size: 12.6px; color: var(--fg-muted); margin-top: 3px; line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .res mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .search-foot {
+    display: flex; gap: 14px; padding: 9px 16px; border-top: 1px solid var(--border);
+    font-size: 11.5px; color: var(--fg-faint); background: var(--bg-soft);
+  }
+  .empty { padding: 30px 16px; text-align: center; color: var(--fg-faint); font-size: 14px; }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--border); padding: 32px 56px 48px;
+    color: var(--fg-muted); font-size: 13.5px;
+    display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center;
+  }
+  footer .f-sp { flex: 1; }
+
+  .backtop {
+    position: fixed; right: 22px; bottom: 22px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--bg); color: var(--fg-muted);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-sm); opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .backtop.show { opacity: 1; pointer-events: auto; }
+  .backtop:hover { color: var(--accent); border-color: var(--accent); }
+  .backtop svg { width: 17px; height: 17px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1000px) {
+    :root { --sidebar-w: 240px; }
+    .doc { padding: 8px 32px 80px; }
+    .hero { padding: 56px 32px 48px; }
+    footer { padding: 28px 32px 40px; }
+  }
+  @media (max-width: 820px) {
+    #menuBtn { display: inline-flex; }
+    .search-trigger { min-width: 0; }
+    .search-trigger .ph, .search-trigger .kbd-hint { display: none; }
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .sidebar {
+      position: fixed; top: var(--topbar-h); left: 0; z-index: 55;
+      width: min(300px, 84vw); background: var(--bg);
+      transform: translateX(-102%); transition: transform .22s ease;
+      box-shadow: var(--shadow-lg);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .scrim { position: fixed; inset: var(--topbar-h) 0 0; background: rgba(10,12,16,.45); z-index: 54; display: none; }
+    .scrim.open { display: block; }
+    .doc { padding: 8px 20px 72px; }
+    .hero { padding: 44px 20px 40px; }
+    .hero .lede { font-size: 17px; }
+    footer { padding: 24px 20px 36px; }
+    body { font-size: 15px; }
+    .backtop { right: 14px; bottom: 14px; }
+  }
+  @media (max-width: 520px) {
+    .topbar { padding: 0 12px; gap: 6px; }
+    .hide-xs { display: none; }
+    .cta-row .btn { flex: 1; justify-content: center; }
+    h2 { font-size: 23px; }
+  }
+  @media print {
+    .topbar, .sidebar, .backtop, .overlay, .copy-btn, .progress { display: none !important; }
+    .shell { grid-template-columns: 1fr; }
+    .doc { max-width: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<header class="topbar">
+  <button class="tb-btn" id="menuBtn" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <a class="brand" href="#top">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#6d5cf0"/><path d="M9 22.5 16 9l7 13.5" stroke="white" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="M12.2 18.6h7.6" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+    astorlm
+  </a>
+  <span class="ver">v0.2.2</span>
+  <div class="topbar-spacer"></div>
+
+  <button class="search-trigger" id="searchBtn" aria-label="Search documentation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <span class="ph">Search docs…</span>
+    <span class="kbd-hint"><kbd>⌘K</kbd></span>
+  </button>
+
+  <button class="tb-btn" id="themeBtn" aria-label="Toggle colour theme">
+    <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.4 5.6l-1.4 1.4M7 17l-1.4 1.4M18.4 18.4 17 17M7 7 5.6 5.6"/></svg>
+    <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/></svg>
+  </button>
+
+  <a class="tb-btn hide-xs" href="https://www.npmjs.com/package/astorlm" target="_blank" rel="noopener" aria-label="astorlm on npm">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 6h20v12H12v-2h8V8H4v10H2z"/><path d="M6 10h4v8H8v-6H6z"/><path d="M14 10h6v6h-2v-4h-2v4h-2z"/></svg>
+    <span class="hide-xs">npm</span>
+  </a>
+  <a class="tb-btn" href="https://github.com/aralde/astorLM" target="_blank" rel="noopener" aria-label="astorlm on GitHub">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5a10.5 10.5 0 0 0-3.32 20.47c.52.1.71-.23.71-.5v-1.77c-2.92.64-3.54-1.4-3.54-1.4-.48-1.22-1.17-1.55-1.17-1.55-.96-.65.07-.64.07-.64 1.06.08 1.61 1.09 1.61 1.09.94 1.61 2.47 1.15 3.07.88.1-.68.37-1.15.67-1.41-2.33-.27-4.78-1.17-4.78-5.19 0-1.15.41-2.08 1.08-2.82-.11-.27-.47-1.34.1-2.79 0 0 .88-.28 2.88 1.07a10 10 0 0 1 5.24 0c2-1.35 2.88-1.07 2.88-1.07.57 1.45.21 2.52.1 2.79.67.74 1.08 1.67 1.08 2.82 0 4.03-2.45 4.92-4.79 5.18.38.33.71.97.71 1.96v2.9c0 .28.19.61.71.5A10.5 10.5 0 0 0 12 1.5Z"/></svg>
+  </a>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+
+<nav class="sidebar" id="sidebar" aria-label="Documentation">
+  <div class="group">Getting started</div>
+  <ul>
+    <li><a href="#intro">Introduction</a></li>
+    <li><a href="#install">Installation</a></li>
+    <li><a href="#quickstart">Quick start</a></li>
+    <li><a href="#conventions">Example conventions</a></li>
+    <li><a href="#entrypoints">Entry points</a></li>
+  </ul>
+  <div class="group">Core API</div>
+  <ul>
+    <li><a href="#session">createAgent</a></li>
+    <li><a href="#node-session">createLocalAgent</a></li>
+    <li><a href="#astoragent">AstorAgent</a></li>
+    <li><a href="#events">Events</a></li>
+  </ul>
+  <div class="group">Components</div>
+  <ul>
+    <li><a href="#providers">Providers</a></li>
+    <li><a href="#embeddings">Embeddings &amp; search</a></li>
+    <li><a href="#tools">Tools</a></li>
+    <li><a href="#subagents">Subagents</a></li>
+    <li><a href="#structured-output">Structured output</a></li>
+    <li><a href="#hooks">Hooks</a></li>
+    <li><a href="#steering">Steering</a></li>
+    <li><a href="#loops">Loops &amp; Heartbeat</a></li>
+    <li><a href="#sessions">Persistence &amp; branching</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#mcp">MCP</a></li>
+    <li><a href="#executors">Executors</a></li>
+  </ul>
+  <div class="group">Advanced</div>
+  <ul>
+    <li><a href="#prompt-compiler">Prompt compiler</a></li>
+    <li><a href="#optimizer">Context optimizer</a></li>
+    <li><a href="#retry">Retry</a></li>
+    <li><a href="#usage">Token usage</a></li>
+    <li><a href="#tracing">Tracing &amp; OTel <span class="tag-exp">exp</span></a></li>
+    <li><a href="#metrics">Metrics &amp; cost <span class="tag-exp">exp</span></a></li>
+    <li><a href="#replay">Record &amp; Replay <span class="tag-exp">exp</span></a></li>
+    <li><a href="#evals">Evals <span class="tag-exp">exp</span></a></li>
+    <li><a href="#wasm-runner">WASM sandbox <span class="tag-exp">exp</span></a></li>
+    <li><a href="#agent-contract">Agent contract <span class="tag-exp">exp</span></a></li>
+    <li><a href="#error-registry">Error registry <span class="tag-exp">exp</span></a></li>
+    <li><a href="#edge-boost">edge-boost <span class="tag-exp">exp</span></a></li>
+  </ul>
+</nav>
+
+<main id="top">
+
+<section class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">SDK-first · no CLI, no TUI</span>
+    <h1>The agent loop,<br/><span class="grad">as a library you embed.</span></h1>
+    <p class="lede">
+      <strong>astorlm</strong> gives you the moving parts of a coding agent — the multi-turn loop,
+      Zod-typed tools, MCP, skills, subagents, sandboxed execution, tracing and evals — and stays out
+      of your way. You import it and build your own harness on top.
+    </p>
+
+    <div class="cta-row">
+      <a class="btn primary" href="#quickstart">
+        Get started
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"/></svg>
+      </a>
+      <a class="btn" href="https://github.com/aralde/astorLM" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5a10.5 10.5 0 0 0-3.32 20.47c.52.1.71-.23.71-.5v-1.77c-2.92.64-3.54-1.4-3.54-1.4-.48-1.22-1.17-1.55-1.17-1.55-.96-.65.07-.64.07-.64 1.06.08 1.61 1.09 1.61 1.09.94 1.61 2.47 1.15 3.07.88.1-.68.37-1.15.67-1.41-2.33-.27-4.78-1.17-4.78-5.19 0-1.15.41-2.08 1.08-2.82-.11-.27-.47-1.34.1-2.79 0 0 .88-.28 2.88 1.07a10 10 0 0 1 5.24 0c2-1.35 2.88-1.07 2.88-1.07.57 1.45.21 2.52.1 2.79.67.74 1.08 1.67 1.08 2.82 0 4.03-2.45 4.92-4.79 5.18.38.33.71.97.71 1.96v2.9c0 .28.19.61.71.5A10.5 10.5 0 0 0 12 1.5Z"/></svg>
+        GitHub
+      </a>
+    </div>
+
+    <div class="install">
+      <span class="prompt">$</span>
+      <span class="cmd" id="installCmd">pnpm add astorlm</span>
+      <button id="installCopy" aria-label="Copy install command">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </button>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat">
+        <span class="ico">🧩</span>
+        <h3>Small conceptual surface</h3>
+        <p>Provider, tools, agent, loop, executor. Five pieces you can hold in your head.</p>
+      </div>
+      <div class="feat">
+        <span class="ico">🌍</span>
+        <h3>Runtime-agnostic core</h3>
+        <p>Node, Deno, Bun, edge and browser. Anything needing Node sits behind its own subpath.</p>
+      </div>
+      <div class="feat">
+        <span class="ico">🔌</span>
+        <h3>MCP, both ways</h3>
+        <p>Mount MCP servers as tools, including MCP Apps interactive UI (SEP-1865).</p>
+      </div>
+      <div class="feat">
+        <span class="ico">🛡️</span>
+        <h3>Isolation you choose</h3>
+        <p>Local, Docker, or a capability-empty WASM sandbox for code the model writes.</p>
+      </div>
+      <div class="feat">
+        <span class="ico">📊</span>
+        <h3>Observable by design</h3>
+        <p>OpenTelemetry spans, cost metrics, deterministic replay and an eval harness.</p>
+      </div>
+      <div class="feat">
+        <span class="ico">🪫</span>
+        <h3>Built for weak models</h3>
+        <p>edge-boost hardens the loop for free tiers, small local models and quantized checkpoints.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="doc">
+
+<h2 id="intro">Introduction</h2>
+<p><strong>astorlm</strong> is an embeddable agentic library for TypeScript. SDK-first: there is no CLI and no TUI &mdash; you import it and build your own harness on top.</p>
+<p>The conceptual model is small:</p>
+<ul class="compact">
+  <li><strong>Provider</strong> &mdash; a model client (Anthropic, OpenAI-compatible) that streams events.</li>
+  <li><strong>Tools</strong> &mdash; Zod-typed functions the model can invoke.</li>
+  <li><strong>Agent</strong> &mdash; the returned instance holding in-memory state (messages, registry, event bus).</li>
+  <li><strong>Loop</strong> &mdash; the multi-turn cycle that wires model + tools + hooks together.</li>
+  <li><strong>Executor</strong> &mdash; the backend that runs commands (local, docker, custom).</li>
+</ul>
+<p>Designed to be <em>runtime-agnostic</em> in the core (Node, Deno, Bun, edge, browser), with a separate subpath for anything that requires Node (reachable under <code>astorlm/core</code>).</p>
+
+<h2 id="install">Installation</h2>
+<pre><code><span class="kw">pnpm</span> add astorlm
+<span class="com"># or</span>
+<span class="kw">npm</span> install astorlm</code></pre>
+<p>Requirements: <strong>Node &ge; 20</strong>, TypeScript with ESM resolution (<code>"type": "module"</code> in your <code>package.json</code>).</p>
+
+<h2 id="quickstart">Quick start</h2>
+<p>A coding agent with built-in tools, pointed at a local OpenAI-compatible endpoint:</p>
+<pre><code><span class="kw">import</span> { OpenAIProvider, createLocalAgent } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { createCodingTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  cwd: process.<span class="fn">cwd</span>(),
+  provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+    model: <span class="str">'myModel'</span>,
+    baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+    apiKey: <span class="str">'myApiKey'</span>,
+  }),
+  tools: <span class="fn">createCodingTools</span>(),
+})
+
+agent.<span class="fn">on</span>(<span class="str">'text'</span>, (text) =&gt; process.stdout.<span class="fn">write</span>(text))
+
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'List the .ts files in this project.'</span>)
+console.<span class="fn">log</span>(agent.<span class="fn">getUsage</span>())</code></pre>
+
+<div class="note"><strong>Note.</strong> <code>createAgent</code> and <code>createLocalAgent</code> are <strong>async</strong> &mdash; always <code>await</code> them. Session manager state is loaded before they return.</div>
+
+<h2 id="conventions">Example conventions</h2>
+<p>Every code sample in this wiki uses the same placeholders, so there is only one thing to swap:</p>
+<table>
+  <thead><tr><th>Placeholder</th><th>Stands for</th></tr></thead>
+  <tbody>
+    <tr><td><code>'myModel'</code></td><td>The chat model id your endpoint serves.</td></tr>
+    <tr><td><code>'myEmbeddingModel'</code></td><td>The embedding model id (embeddings samples only).</td></tr>
+    <tr><td><code>'myApiKey'</code></td><td>Your API key. Purely local endpoints usually ignore it, but it must be a non-empty string.</td></tr>
+    <tr><td><code>'http://127.0.0.1:11434/v1'</code></td><td>Any OpenAI-compatible base URL. Swap it for your own.</td></tr>
+  </tbody>
+</table>
+<p>Substitute your own values, or read them from the environment &mdash; <code>OpenAIProvider</code> can pick the key up from an env var for you (see <a href="#providers">Providers</a>).</p>
+
+<h2 id="entrypoints">Entry points</h2>
+<table>
+  <thead><tr><th>Import</th><th>Runtime</th><th>What it exposes</th></tr></thead>
+  <tbody>
+    <tr><td><code>astorlm</code></td><td>agnostic / Node</td><td>Core plus Node re-exports: <code>createAgent</code>, <code>createLocalAgent</code>, <code>OpenAIProvider</code>, <code>AnthropicProvider</code>, <code>tool</code>, <code>ToolRegistry</code>, <code>FileSessionManager</code>, <code>AstorAgent</code>, <code>createSubagentTool</code>, <code>runGoalLoop</code>, <code>generateObject</code>, etc.</td></tr>
+    <tr><td><code>astorlm/core</code></td><td>Node &ge; 20</td><td><code>createLocalAgent</code>, <code>FileSessionManager</code>, <code>AstorAgent</code>, <code>LocalExecutor</code>, <code>DockerExecutor</code>, <code>mountMcpServer</code>, <code>createFileSystemSkillSource</code>, <code>createLayeredSkillSource</code></td></tr>
+    <tr><td><code>astorlm/tools</code></td><td>Node &ge; 20</td><td><code>createCodingTools</code>, <code>createReadOnlyTools</code>, individual built-in tools (formerly <code>astorlm/tools/node</code>)</td></tr>
+    <tr><td><code>astorlm/prompt</code></td><td>agnostic</td><td><code>buildSystemPrompt</code>, <code>DEFAULT_SYSTEM_PROMPT</code>, <code>compilePrompts</code>, <code>formatPromptReport</code> &mdash; see <a href="#prompt-compiler">Prompt compiler</a>.</td></tr>
+    <tr><td><code>astorlm/embeddings</code></td><td>agnostic (<code>fetch</code>)</td><td><code>createOpenAIEmbedder</code>, <code>createSemanticIndex</code>, <code>withEmbeddingCache</code>, <code>cosineSimilarity</code> / <code>dotProduct</code> / <code>euclideanDistance</code> &mdash; also re-exported from the <code>astorlm</code> barrel.</td></tr>
+    <tr><td><code>astorlm/experimental/contract</code></td><td>Node &ge; 20</td><td><code>createContractHooks</code>, <code>ContractViolationError</code> and the contract types.</td></tr>
+    <tr><td><code>astorlm/experimental/error-registry</code></td><td>Node &ge; 20</td><td><code>createErrorRegistry</code>, <code>errorRegistryHooks</code></td></tr>
+    <tr><td><code>astorlm/experimental/tracing</code></td><td>agnostic</td><td><code>attachTracer</code>, <code>createTracer</code>, <code>createInMemoryExporter</code> and span types (observability).</td></tr>
+    <tr><td><code>astorlm/experimental/tracing/otel</code></td><td>agnostic (<code>fetch</code>)</td><td><code>createOtlpSpanExporter</code> &mdash; OTLP/HTTP export to OpenTelemetry collectors.</td></tr>
+    <tr><td><code>astorlm/experimental/metrics</code></td><td>agnostic</td><td><code>attachMetrics</code>, <code>computeCost</code>, <code>resolvePricing</code> &mdash; operational metrics and USD cost.</td></tr>
+    <tr><td><code>astorlm/experimental/replay</code></td><td>agnostic</td><td><code>createRecordingProvider</code>, <code>createReplayProvider</code> &mdash; deterministic record &amp; replay.</td></tr>
+    <tr><td><code>astorlm/experimental/evals</code></td><td>agnostic</td><td><code>runEval</code> plus scorers (<code>exactMatch</code>, <code>contains</code>, <code>regexMatch</code>, <code>toolTrajectory</code>, <code>llmJudge</code>).</td></tr>
+    <tr><td><code>astorlm/experimental/wasm-runner</code></td><td>agnostic (WASM)</td><td><code>QuickJsCodeRunner</code>, <code>createCodeRunnerTool</code> &mdash; capability-empty code sandbox. See <a href="#wasm-runner">WASM code sandbox</a>.</td></tr>
+    <tr><td><code>astorlm/experimental/edge-boost</code></td><td>agnostic</td><td><code>edgeBoost</code>, <code>createGuardedProvider</code>, <code>mergeSessionHooks</code> &mdash; hardening profile for weak, local or free models.</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2 id="session">createAgent</h2>
+<p>The core factory. Returns an in-memory <code>Agent</code> with no Node dependencies.</p>
+
+<h4>Signature</h4>
+<pre><code><span class="fn">createAgent</span>(opts: CreateAgentOptions): <span class="kw">Promise</span>&lt;Agent&gt;</code></pre>
+
+<h4>Options</h4>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>provider</code></td><td><code>Provider</code></td><td>Model client. Required.</td></tr>
+    <tr><td><code>cwd</code></td><td><code>string</code></td><td>Logical working directory for the session.</td></tr>
+    <tr><td><code>tools</code></td><td><code>Tool[]</code></td><td>Tools registered up front.</td></tr>
+    <tr><td><code>systemPrompt</code></td><td><code>string</code></td><td>Replaces the default system prompt.</td></tr>
+    <tr><td><code>appendSystemPrompt</code></td><td><code>string</code></td><td>Extra text appended at the end of the prompt.</td></tr>
+    <tr><td><code>maxTurns</code></td><td><code>number</code></td><td>Turn cap per <code>run()</code>. Default <code>25</code>.</td></tr>
+    <tr><td><code>hooks</code></td><td><code>SessionHooks</code></td><td>See <a href="#hooks">Hooks</a>.</td></tr>
+    <tr><td><code>contextOptimizer</code></td><td><code>ContextOptimizerOptions | false</code></td><td>Automatic compaction. See <a href="#optimizer">optimizer</a>.</td></tr>
+    <tr><td><code>retry</code></td><td><code>RetryPolicy</code></td><td>Retries for transient errors.</td></tr>
+    <tr><td><code>executor</code></td><td><code>Executor</code></td><td>Backend for bash. Default: noop.</td></tr>
+    <tr><td><code>sessionManager</code></td><td><code>SessionManager</code></td><td>Persistence + branching.</td></tr>
+    <tr><td><code>sessionId</code></td><td><code>string</code></td><td>Resumes an existing session from the manager.</td></tr>
+    <tr><td><code>skillSources</code></td><td><code>SkillSource[]</code></td><td>Loadable skill sources.</td></tr>
+    <tr><td><code>skillMode</code></td><td><code>'filesystem' | 'on-demand' | 'all'</code></td><td>How skills are exposed to the model.</td></tr>
+    <tr><td><code>pattern</code></td><td><code>'REACT' | 'PLAN_EXECUTE'</code></td><td>Loop style. Default <code>'REACT'</code>. See <a href="#loops">Loop patterns &amp; Heartbeat</a>.</td></tr>
+    <tr><td><code>heartbeat</code></td><td><code>HeartbeatOptions</code></td><td>Config for the proactive background loop. See <a href="#loops">Heartbeat</a>.</td></tr>
+  </tbody>
+</table>
+
+<h4><code>Agent</code> members</h4>
+<table>
+  <thead><tr><th>Member</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>id: string</code></td><td>Unique session id.</td></tr>
+    <tr><td><code>pattern: AgentLoopPattern</code></td><td>Loop style the agent was created with (<code>'REACT'</code> or <code>'PLAN_EXECUTE'</code>).</td></tr>
+    <tr><td><code>run(input, { abortSignal? })</code></td><td>Pushes a user message (string or structured) and runs the loop to completion. Returns the final response.</td></tr>
+    <tr><td><code>fork({ newSessionId?, branchFromMessageId? })</code></td><td>Creates a branched child session and returns a new initialized <code>Agent</code>.</td></tr>
+    <tr><td><code>on(event, listener)</code></td><td>Registers a listener for a specific event (<code>'text'</code>, <code>'thinking'</code>, <code>'tool-start'</code>, <code>'tool-end'</code>, <code>'error'</code>, <code>'event'</code>). Returns an unsubscribe function.</td></tr>
+    <tr><td><code>abort(reason?)</code></td><td>Cancels the in-flight turn.</td></tr>
+    <tr><td><code>getMessages()</code></td><td>Snapshot of the history.</td></tr>
+    <tr><td><code>getUsage()</code></td><td>Accumulated token usage.</td></tr>
+    <tr><td><code>registerTool(t)</code></td><td>Adds a tool at runtime.</td></tr>
+    <tr><td><code>startHeartbeat(opts?)</code></td><td>Starts the proactive background loop. Accepts <code>HeartbeatOptions</code> to override the initial config.</td></tr>
+    <tr><td><code>stopHeartbeat()</code></td><td>Stops the active heartbeat (clears the interval and the global timeout).</td></tr>
+    <tr><td><code>getPlan()</code></td><td>Snapshot of the current <code>PlanItem[]</code> (in <code>PLAN_EXECUTE</code> mode).</td></tr>
+  </tbody>
+</table>
+
+<h2 id="node-session">createLocalAgent <span class="pill node">node</span></h2>
+<p>A wrapper over <code>createAgent</code> that automatically injects a <code>LocalExecutor</code> (so the bash tools work) and a <code>fileReader</code> backed by <code>node:fs</code> (so the system prompt can pick up <code>AGENTS.md</code> / <code>CLAUDE.md</code> when they exist).</p>
+<p>Same options as <code>createAgent</code>. Use it whenever you are on Node.</p>
+
+<h2 id="astoragent">AstorAgent <span class="pill node">node</span></h2>
+<p>An ergonomic facade over <code>createLocalAgent</code> for common flows (one prompt, a fresh session per task, branching).</p>
+
+<pre><code><span class="kw">import</span> { AstorAgent, FileSessionManager, OpenAIProvider } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> agent = <span class="kw">new</span> <span class="fn">AstorAgent</span>({
+  provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+    model: <span class="str">'myModel'</span>,
+    baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+    apiKey: <span class="str">'myApiKey'</span>,
+  }),
+  sessionManager: <span class="kw">new</span> <span class="fn">FileSessionManager</span>({ dir: <span class="str">'./.astor-sessions'</span> }),
+  defaultOutputMode: <span class="str">'verbose'</span>,
+})
+
+<span class="kw">const</span> { sessionId, text } = <span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'Add 2 + 2'</span>)
+
+<span class="kw">const</span> childAgent = <span class="kw">await</span> agent.<span class="fn">fork</span>({
+  parentId: sessionId,
+})
+<span class="kw">await</span> childAgent.<span class="fn">run</span>(<span class="str">'Now subtract them'</span>)</code></pre>
+
+<h4>Output modes</h4>
+<ul class="compact">
+  <li><code>'silent'</code> &mdash; subscribes to nothing.</li>
+  <li><code>'console'</code> &mdash; streams text to <code>stdout</code>.</li>
+  <li><code>'verbose'</code> &mdash; adds tool execution and session end logs.</li>
+  <li><code>(event) =&gt; void</code> &mdash; custom function: you receive the raw <code>AgentEvent</code>.</li>
+</ul>
+
+<h2 id="events">Events</h2>
+<p>Register listeners through the session's <code>session.on(event, listener)</code> method:</p>
+<table>
+  <thead><tr><th>Event</th><th>Listener argument</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>'text'</code></td><td><code>text: string</code></td><td>Each chunk of the model's response text, in real time.</td></tr>
+    <tr><td><code>'thinking'</code></td><td><code>thinking: string</code></td><td>Each chunk of reasoning content, in real time.</td></tr>
+    <tr><td><code>'tool-start'</code></td><td><code>{ name, input }</code></td><td>Fires before a tool runs.</td></tr>
+    <tr><td><code>'tool-end'</code></td><td><code>{ name, output, isError }</code></td><td>Fires after a tool finishes.</td></tr>
+    <tr><td><code>'error'</code></td><td><code>error: any</code></td><td>Fires if the session ends with an error.</td></tr>
+    <tr><td><code>'event'</code></td><td><code>event: AgentEvent</code></td><td>The raw telemetry event off the bus (e.g. <code>turn_start</code>, <code>session_end</code>).</td></tr>
+  </tbody>
+</table>
+<p>Among the raw events reachable through <code>'event'</code>, the loop variants emit:</p>
+<table>
+  <thead><tr><th>Raw event</th><th>Payload</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>heartbeat_tick</code></td><td><code>{ checkPrompt }</code></td><td>The heartbeat woke up and is about to run (it already passed <code>localCondition</code>, if one was set).</td></tr>
+    <tr><td><code>plan_updated</code></td><td><code>{ plan: PlanItem[] }</code></td><td>The plan changed after an <code>add_plan_item</code> / <code>update_plan_item</code> call (<code>PLAN_EXECUTE</code> mode).</td></tr>
+    <tr><td><code>user_steering</code></td><td><code>{ toolUseId, feedback }</code></td><td>A hook steered the agent at a tool boundary. See <a href="#steering">Steering</a>.</td></tr>
+    <tr><td><code>provider_retry</code></td><td><code>{ attempt }</code></td><td>A transient provider error is being retried. See <a href="#retry">Retry</a>.</td></tr>
+    <tr><td><code>contract_violation</code></td><td><code>{ kind, detail }</code></td><td>The agent contract was breached. See <a href="#agent-contract">Agent contract</a>.</td></tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2 id="providers">Providers</h2>
+<p>An adapter over a model. astorlm ships two out of the box.</p>
+
+<h3>OpenAIProvider</h3>
+<p>Chat Completions with <code>tool_calls</code>. Works against any OpenAI-compatible endpoint: Groq, OpenRouter, Together, Ollama, vLLM, llama.cpp.</p>
+<pre><code><span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+  model: <span class="str">'myModel'</span>,
+  baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>, <span class="com">// optional, defaults to api.openai.com</span>
+  apiKey: <span class="str">'myApiKey'</span>,                    <span class="com">// or read from an environment variable</span>
+  envVar: <span class="str">'OPENAI_API_KEY'</span>,                <span class="com">// name of the env var (e.g. GROQ_API_KEY)</span>
+  maxTokens: <span class="str">4096</span>,
+})</code></pre>
+
+<div class="note">
+  <strong>Free tiers, local models, and not shipping API keys around.</strong>
+  Because <code>baseURL</code> accepts any OpenAI-compatible endpoint, the cleanest way to run astorlm
+  against free tiers, local models, or a mix of several backends is to point it at a proxy instead of
+  at a vendor directly. <a href="https://github.com/aralde/operatorlm">OperatorLM</a> is a companion
+  project built for exactly that: it exposes one local OpenAI-compatible endpoint, holds the real
+  provider keys on its own side, and routes each request across several targets with failover — so
+  your agent code carries a placeholder key like <code>'myApiKey'</code> and never sees a real
+  credential. Recommended whenever you want free/local models, key isolation, or per-model routing
+  without touching the agent.
+  <br/><br/>
+  Note that model <em>failover between providers</em> is deliberately out of scope for astorlm — that
+  belongs to the routing layer. What astorlm owns is what happens once a weak model is already
+  answering badly: see <a href="#edge-boost">edge-boost</a>.
+</div>
+
+<h3>AnthropicProvider</h3>
+<p>Native streaming through <code>@anthropic-ai/sdk</code>. Supports thinking blocks and reports cache read/creation.</p>
+<pre><code><span class="kw">new</span> <span class="fn">AnthropicProvider</span>({
+  model: <span class="str">'claude-3-5-sonnet-latest'</span>,
+  apiKey: process.env.<span class="fn">ANTHROPIC_API_KEY</span>,
+  maxTokens: <span class="str">4096</span>,
+  baseURL: <span class="str">'https://api.anthropic.com'</span>, <span class="com">// optional</span>
+})</code></pre>
+
+<h3>Custom provider</h3>
+<p>Implement the <code>Provider</code> interface (a single <code>stream(opts)</code> method emitting <code>ProviderEvent</code>s) and pass it to the session. Useful for mocking in tests, or for adapting SDKs that are not OpenAI-compatible.</p>
+
+<hr/>
+
+<h2 id="embeddings">Embeddings &amp; semantic search</h2>
+<p>
+  First-class <strong>embedding</strong> primitives (representing text as dense vectors so you can
+  compare by meaning rather than by literal match): they live next to the providers in the
+  <code>astorlm</code> barrel and also under the <code>astorlm/embeddings</code> subpath. They are
+  <em>runtime-agnostic</em> (only <code>fetch</code>, zero dependencies) &mdash; they run wherever
+  <code>fetch</code> runs: Node, Deno, browser, edge.
+</p>
+
+<h3>createOpenAIEmbedder</h3>
+<p>An OpenAI-compatible client. <code>embed</code> (one text) and <code>embedMany</code> (batched, a single round-trip), both reporting token <code>usage</code>. Works against OpenAI, Ollama, vLLM, LM Studio and friends by changing <code>baseURL</code>.</p>
+<pre><code><span class="kw">import</span> { createOpenAIEmbedder } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> embedder = <span class="fn">createOpenAIEmbedder</span>({
+  baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+  model: <span class="str">'myEmbeddingModel'</span>,
+  apiKey: <span class="str">'myApiKey'</span>,
+  <span class="com">// dimensions: 256,   // optional (text-embedding-3-* models truncate)</span>
+})
+
+<span class="kw">const</span> { embedding, usage } = <span class="kw">await</span> embedder.<span class="fn">embed</span>(<span class="str">'hello world'</span>)
+<span class="kw">const</span> { embeddings } = <span class="kw">await</span> embedder.<span class="fn">embedMany</span>([<span class="str">'a'</span>, <span class="str">'b'</span>, <span class="str">'c'</span>]) <span class="com">// 1 request</span></code></pre>
+
+<h3>createSemanticIndex</h3>
+<p>An in-memory vector store (exact brute-force search). This is the reusable primitive behind semantic search, RAG, and the error registry's matching. You index text and query it by meaning with <code>topK</code> (how many results) and <code>threshold</code> (minimum score).</p>
+<pre><code><span class="kw">import</span> { createOpenAIEmbedder, createSemanticIndex } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> index = <span class="fn">createSemanticIndex</span>({ embedder })
+
+<span class="kw">await</span> index.<span class="fn">addMany</span>([
+  { id: <span class="str">'oom'</span>, text: <span class="str">'The Node process dies with out of memory during the build.'</span> },
+  { id: <span class="str">'tls'</span>, text: <span class="str">'TLS handshake fails: expired certificate.'</span> },
+])
+
+<span class="kw">const</span> hits = <span class="kw">await</span> index.<span class="fn">query</span>(<span class="str">'it ran out of RAM while compiling'</span>, { topK: <span class="str">1</span> })
+<span class="com">// → [{ id: 'oom', score: 0.8…, text: '…' }]</span></code></pre>
+<p>Other methods: <code>add</code>, <code>addVector</code> (pre-computed vector), <code>queryByVector</code>, <code>remove</code>, <code>get</code>, <code>list</code>, <code>clear</code>, <code>size</code>. Upsert by <code>id</code>. Generic over the metadata type (<code>createSemanticIndex&lt;M&gt;</code>).</p>
+
+<h3>withEmbeddingCache</h3>
+<p>Wraps any <code>Embedder</code> and memoizes identical inputs (no re-embedding, no re-billing). In <code>embedMany</code> it asks the backend for <strong>only the cache misses</strong>, in a single batch.</p>
+<pre><code><span class="kw">import</span> { withEmbeddingCache } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> cached = <span class="fn">withEmbeddingCache</span>(embedder)</code></pre>
+
+<h3>Similarity helpers</h3>
+<p><code>cosineSimilarity</code> returns the <strong>standard <code>[-1..1]</code></strong> cosine (1 = identical, 0 = orthogonal, -1 = opposite). Also <code>dotProduct</code> and <code>euclideanDistance</code>. All of them return <code>0</code> for mismatched-length or empty vectors instead of throwing.</p>
+
+<div class="note"><strong>Back-compat.</strong> The <code>cosineSimilarity</code> re-exported by <code>astorlm/experimental/error-registry</code> stays clamped to <code>[0..1]</code> (so it is comparable to the Jaccard fallback); the first-class one in <code>astorlm</code> returns <code>[-1..1]</code>. <code>createOpenAIEmbeddingClient</code> still exists as a deprecated alias.</div>
+
+<hr/>
+
+<h2 id="tools">Tools</h2>
+<p>A tool is a Zod-typed function the model can invoke. You define them with <code>tool</code>.</p>
+
+<h3>tool</h3>
+<pre><code><span class="kw">import</span> { tool } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="kw">const</span> getWeather = <span class="fn">tool</span>({
+  name: <span class="str">'get_weather'</span>,
+  description: <span class="str">'Returns the current weather for a city.'</span>,
+  schema: z.<span class="fn">object</span>({
+    city: z.<span class="fn">string</span>().<span class="fn">describe</span>(<span class="str">'City name'</span>),
+    units: z.<span class="fn">enum</span>([<span class="str">'c'</span>, <span class="str">'f'</span>]).<span class="fn">default</span>(<span class="str">'c'</span>),
+  }),
+  <span class="kw">async</span> <span class="fn">execute</span>({ city, units }, ctx) {
+    <span class="com">// ctx: { cwd, abortSignal, logger, executor }</span>
+    <span class="kw">return</span> <span class="str">`In </span>${city}<span class="str">: 22°</span>${units}<span class="str">`</span>
+  },
+})</code></pre>
+
+<h3>Built-in tools <span class="pill node">node</span></h3>
+<table>
+  <thead><tr><th>Name</th><th>Arguments</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>read</code></td><td><code>path</code>, <code>offset?</code>, <code>limit?</code></td><td>1-indexed line numbering. Default 2000 lines.</td></tr>
+    <tr><td><code>write</code></td><td><code>path</code>, <code>content</code></td><td>Overwrites.</td></tr>
+    <tr><td><code>edit</code></td><td><code>path</code>, <code>oldString</code>, <code>newString</code>, <code>replaceAll?</code></td><td><code>oldString</code> must be unique unless <code>replaceAll</code>.</td></tr>
+    <tr><td><code>bash</code></td><td><code>command</code>, <code>timeoutMs?</code></td><td>Synchronous. Default 120s, max 10min.</td></tr>
+    <tr><td><code>bash_spawn</code></td><td><code>command</code></td><td>Background. Returns a <code>pid</code>.</td></tr>
+    <tr><td><code>bash_get_output</code></td><td><code>pid</code></td><td>Drains the buffer.</td></tr>
+    <tr><td><code>bash_kill</code></td><td><code>pid</code>, <code>signal?</code></td><td>Sends a signal to the process.</td></tr>
+    <tr><td><code>ls</code></td><td><code>path?</code></td><td>Directory listing.</td></tr>
+    <tr><td><code>grep</code></td><td>regex pattern</td><td>Content search.</td></tr>
+    <tr><td><code>glob</code></td><td>pattern</td><td>Path search.</td></tr>
+  </tbody>
+</table>
+
+<h4>Helpers</h4>
+<pre><code><span class="kw">import</span> { createCodingTools, createReadOnlyTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+
+<span class="fn">createCodingTools</span>()    <span class="com">// all of them, including background bash</span>
+<span class="fn">createReadOnlyTools</span>()  <span class="com">// read + ls + grep + glob</span></code></pre>
+
+<hr/>
+
+<h2 id="subagents">Subagents (agent-as-tool)</h2>
+<p>
+  <code>createSubagentTool</code> exposes a whole independent agent to a parent agent as a
+  <strong>single tool</strong>. When the parent calls it, the tool spins up a fresh child session
+  with its own (usually narrower) system prompt and tool set, runs <em>one</em> prompt to completion,
+  and returns the child's final text as the tool result. The parent never sees the child's
+  intermediate turns &mdash; only the distilled answer, which is what keeps the parent's context
+  window from filling up with the child's exploration.
+</p>
+<p>
+  This is pure composition over the public API: it does not touch the loop or the session
+  internals. The child inherits the parent's <code>cwd</code>, <code>executor</code> and
+  <code>logger</code> from the <code>ToolContext</code>, and the parent's abort signal is propagated,
+  so cancelling the parent cancels the child mid-flight.
+</p>
+
+<pre><code><span class="kw">import</span> { OpenAIProvider, createLocalAgent, createSubagentTool } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { createCodingTools, createReadOnlyTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+
+<span class="kw">const</span> provider = <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+  model: <span class="str">'myModel'</span>,
+  baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+  apiKey: <span class="str">'myApiKey'</span>,
+})
+
+<span class="kw">const</span> researcher = <span class="fn">createSubagentTool</span>({
+  name: <span class="str">'research_agent'</span>,
+  description: <span class="str">'Delegate a read-only investigation of the codebase. Returns a summary.'</span>,
+  provider,                                <span class="com">// may differ from the parent's — e.g. a cheaper model</span>
+  appendSystemPrompt: <span class="str">'Be concise. Report findings only.'</span>,
+  tools: <span class="fn">createReadOnlyTools</span>(),           <span class="com">// narrower surface than the parent's</span>
+  maxTurns: <span class="str">8</span>,
+})
+
+<span class="kw">const</span> parent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: [...<span class="fn">createCodingTools</span>(), researcher],
+})
+
+<span class="kw">await</span> parent.<span class="fn">run</span>(<span class="str">'Find where retries are implemented, then add a test for them.'</span>)</code></pre>
+
+<h4>Options (<code>SubagentToolOptions</code>)</h4>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td><code>string</code></td><td>Tool name the parent model invokes (e.g. <code>'research_agent'</code>). Required.</td></tr>
+    <tr><td><code>description</code></td><td><code>string</code></td><td>When the parent should delegate to this subagent. Required.</td></tr>
+    <tr><td><code>provider</code></td><td><code>Provider</code></td><td>Provider the child session uses. May differ from the parent's. Required.</td></tr>
+    <tr><td><code>systemPrompt</code></td><td><code>string</code></td><td>System prompt for the child. Defaults to the SDK base prompt.</td></tr>
+    <tr><td><code>appendSystemPrompt</code></td><td><code>string</code></td><td>Extra text appended to the child's system prompt.</td></tr>
+    <tr><td><code>tools</code></td><td><code>Tool[]</code></td><td>Tools the child may use. Defaults to none (pure reasoning).</td></tr>
+    <tr><td><code>maxTurns</code></td><td><code>number</code></td><td>Turn cap for the child loop.</td></tr>
+    <tr><td><code>pattern</code></td><td><code>'REACT' | 'PLAN_EXECUTE'</code></td><td>Loop pattern for the child. Defaults to <code>'REACT'</code>.</td></tr>
+    <tr><td><code>inputKey</code></td><td><code>string</code></td><td>Input property the parent fills with the delegated task. Defaults to <code>'task'</code>.</td></tr>
+    <tr><td><code>inputDescription</code></td><td><code>string</code></td><td>Description of that input property, shown to the parent model.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><strong>Why scope the child's tools down.</strong> A subagent is the natural place to enforce least privilege: give the researcher read-only tools and the parent keeps the write capability to itself. Combine it with <a href="#agent-contract">agent contract</a> hooks for a hard budget per delegation.</div>
+
+<hr/>
+
+<h2 id="structured-output">Structured output (<code>generateObject</code>)</h2>
+<p>
+  Returns an object that is <strong>typed and validated</strong> against a Zod schema, instead of
+  plain text. The general primitive is the <strong>terminal tool</strong>: a synthetic tool is
+  registered whose schema is the desired result, and the model is instructed to call it to deliver
+  the answer; its input <em>is</em> the object. This reuses the agent's tool validation and repair
+  loop, works on any provider, and coexists with other tools.
+</p>
+
+<h3>Case 1 — single-pass extractor (no tools)</h3>
+<p>
+  With no tools, <code>generateObject</code> picks <code>'native'</code> mode on its own: it uses the
+  provider's <code>response_format: json_schema</code> (constrained decoding — the model cannot emit
+  tokens outside the schema). A hard guarantee.
+</p>
+<pre><code><span class="kw">import</span> { OpenAIProvider, generateObject } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="kw">const</span> Ticket = z.<span class="fn">object</span>({
+  intent: z.<span class="fn">enum</span>([<span class="str">'bug'</span>, <span class="str">'feature_request'</span>, <span class="str">'billing'</span>, <span class="str">'other'</span>]),
+  priority: z.<span class="fn">enum</span>([<span class="str">'low'</span>, <span class="str">'medium'</span>, <span class="str">'high'</span>]),
+  summary: z.<span class="fn">string</span>(),
+})
+
+<span class="kw">const</span> { object } = <span class="kw">await</span> <span class="fn">generateObject</span>({
+  provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+    model: <span class="str">'myModel'</span>,
+    baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+    apiKey: <span class="str">'myApiKey'</span>,
+  }),
+  schema: Ticket,
+  prompt: <span class="str">'Classify: "I cannot pay, the card throws a 500, this is urgent"'</span>,
+})
+
+object.priority <span class="com">// 'high' — typed at compile time</span></code></pre>
+
+<h3>Case 2 — agent verdict (with tools)</h3>
+<p>
+  With tools, <code>response_format</code> does not apply (it does not coexist with
+  <code>tool_choice</code>), so <code>generateObject</code> uses the terminal tool: the agent
+  investigates with its tools and finally calls the output tool, which breaks the loop and returns
+  the validated object.
+</p>
+<pre><code><span class="kw">import</span> { createReadOnlyTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+
+<span class="kw">const</span> Verdict = z.<span class="fn">object</span>({
+  decision: z.<span class="fn">enum</span>([<span class="str">'approve'</span>, <span class="str">'request_changes'</span>]),
+  issues: z.<span class="fn">array</span>(z.<span class="fn">object</span>({ severity: z.<span class="fn">enum</span>([<span class="str">'low'</span>, <span class="str">'med'</span>, <span class="str">'high'</span>]), file: z.<span class="fn">string</span>(), message: z.<span class="fn">string</span>() })),
+  summary: z.<span class="fn">string</span>(),
+})
+
+<span class="kw">const</span> { object } = <span class="kw">await</span> <span class="fn">generateObject</span>({
+  provider, schema: Verdict,
+  tools: <span class="fn">createReadOnlyTools</span>(),   <span class="com">// the agent explores the repo, then emits the verdict</span>
+  prompt: <span class="str">'Review the .ts files in this project and deliver a verdict.'</span>,
+})
+
+<span class="kw">if</span> (object.decision === <span class="str">'request_changes'</span>) process.<span class="fn">exit</span>(<span class="str">1</span>) <span class="com">// CI</span></code></pre>
+
+<h3>Options (<code>GenerateObjectOptions</code>)</h3>
+<table>
+  <thead><tr><th>Option</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>provider</code></td><td><code>Provider</code></td><td>Required.</td></tr>
+    <tr><td><code>schema</code></td><td><code>ZodTypeAny</code></td><td>Required. Types the result.</td></tr>
+    <tr><td><code>prompt</code></td><td><code>string</code></td><td>Required.</td></tr>
+    <tr><td><code>mode</code></td><td><code>'auto' | 'tool' | 'native'</code></td><td>Default <code>'auto'</code>: <code>'native'</code> when there are no tools and the provider is OpenAI-compatible, otherwise <code>'tool'</code>.</td></tr>
+    <tr><td><code>tools</code></td><td><code>Tool[]</code></td><td>Forces <code>'tool'</code> mode. The agent uses them before answering.</td></tr>
+    <tr><td><code>maxTurns</code></td><td><code>number</code></td><td><code>'tool'</code> mode. Default 8 (leaves room for repair).</td></tr>
+    <tr><td><code>maxRepairAttempts</code></td><td><code>number</code></td><td><code>'native'</code> mode. Retries if the output fails validation. Default 2.</td></tr>
+    <tr><td><code>toolName</code></td><td><code>string</code></td><td>Name of the terminal tool. Default <code>provide_final_answer</code>.</td></tr>
+    <tr><td><code>onEvent</code></td><td><code>(e) =&gt; void</code></td><td>Stream of agent events.</td></tr>
+  </tbody>
+</table>
+<p>
+  Returns <code>{ object, message, sessionId?, mode }</code>. If the model never delivers the answer
+  (it does not call the terminal tool, or the output still fails validation after the retries) it
+  throws <code>GenerateObjectError</code>. Repair loop: in <code>'tool'</code> mode an invalid input
+  goes back to the model as an error <code>tool_result</code> (via Zod validation); in
+  <code>'native'</code> mode the validation error is re-injected and the call is retried.
+</p>
+
+<hr/>
+
+<h2 id="hooks">Hooks</h2>
+<p>Five optional interception points, all of which may be async.</p>
+<table>
+  <thead><tr><th>Hook</th><th>When</th><th>What for</th></tr></thead>
+  <tbody>
+    <tr><td><code>beforeTurn</code></td><td>Start of every turn</td><td>Observe <code>{ turn, messages }</code>.</td></tr>
+    <tr><td><code>beforeProviderCall</code></td><td>Before <code>provider.stream</code></td><td><strong>Mutate</strong> <code>{ messages, systemPrompt }</code>.</td></tr>
+    <tr><td><code>beforeToolExecution</code></td><td>Before every tool</td><td>Return <code>{ authorize, mockResult? }</code>. Permission system + mocking.</td></tr>
+    <tr><td><code>afterToolExecution</code></td><td>After every tool</td><td>Return the final <code>output</code> string the model will see.</td></tr>
+    <tr><td><code>afterTurn</code></td><td>End of every turn</td><td>Observe <code>{ turn, lastMessage }</code>.</td></tr>
+  </tbody>
+</table>
+
+<h4>Example: ask for authorization before dangerous tools</h4>
+<pre><code><span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider, tools: <span class="fn">createCodingTools</span>(),
+  hooks: {
+    <span class="kw">async</span> <span class="fn">beforeToolExecution</span>({ toolName, input }) {
+      <span class="kw">if</span> (toolName === <span class="str">'bash'</span>) {
+        <span class="kw">const</span> ok = <span class="kw">await</span> <span class="fn">askHuman</span>(<span class="str">`Run: </span>${input.command}<span class="str">?`</span>)
+        <span class="kw">return</span> { authorize: ok, mockResult: ok ? <span class="kw">undefined</span> : <span class="str">'denied by the user'</span> }
+      }
+      <span class="kw">return</span> { authorize: <span class="kw">true</span> }
+    },
+  },
+})</code></pre>
+
+<div class="note"><strong>Composing hooks.</strong> Several features ship their own <code>SessionHooks</code> (contract, error registry, skill tool policy, edge-boost). Merge them with <code>mergeSessionHooks</code> from <code>astorlm/experimental/edge-boost</code> instead of hand-writing the chaining.</div>
+
+<hr/>
+
+<h2 id="steering">Steering (interactive redirection)</h2>
+<p><strong>Steering</strong> lets you pause the agent loop right before a tool executes and inject direct instructions (feedback) to redirect it. It is particularly useful for correcting the model when it makes a planning mistake or proposes a destructive action.</p>
+
+<p>Unlike a flat denial (which only returns a denial error to the model), steering adds an interactive interruption where the feedback is injected as a genuine <code>text</code> block in the conversation history. The model therefore understands the reasoning and corrects its behaviour naturally on the next turn.</p>
+
+<h4>Configuring it in beforeToolExecution</h4>
+<p>To activate steering, the <code>beforeToolExecution</code> hook must return <code>steer: true</code> alongside the <code>feedback</code> text:</p>
+
+<pre><code><span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: <span class="fn">createCodingTools</span>(),
+  hooks: {
+    <span class="kw">async</span> <span class="fn">beforeToolExecution</span>({ toolName, input }) {
+      <span class="kw">if</span> (toolName === <span class="str">'write'</span> &amp;&amp; input.path === <span class="str">'DELETE_ME.txt'</span>) {
+        <span class="com">// Pause and interactively ask the user for feedback</span>
+        <span class="kw">const</span> feedback = <span class="kw">await</span> <span class="fn">askHumanForFeedback</span>()
+        <span class="kw">return</span> {
+          authorize: <span class="kw">false</span>,
+          steer: <span class="kw">true</span>,
+          feedback: feedback || <span class="str">'Action cancelled.'</span>
+        }
+      }
+      <span class="kw">return</span> { authorize: <span class="kw">true</span> }
+    }
+  }
+})</code></pre>
+
+<h4>Effects on the execution loop</h4>
+<ul class="compact">
+  <li><strong>Concurrent cancellation:</strong> if the model tried to run several tools in parallel and one of them triggers steering, the rest are automatically cancelled in cascade (returning a descriptive cancellation error) so the state is not polluted.</li>
+  <li><strong>History injection:</strong> the tool result message (<code>role: 'user'</code>) is built containing the cancelled <code>tool_result</code>s plus a final <code>text</code> block formatted as <code>[User Steering Feedback]: &lt;feedback&gt;</code>.</li>
+  <li><strong>Event bus:</strong> a <code>{ type: 'user_steering', toolUseId, feedback }</code> event is emitted for logging and telemetry.</li>
+</ul>
+
+<h3>createSteeringController</h3>
+<p>
+  Writing that hook by hand is fine for a fixed rule, but for the common case &mdash; a human
+  watching a run who wants to interject &mdash; <code>createSteeringController</code> packages it:
+  you queue feedback from anywhere (a keypress handler, an HTTP endpoint, a UI button) and it is
+  consumed at the <strong>next tool boundary</strong>.
+</p>
+<pre><code><span class="kw">import</span> { createSteeringController, createLocalAgent } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> steering = <span class="fn">createSteeringController</span>()
+
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: <span class="fn">createCodingTools</span>(),
+  hooks: steering.hooks,      <span class="com">// pass its hooks straight in</span>
+})
+
+<span class="com">// from anywhere else — e.g. a keypress handler while the run is in flight</span>
+steering.<span class="fn">steer</span>(<span class="str">'Stop editing src/, work under test/ instead.'</span>)
+
+steering.pending   <span class="com">// the queued feedback, or null</span>
+steering.<span class="fn">clear</span>()   <span class="com">// drop it if it was not consumed yet</span></code></pre>
+<table>
+  <thead><tr><th>Member</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>steer(feedback)</code></td><td>Queue feedback to steer the agent at the next tool boundary.</td></tr>
+    <tr><td><code>clear()</code></td><td>Discard queued feedback that has not been consumed yet.</td></tr>
+    <tr><td><code>pending</code></td><td>The currently queued feedback, or <code>null</code>.</td></tr>
+    <tr><td><code>hooks</code></td><td>The <code>SessionHooks</code> to pass into <code>createAgent({ hooks })</code>.</td></tr>
+  </tbody>
+</table>
+<div class="note"><strong>Wrapping existing hooks.</strong> <code>createSteeringController(base?)</code> accepts a base <code>SessionHooks</code>: when nothing is queued, <code>beforeToolExecution</code> delegates to the base hook (or authorizes by default), and every other base hook is preserved untouched. Feedback only applies at a turn that actually calls a tool &mdash; if the agent answers without tools, it is delivered at the next turn that does.</div>
+
+<hr/>
+
+<h2 id="loops">Loop patterns &amp; Heartbeat</h2>
+<p>The agent runs a multi-turn loop. The <code>pattern</code> option chooses <em>how</em> it structures that work, and <code>heartbeat</code> adds a proactive loop that wakes up on its own in the background.</p>
+
+<h3>Patterns (<code>pattern</code>)</h3>
+<table>
+  <thead><tr><th>Value</th><th>Behaviour</th></tr></thead>
+  <tbody>
+    <tr><td><code>'REACT'</code> <em>(default)</em></td><td>Classic Reason+Act: the model reasons, calls tools, observes results and repeats until <code>end_turn</code> or <code>maxTurns</code>. No plan state.</td></tr>
+    <tr><td><code>'PLAN_EXECUTE'</code></td><td>Structured, TodoWrite-style planning. The agent automatically registers two tools (<code>add_plan_item</code>, <code>update_plan_item</code>) and injects an <code>[Active Plan State]</code> block into the system prompt on every turn so the model keeps the task list in view.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><strong>Persistent plan &amp; short ids.</strong> <code>PlanItem</code>s use sequential ids (<code>"1"</code>, <code>"2"</code>, ...), which are friendlier for small models that have to repeat the id in <code>update_plan_item</code> than a UUID would be. The plan is stored in <code>SessionState.metadata.plan</code>, so it survives <code>resume</code> and <code>fork</code> (the counter continues from the highest restored id).</div>
+
+<pre><code><span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+    model: <span class="str">'myModel'</span>,
+    baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+    apiKey: <span class="str">'myApiKey'</span>,
+  }),
+  tools: <span class="fn">createCodingTools</span>(),
+  pattern: <span class="str">'PLAN_EXECUTE'</span>,
+})
+
+agent.<span class="fn">on</span>(<span class="str">'event'</span>, (e) =&gt; {
+  <span class="kw">if</span> (e.type === <span class="str">'plan_updated'</span>) console.<span class="fn">log</span>(agent.<span class="fn">getPlan</span>())
+})
+
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'Plan and create a NOTES.md file with a summary.'</span>)</code></pre>
+
+<h3>Heartbeat (proactive loop)</h3>
+<p>The <strong>heartbeat</strong> is a background loop that wakes the agent every <code>intervalMs</code> without you calling <code>run()</code>. Useful for periodic checks (did a file change? is there new work?). Control it with <code>startHeartbeat()</code> / <code>stopHeartbeat()</code>, or let it auto-start by passing <code>heartbeat</code> in the options (unless <code>autoStart: false</code>).</p>
+
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>intervalMs</code></td><td><code>number</code></td><td>How often a tick fires. Required.</td></tr>
+    <tr><td><code>checkPrompt</code></td><td><code>string</code></td><td>The prompt sent to the model on each tick. Required.</td></tr>
+    <tr><td><code>localCondition</code></td><td><code>(cwd) =&gt; boolean | Promise&lt;boolean&gt;</code></td><td><strong>Latent heartbeat.</strong> When defined, each tick runs it locally and <em>only</em> calls the LLM if it returns <code>true</code>. Zero token cost until the trigger fires.</td></tr>
+    <tr><td><code>runTimeoutMs</code></td><td><code>number</code></td><td>Per-tick timeout: aborts the in-flight <code>run()</code> if it takes longer. Decoupled from <code>intervalMs</code>. Default <code>60000</code> (60s). Raise it if your model is slow.</td></tr>
+    <tr><td><code>timeoutMs</code></td><td><code>number</code></td><td>Total time the heartbeat may run before stopping itself. Default <code>300000</code> (5 min). <code>0</code> or <code>Infinity</code> disables it.</td></tr>
+    <tr><td><code>maxTicks</code></td><td><code>number</code></td><td>Tick cap before stopping automatically.</td></tr>
+    <tr><td><code>autoStart</code></td><td><code>boolean</code></td><td>When <code>false</code>, it does not start on agent creation even though <code>heartbeat</code> was passed. Default <code>true</code>.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><strong>Single-flight.</strong> An <code>isRunning</code> guard drops ticks that land while a previous <code>run()</code> (or an earlier tick) is still in progress, so turns never overlap. That is why <code>runTimeoutMs</code> is only a safety net for a hung run &mdash; keep it above your model's typical latency so you do not cut valid turns short.</div>
+
+<pre><code><span class="com">// Latent heartbeat: zero cost until the file shows up.</span>
+agent.<span class="fn">startHeartbeat</span>({
+  intervalMs: <span class="str">8000</span>,
+  checkPrompt: <span class="str">'If PROACTIVE.txt exists, append a line reading "Verified".'</span>,
+  localCondition: (cwd) =&gt; fs.<span class="fn">existsSync</span>(path.<span class="fn">join</span>(cwd, <span class="str">'PROACTIVE.txt'</span>)),
+  runTimeoutMs: <span class="str">45000</span>,
+  timeoutMs: <span class="str">70000</span>,
+  maxTicks: <span class="str">3</span>,
+})
+
+agent.<span class="fn">on</span>(<span class="str">'event'</span>, (e) =&gt; {
+  <span class="kw">if</span> (e.type === <span class="str">'heartbeat_tick'</span>) console.<span class="fn">log</span>(<span class="str">'tick:'</span>, e.checkPrompt)
+})
+
+<span class="com">// ...later</span>
+agent.<span class="fn">stopHeartbeat</span>()</code></pre>
+
+<div class="note"><strong>Clean abort.</strong> When a tick exceeds <code>runTimeoutMs</code> (or is cancelled), the turn closes as <code>session_end: aborted</code>, not as <code>error</code>. astorlm recognizes both <code>AbortError</code> (fetch/Anthropic) and <code>APIUserAbortError</code> (OpenAI SDK), so a cooperative cancellation is never reported as a hard failure.</div>
+
+<h3>Goal loop (Ralph loop)</h3>
+<p><code>runGoalLoop</code> is a <strong>goal-pursuit</strong> orchestrator: it chases an objective across several iterations until it is met. Unlike the heartbeat &mdash; which repeats a prompt against the <em>same</em> session as it accumulates context &mdash; the goal loop builds a <strong>fresh agent on every iteration</strong> (clean context window, empty <code>messages[]</code>). State survives between rounds through the <strong>filesystem</strong> (progress files, the git tree), not through conversation history. It is the pattern behind Codex <code>/goal</code>: <code>plan → act → test → iterate</code>.</p>
+
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>goal</code></td><td><code>string</code></td><td>The goal to pursue. By default it is the prompt of every iteration. Required.</td></tr>
+    <tr><td><code>createIterationAgent</code></td><td><code>(ctx) =&gt; Agent | Promise&lt;Agent&gt;</code></td><td><strong>Factory returning a fresh agent per iteration.</strong> Calling it again each round is what gives the clean context. Use the same <code>cwd</code> so iterations share on-disk state. Required.</td></tr>
+    <tr><td><code>isDone</code></td><td><code>(ctx) =&gt; boolean | Promise&lt;boolean&gt;</code></td><td>Stop condition, evaluated after each iteration. Keep it cheap and deterministic: run the tests through the executor and check the exit code, or look for a marker file. Required.</td></tr>
+    <tr><td><code>maxIterations</code></td><td><code>number</code></td><td>Mandatory fuse: iteration cap so an <code>isDone</code> that never fires cannot run forever. Default <code>10</code>.</td></tr>
+    <tr><td><code>iterationPrompt</code></td><td><code>(ctx) =&gt; string</code></td><td>Builds the prompt for one iteration. Default: returns <code>goal</code> verbatim (the classic fixed-prompt Ralph loop).</td></tr>
+    <tr><td><code>onIteration</code></td><td><code>(ctx) =&gt; void | Promise&lt;void&gt;</code></td><td>Observability hook fired at the end of each iteration.</td></tr>
+    <tr><td><code>abortSignal</code></td><td><code>AbortSignal</code></td><td>Checked before each iteration and propagated into every <code>agent.run()</code>.</td></tr>
+  </tbody>
+</table>
+
+<p>Returns <code>{ iterations, done, lastText, stopReason }</code> where <code>stopReason</code> is <code>'done' | 'max_iterations' | 'aborted'</code>. It is pure composition over the public API: <strong>zero changes to loop/session</strong>, and it does not even import <code>createAgent</code> (only the <code>Agent</code> type), so the core stays runtime-agnostic.</p>
+
+<pre><code><span class="kw">import</span> { OpenAIProvider, createLocalAgent, runGoalLoop } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { createCodingTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+
+<span class="kw">const</span> result = <span class="kw">await</span> <span class="fn">runGoalLoop</span>({
+  goal: <span class="str">'Make every test in the project pass.'</span>,
+  maxIterations: <span class="str">6</span>,
+  <span class="com">// FRESH agent per iteration → clean context. Same cwd = shared state on disk.</span>
+  createIterationAgent: () =&gt; <span class="fn">createLocalAgent</span>({
+    cwd: process.<span class="fn">cwd</span>(),
+    provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+      model: <span class="str">'myModel'</span>,
+      baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+      apiKey: <span class="str">'myApiKey'</span>,
+    }),
+    tools: <span class="fn">createCodingTools</span>(),
+  }),
+  <span class="com">// Cheap stop condition in TS: 0 tokens.</span>
+  isDone: () =&gt; fs.<span class="fn">existsSync</span>(<span class="str">'.tests-green'</span>),
+})
+
+console.<span class="fn">log</span>(result.stopReason, result.iterations)</code></pre>
+
+<div class="note"><strong>Heartbeat vs. goal loop.</strong> These are the two flavours of the <code>/loop</code> other tools expose. <strong>Heartbeat</strong> = recurring by time or condition, same session accumulating context (like Claude Code <code>/loop --interval</code>). <strong>Goal loop</strong> = goal pursuit with a fresh context each round and state on disk (like Codex <code>/goal</code>).</div>
+
+<hr/>
+
+<h2 id="sessions">Persistence &amp; branching</h2>
+<p>A <code>SessionManager</code> persists state (messages + metadata) and lets you resume and branch conversations.</p>
+
+<h3>FileSessionManager <span class="pill node">node</span></h3>
+<pre><code><span class="kw">import</span> { FileSessionManager } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> sm = <span class="kw">new</span> <span class="fn">FileSessionManager</span>({ dir: <span class="str">'./.astor-sessions'</span> })
+
+<span class="com">// resume</span>
+<span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider, sessionManager: sm, sessionId: <span class="str">'abc-123'</span>,
+})
+
+<span class="com">// native simplified branching (fork)</span>
+<span class="kw">const</span> childSession = <span class="kw">await</span> session.<span class="fn">fork</span>({
+  newSessionId: <span class="str">'abc-124'</span>,
+  branchFromMessageId: <span class="str">'msg-15'</span>,
+})</code></pre>
+<p>Format: an <code>&lt;id&gt;.meta.json</code> holding metadata plus an <code>&lt;id&gt;.jsonl</code> with one message per line. Auto-saved on every <code>assistant_message</code>, <code>turn_end</code> and <code>session_end</code>.</p>
+<p>Also available: <code>InMemorySessionManager</code> (same interface, nothing on disk) for tests and ephemeral runs, and <code>sm.list()</code> / <code>sm.delete(id)</code> to enumerate and drop sessions.</p>
+
+<hr/>
+
+<h2 id="skills">Skills</h2>
+<p>Loadable instruction packs (Agent Skills spec style): Markdown blocks with YAML frontmatter (the metadata block at the top of the file, between <code>---</code> lines) that the agent can consult for specific tasks.</p>
+
+<h3>Activation modes</h3>
+<table>
+  <thead><tr><th>Mode</th><th>How it works</th><th>When to use it</th></tr></thead>
+  <tbody>
+    <tr><td><code>'filesystem'</code></td><td>The system prompt lists name + description + path. The agent reads the body with the standard <code>read</code> tool.</td><td><strong>Recommended default.</strong> No meta-tools, maximum compatibility.</td></tr>
+    <tr><td><code>'on-demand'</code></td><td>Auto-registers a <code>load_skill</code> meta-tool that returns the body as a <code>tool_result</code>.</td><td>Strong models (Claude/GPT-4 class). Useful with non-filesystem sources.</td></tr>
+    <tr><td><code>'all'</code></td><td>Concatenates every body into the system prompt at init.</td><td>Few skills (&le;5), always relevant.</td></tr>
+  </tbody>
+</table>
+
+<h4>Example from the filesystem</h4>
+<pre><code><span class="kw">import</span> { createFileSystemSkillSource } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: <span class="fn">createCodingTools</span>(),                       <span class="com">// read is required</span>
+  skillSources: [<span class="fn">createFileSystemSkillSource</span>({ dir: <span class="str">'./skills'</span> })],
+  skillMode: <span class="str">'filesystem'</span>,
+})</code></pre>
+
+<p>Expected layout: <code>skills/&lt;name&gt;/SKILL.md</code> with frontmatter <code>name</code> (kebab-case, must match the folder) and <code>description</code> (no XML tags).</p>
+
+<h3>Layered skill sources <span class="pill node">node</span></h3>
+<p>
+  <code>createLayeredSkillSource</code> merges several skill directories into a <strong>single</strong>
+  source with precedence, so a skill defined closer to the project overrides a same-named one defined
+  more globally &mdash; the usual user / project / repo cascade.
+</p>
+<pre><code><span class="kw">import</span> { createLayeredSkillSource } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> skills = <span class="fn">createLayeredSkillSource</span>({
+  <span class="com">// ordered from LOWEST to HIGHEST precedence</span>
+  layers: [<span class="str">'~/.astor/skills'</span>, <span class="str">'./.astor-skills'</span>, <span class="str">'./skills'</span>],
+  <span class="fn">onOverride</span>: ({ name, winner, loser }) =&gt;
+    console.<span class="fn">log</span>(<span class="str">`skill "</span>${name}<span class="str">": </span>${winner}<span class="str"> shadows </span>${loser}<span class="str">`</span>),
+})</code></pre>
+<p>Because it presents itself as one source, the <code>SkillRegistry</code> never sees the per-layer duplicates &mdash; its throw-on-duplicate policy stays intact for genuinely ambiguous configs. <code>onOverride</code> keeps the resolution observable instead of silent.</p>
+
+<h3>allowed-tools (per-skill tool policy)</h3>
+<p>
+  The Agent Skills spec lets a skill declare an <code>allowed-tools</code> frontmatter field: a
+  comma-separated list of the tools it may use. The SDK stores it verbatim in <code>metadata</code>
+  without interpreting it; these two helpers are the interpretation step, so you stay in control of
+  what "the active skill" means in your harness.
+</p>
+<pre><code><span class="kw">import</span> { parseAllowedTools, restrictToolsHook } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> allowed = <span class="fn">parseAllowedTools</span>(skill)   <span class="com">// string[] | null (null = no restriction declared)</span>
+
+<span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: <span class="fn">createCodingTools</span>(),
+  hooks: allowed ? <span class="fn">restrictToolsHook</span>(allowed, { alwaysAllow: [<span class="str">'read'</span>] }) : <span class="kw">undefined</span>,
+})</code></pre>
+<p><code>parseAllowedTools</code> returns <code>null</code> when the field is absent or empty &mdash; meaning "no restriction declared", which you should treat differently from an empty allowlist (which would deny everything). <code>restrictToolsHook</code> denies anything outside the list and feeds the model a <code>mockResult</code> explaining why (customizable via <code>denyMessage</code>).</p>
+<p>Validation helpers are exported too: <code>validateSkillName</code>, <code>validateSkillDescription</code>, <code>validateSkillSpec</code>, <code>SkillValidationError</code> and <code>SKILL_VALIDATION_LIMITS</code>.</p>
+
+<hr/>
+
+<h2 id="mcp">MCP <span class="pill node">node</span></h2>
+<p>Mounts an <a href="https://modelcontextprotocol.io">MCP</a> server and registers its tools into the session.</p>
+<pre><code><span class="kw">import</span> { mountMcpServer } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> mcp = <span class="kw">await</span> <span class="fn">mountMcpServer</span>({
+  name: <span class="str">'fs'</span>,
+  transport: { type: <span class="str">'stdio'</span>, command: <span class="str">'npx'</span>, args: [<span class="str">'-y'</span>, <span class="str">'@modelcontextprotocol/server-filesystem'</span>, <span class="str">'/tmp'</span>] },
+})
+
+<span class="kw">for</span> (<span class="kw">const</span> tool <span class="kw">of</span> mcp.tools) session.<span class="fn">registerTool</span>(tool)
+
+<span class="com">// when you are done</span>
+<span class="kw">await</span> mcp.<span class="fn">close</span>()</code></pre>
+<p>Tools are prefixed as <code>&lt;name&gt;__&lt;tool&gt;</code>. Supported transports: <code>stdio</code> and <code>http</code>.</p>
+
+<h3>MCP Apps — interactive UI (SEP-1865)</h3>
+<p>An MCP tool can return, alongside the text for the model, a sandboxed UI component
+(a <code>ui://</code> resource with mimeType <code>text/html;profile=mcp-app</code>) linked through
+<code>_meta.ui.resourceUri</code>. astorlm surfaces it on a side channel: the text goes to the model,
+the UI travels separately (it never pollutes the context).</p>
+<pre><code><span class="kw">const</span> mcp = <span class="kw">await</span> <span class="fn">mountMcpServer</span>({
+  name: <span class="str">'docs'</span>,
+  transport: { type: <span class="str">'stdio'</span>, command: <span class="str">'npx'</span>, args: [<span class="str">'tsx'</span>, <span class="str">'server.ts'</span>] },
+  <span class="com">// fires when a tool returns _meta.ui.resourceUri</span>
+  onToolUi: (ui) =&gt; {
+    console.<span class="fn">log</span>(ui.toolName, ui.resourceUri, ui.structuredContent)
+  },
+})
+
+<span class="com">// read the ui:// template and render it host-side</span>
+<span class="kw">const</span> view = <span class="kw">await</span> mcp.<span class="fn">readUiResource</span>(<span class="str">'ui://semantic/results'</span>)
+<span class="com">// view.text = the component HTML · view.mimeType = 'text/html;profile=mcp-app'</span></code></pre>
+<p><code>onToolUi</code> receives <code>{ toolName, resourceUri, structuredContent, content }</code>.
+<code>readUiResource(uri)</code> / <code>readResource(uri)</code> read resources from the mounted server.
+Full example (a semantic server plus a host that renders the component):
+<code>examples/35-mcp-apps-semantic</code>.</p>
+
+<hr/>
+
+<h2 id="executors">Executors <span class="pill node">node</span></h2>
+<p>A swappable backend for running commands. The bash tools talk to this, never to <code>child_process</code> directly.</p>
+
+<h3>LocalExecutor</h3>
+<p>Native Node backend. It is the default when you use <code>createLocalAgent</code>.</p>
+
+<h3>DockerExecutor</h3>
+<p>Runs every command inside a container. Real sandboxing.</p>
+<pre><code><span class="kw">import</span> { DockerExecutor } <span class="kw">from</span> <span class="str">'astorlm'</span>
+
+<span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: <span class="fn">createCodingTools</span>(),
+  executor: <span class="kw">new</span> <span class="fn">DockerExecutor</span>({
+    image: <span class="str">'node:20-alpine'</span>,
+    workdir: <span class="str">'/workspace'</span>,
+    mounts: [{ host: process.<span class="fn">cwd</span>(), container: <span class="str">'/workspace'</span> }],
+  }),
+})</code></pre>
+
+<h3>Custom</h3>
+<p>Implement the <code>Executor</code> interface (<code>exec</code>, <code>spawn</code>, <code>getOutput</code>, <code>kill</code>, <code>dispose</code>) and pass it in. Useful for remote backends (SSH, Firecracker, already-provisioned containers).</p>
+
+<div class="note"><strong>Executor vs. CodeRunner.</strong> An <code>Executor</code> runs arbitrary shell commands with the host toolchain, and isolation comes from the OS layer (Docker) or from nothing at all (<code>LocalExecutor</code>). For running <em>generated source code</em> rather than shell commands, the sibling primitive is <code>CodeRunner</code> &mdash; see <a href="#wasm-runner">WASM code sandbox</a>.</div>
+
+<hr/>
+
+<h2 id="prompt-compiler">Prompt compiler</h2>
+<p>
+  <code>compilePrompts</code> assembles a system prompt out of independent <strong>prompt modules</strong>
+  instead of one hand-maintained string. Each module carries a category and a priority; the compiler
+  orders them by a layout, drops exact duplicate sentences, and runs a static analysis pass that
+  surfaces likely contradictions and redundancies before they reach the model. Lives in
+  <code>astorlm/prompt</code> (also re-exported from the barrel).
+</p>
+<p>The point is that prompt fragments coming from different places &mdash; your product identity, a
+  tenant policy, a per-task constraint &mdash; can be authored separately and still produce one
+  coherent prompt, with the conflicts reported rather than silently merged.</p>
+
+<pre><code><span class="kw">import</span> { compilePrompts, formatPromptReport } <span class="kw">from</span> <span class="str">'astorlm/prompt'</span>
+
+<span class="kw">const</span> { systemPrompt, report, print } = <span class="fn">compilePrompts</span>({
+  modules: [
+    { id: <span class="str">'identity'</span>,  category: <span class="str">'identity'</span>,   content: <span class="str">'You are a release assistant.'</span> },
+    { id: <span class="str">'tone'</span>,      category: <span class="str">'format'</span>,     content: <span class="str">'Answer in short bullet points.'</span> },
+    { id: <span class="str">'safety'</span>,    category: <span class="str">'policy'</span>,     content: <span class="str">'Never push to main.'</span>, priority: <span class="str">10</span> },
+    { id: <span class="str">'repo'</span>,      category: <span class="str">'context'</span>,    content: <span class="str">'The repo uses pnpm workspaces.'</span> },
+  ],
+  <span class="com">// layout: default is ['identity', 'context', 'constraint', 'policy', 'format']</span>
+  deduplicate: <span class="kw">true</span>,
+  detectConflicts: <span class="kw">true</span>,
+})
+
+console.<span class="fn">log</span>(report.conflicts)       <span class="com">// [{ type, severity, description, moduleIds }]</span>
+console.<span class="fn">log</span>(report.tokenEstimate)  <span class="com">// approximate size of the compiled prompt</span>
+console.<span class="fn">log</span>(<span class="fn">print</span>())               <span class="com">// or formatPromptReport(report) — human-readable audit</span>
+
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({ provider, systemPrompt })</code></pre>
+
+<h4>Options (<code>PromptCompilerOptions</code>)</h4>
+<table>
+  <thead><tr><th>Option</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>modules</code></td><td><code>PromptModule[]</code></td><td>Required. Each one: <code>{ id, content, category, name?, priority? }</code>.</td></tr>
+    <tr><td><code>layout</code></td><td><code>string[]</code></td><td>Category order in the final prompt. Default <code>['identity', 'context', 'constraint', 'policy', 'format']</code> &mdash; identity at the top, critical policies near the bottom.</td></tr>
+    <tr><td><code>deduplicate</code></td><td><code>boolean</code></td><td>Removes identical sentences across modules. Default <code>true</code>.</td></tr>
+    <tr><td><code>detectConflicts</code></td><td><code>boolean</code></td><td>Static analysis for contradictions and high redundancy. Default <code>true</code>.</td></tr>
+  </tbody>
+</table>
+<p><code>priority</code> (default <code>0</code>) breaks ties: on an exact duplicate id or item, the higher priority wins. The returned <code>report</code> is <code>{ conflicts, modulesCompiled, tokenEstimate? }</code>, and each conflict is <code>{ type: 'contradiction' | 'redundancy', severity: 'high' | 'medium' | 'low', description, moduleIds }</code>.</p>
+<p>The base prompt builder is exported alongside it: <code>buildSystemPrompt</code> and <code>DEFAULT_SYSTEM_PROMPT</code>.</p>
+
+<h2 id="optimizer">Context optimizer</h2>
+<p>Automatic history compaction as the context approaches the model's limit.</p>
+<pre><code><span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider, tools,
+  contextOptimizer: {
+    maxTokens: <span class="str">128_000</span>,        <span class="com">// when the model does not expose contextLimit</span>
+    compressThreshold: <span class="str">0.8</span>,    <span class="com">// optimize at 80% of the limit</span>
+    keepRecentTurns: <span class="str">3</span>,
+  },
+})</code></pre>
+<p>Pass <code>false</code> to disable it. It is structural (prune/dedupe), not LLM summarization.</p>
+
+<h2 id="retry">Retry</h2>
+<p>Automatically retries transient model errors (429, 5xx, timeouts).</p>
+<pre><code><span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider, tools,
+  retry: {
+    maxAttempts: <span class="str">3</span>,
+    baseDelayMs: <span class="str">500</span>,
+    maxDelayMs: <span class="str">5000</span>,
+    jitter: <span class="kw">true</span>,
+  },
+})</code></pre>
+<p>It does not retry once the stream has emitted any event (which would duplicate already-streamed text). Emits <code>provider_retry</code> on the bus. The classification helpers are public: <code>isTransientError</code> and <code>computeBackoffDelay</code>.</p>
+
+<h2 id="usage">Token usage</h2>
+<pre><code>session.<span class="fn">getUsage</span>()
+<span class="com">// { inputTokens, outputTokens, cacheReadTokens?, cacheCreationTokens? }</span></code></pre>
+<p>Accumulated across every <code>run()</code>. Each <code>turn_end</code> also carries that turn's <code>usage</code>. No pricing here &mdash; compute cost yourself, or use <a href="#metrics">metrics</a>.</p>
+
+<hr/>
+
+<h2 id="tracing">Tracing &amp; OpenTelemetry <span class="pill exp">experimental</span></h2>
+<p>An <strong>observability</strong> layer: it derives a tree of <em>spans</em> (trace segments with a start and an end) from the agent's event bus, without touching the loop. It lives under <code>astorlm/experimental/tracing</code> (core-agnostic, using Web Crypto for ids), and the OTLP exporter under <code>astorlm/experimental/tracing/otel</code>.</p>
+
+<p>One trace per <code>agent.run()</code>, with this hierarchy:</p>
+<pre><code>session                          <span class="com">// one run (agent.run)</span>
+  └─ turn                        <span class="com">// each turn → tokens + finish_reason</span>
+       ├─ provider_call          <span class="com">// model call → TTFT (time-to-first-token)</span>
+       └─ tool_execution         <span class="com">// each tool → duration, is_error</span></code></pre>
+
+<h4>API</h4>
+<table>
+  <thead><tr><th>Symbol</th><th>Import</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>attachTracer(agent, { exporter, now? })</code></td><td><code>astorlm/experimental/tracing</code></td><td>Subscribes to the bus and builds the spans. Returns <code>{ detach(), currentTraceId() }</code>. 100% additive &mdash; it does not modify the loop.</td></tr>
+    <tr><td><code>createInMemoryExporter()</code></td><td><code>astorlm/experimental/tracing</code></td><td>Collects spans into an array (<code>.spans</code>, <code>.root()</code>, <code>.childrenOf(id)</code>). For tests and local inspection.</td></tr>
+    <tr><td><code>createTracer(opts?)</code></td><td><code>astorlm/experimental/tracing</code></td><td>Low-level span factory (shared trace id + OTel-style ids). Normally handled by <code>attachTracer</code>.</td></tr>
+    <tr><td><code>createOtlpSpanExporter(opts)</code></td><td><code>astorlm/experimental/tracing/otel</code></td><td>OTLP/HTTP (JSON) exporter implemented with nothing but <code>fetch</code> &mdash; <strong>no OpenTelemetry SDK</strong>. Sends to any OTLP collector.</td></tr>
+  </tbody>
+</table>
+
+<h4>Span attributes</h4>
+<p>Where it makes sense, OpenTelemetry's GenAI <em>semantic conventions</em> are used (<code>gen_ai.*</code> keys), so the OTLP exporter maps almost 1:1:</p>
+<ul class="compact">
+  <li><code>gen_ai.system</code>, <code>gen_ai.request.model</code> &mdash; provider and model.</li>
+  <li><code>gen_ai.usage.input_tokens</code> / <code>output_tokens</code> / <code>cache_read_tokens</code> &mdash; tokens for the turn.</li>
+  <li><code>gen_ai.response.finish_reasons</code> &mdash; why the turn stopped.</li>
+  <li><code>astor.ttft_ms</code> &mdash; time-to-first-token of the model call.</li>
+  <li><code>astor.tool.name</code> / <code>duration_ms</code> / <code>is_error</code> &mdash; per tool.</li>
+  <li><code>astor.provider_retries</code>, <code>astor.steering_count</code>, <code>astor.session.end_reason</code>.</li>
+</ul>
+
+<h4>In-memory tracing</h4>
+<pre><code><span class="kw">import</span> { attachTracer, createInMemoryExporter } <span class="kw">from</span> <span class="str">'astorlm/experimental/tracing'</span>
+
+<span class="kw">const</span> exporter = <span class="fn">createInMemoryExporter</span>()
+<span class="kw">const</span> tracer = <span class="fn">attachTracer</span>(agent, { exporter })   <span class="com">// one line, does not touch the loop</span>
+
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'List the .ts files in this project.'</span>)
+tracer.<span class="fn">detach</span>()
+
+<span class="kw">for</span> (<span class="kw">const</span> s <span class="kw">of</span> exporter.spans) {
+  console.<span class="fn">log</span>(s.kind, s.name, s.endTime! - s.startTime, <span class="str">'ms'</span>, s.attributes)
+}</code></pre>
+
+<h4>Exporting to an OpenTelemetry collector (OTLP)</h4>
+<pre><code><span class="kw">import</span> { attachTracer } <span class="kw">from</span> <span class="str">'astorlm/experimental/tracing'</span>
+<span class="kw">import</span> { createOtlpSpanExporter } <span class="kw">from</span> <span class="str">'astorlm/experimental/tracing/otel'</span>
+
+<span class="kw">const</span> exporter = <span class="fn">createOtlpSpanExporter</span>({
+  endpoint: <span class="str">'http://localhost:4318/v1/traces'</span>,  <span class="com">// Collector / Tempo / Jaeger / Honeycomb / Phoenix / Langfuse</span>
+  serviceName: <span class="str">'my-agent'</span>,
+  headers: { Authorization: <span class="str">'Bearer ...'</span> },          <span class="com">// optional (vendor keys)</span>
+  onError: (err) =&gt; console.<span class="fn">warn</span>(<span class="str">'export failed'</span>, err),
+})
+
+<span class="kw">const</span> tracer = <span class="fn">attachTracer</span>(agent, { exporter })
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'...'</span>)
+<span class="kw">await</span> exporter.<span class="fn">shutdown</span>()   <span class="com">// final flush before exiting</span></code></pre>
+
+<div class="note"><strong>No heavy dependencies.</strong> The OTLP exporter serializes to OTLP/HTTP JSON using native <code>fetch</code> (Node &ge; 20 / browser). It buffers spans and flushes by batch size (<code>maxBatch</code>, default 256) or by timer (<code>flushIntervalMs</code>, default 5s, with <code>unref()</code> so it does not keep the event loop alive). Hex ids are passed through as-is (the OTLP/JSON convention for <code>trace_id</code>/<code>span_id</code>).</div>
+
+<p>Runnable examples: <code>examples/24-tracing-basic</code> (in-memory tree + dashboard, <code>pnpm start 24</code>) and <code>examples/25-tracing-otel</code> (export to a collector, <code>pnpm start 25</code>).</p>
+
+<hr/>
+
+<h2 id="metrics">Metrics &amp; cost <span class="pill exp">experimental</span></h2>
+<p>Aggregates operational metrics for the run off the event bus, and optionally computes <strong>cost in USD</strong>. Lives under <code>astorlm/experimental/metrics</code> (core-agnostic). No hardcoded prices &mdash; you supply the table.</p>
+
+<h4>API</h4>
+<table>
+  <thead><tr><th>Symbol</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>attachMetrics(agent, { pricing?, now? })</code></td><td>Subscribes to the bus and aggregates counters, tokens, cost and latencies. Returns <code>{ snapshot(), reset(), detach() }</code>.</td></tr>
+    <tr><td><code>computeCost(usage, pricing)</code></td><td>USD for a <code>TokenUsage</code> under a <code>ModelPricing</code> (prices per million tokens).</td></tr>
+    <tr><td><code>resolvePricing(table, model)</code></td><td>Looks up the model's pricing: exact match first, then longest prefix (<code>gpt-4o</code> matches <code>gpt-4o-2024-...</code>).</td></tr>
+  </tbody>
+</table>
+
+<p>The <code>snapshot()</code> includes: <code>runs</code>, <code>turns</code>, <code>providerCalls</code>, <code>toolCalls</code>, <code>toolErrors</code>, <code>providerRetries</code>, <code>tokens</code> (in/out/cache), <code>costUsd?</code> (when pricing is supplied) and <code>latency</code> with stats (<code>count/sum/min/max/avg</code>) for <strong>TTFT</strong>, per-turn duration and per-tool duration.</p>
+
+<pre><code><span class="kw">import</span> { attachMetrics } <span class="kw">from</span> <span class="str">'astorlm/experimental/metrics'</span>
+
+<span class="kw">const</span> metrics = <span class="fn">attachMetrics</span>(agent, {
+  pricing: {                                  <span class="com">// USD per 1,000,000 tokens</span>
+    myModel: { inputPer1M: <span class="str">0.5</span>, outputPer1M: <span class="str">1.5</span> },
+    <span class="str">'gpt-4o'</span>: { inputPer1M: <span class="str">2.5</span>, outputPer1M: <span class="str">10</span>, cacheReadPer1M: <span class="str">1.25</span> },
+  },
+})
+
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'...'</span>)
+<span class="kw">const</span> m = metrics.<span class="fn">snapshot</span>()
+console.<span class="fn">log</span>(m.costUsd, m.latency.ttftMs.avg, m.toolErrors)</code></pre>
+<p>Example: <code>examples/26-metrics-cost</code> (<code>pnpm start 26</code>).</p>
+
+<hr/>
+
+<h2 id="replay">Record &amp; Replay <span class="pill exp">experimental</span></h2>
+<p>Records exactly the events the model produced and plays them back later <strong>with no network and no tokens</strong> &mdash; the deterministic debugging primitive. Lives under <code>astorlm/experimental/replay</code> (core-agnostic; a <code>Recording</code> is a serializable object, so persistence is <code>JSON.stringify</code> plus your storage).</p>
+
+<h4>API</h4>
+<table>
+  <thead><tr><th>Symbol</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>createRecordingProvider(inner, opts?)</code></td><td>Wraps a real <code>Provider</code>: passes events through to the loop while capturing them turn by turn. <code>getRecording()</code> returns a serializable object.</td></tr>
+    <tr><td><code>createReplayProvider(recording, opts?)</code></td><td>A <code>Provider</code> that replays the recording turn by turn. <code>onExhausted: 'throw' | 'end'</code> controls what happens if the loop asks for more turns than were recorded.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">import</span> { createRecordingProvider, createReplayProvider } <span class="kw">from</span> <span class="str">'astorlm/experimental/replay'</span>
+
+<span class="com">// record</span>
+<span class="kw">const</span> rec = <span class="fn">createRecordingProvider</span>(realProvider)
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({ provider: rec, tools })
+<span class="kw">await</span> agent.<span class="fn">run</span>(<span class="str">'...'</span>)
+fs.<span class="fn">writeFileSync</span>(<span class="str">'run.json'</span>, <span class="fn">JSON.stringify</span>(rec.<span class="fn">getRecording</span>()))
+
+<span class="com">// replay later — same events, no model</span>
+<span class="kw">const</span> recording = <span class="fn">JSON.parse</span>(fs.<span class="fn">readFileSync</span>(<span class="str">'run.json'</span>, <span class="str">'utf8'</span>))
+<span class="kw">const</span> replay = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({ provider: <span class="fn">createReplayProvider</span>(recording), tools })
+<span class="kw">await</span> replay.<span class="fn">run</span>(<span class="str">'...'</span>)</code></pre>
+<p>Capture happens at the provider boundary, so it records exactly what the model emitted, independent of tools, hooks and timing. Example: <code>examples/27-replay</code> (<code>pnpm start 27</code>).</p>
+
+<hr/>
+
+<h2 id="evals">Evals <span class="pill exp">experimental</span></h2>
+<p>An offline evaluation harness: it runs a dataset of cases against fresh agents, applies <em>scorers</em> (graders), and aggregates a report with an overall pass rate and a per-scorer breakdown. Ideal for CI gating. Lives under <code>astorlm/experimental/evals</code>.</p>
+
+<h4>Bundled scorers</h4>
+<table>
+  <thead><tr><th>Scorer</th><th>What it measures</th></tr></thead>
+  <tbody>
+    <tr><td><code>exactMatch(opts?)</code></td><td>Equality with <code>case.expected</code> (normalizes case and whitespace by default).</td></tr>
+    <tr><td><code>contains(substr?, opts?)</code></td><td>The output contains the expected substring.</td></tr>
+    <tr><td><code>regexMatch(re)</code></td><td>The output matches the regular expression.</td></tr>
+    <tr><td><code>toolTrajectory(tools, { mode })</code></td><td>The sequence of tools called. Modes: <code>'exact'</code>, <code>'ordered-subset'</code>, <code>'set'</code>.</td></tr>
+    <tr><td><code>llmJudge({ provider, rubric, passThreshold? })</code></td><td>A model scores the answer against a rubric (0..1). Robust to noisy output.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">import</span> { runEval, contains, toolTrajectory, llmJudge } <span class="kw">from</span> <span class="str">'astorlm/experimental/evals'</span>
+
+<span class="kw">const</span> report = <span class="kw">await</span> <span class="fn">runEval</span>({
+  dataset: [{ id: <span class="str">'q1'</span>, input: <span class="str">'How many .ts files are there?'</span>, expected: <span class="str">'a number'</span> }],
+  concurrency: <span class="str">1</span>,
+  createAgent: (c) =&gt; <span class="fn">createLocalAgent</span>({ provider: <span class="fn">provider</span>(), tools: <span class="fn">createReadOnlyTools</span>() }),
+  scorers: [
+    <span class="fn">contains</span>(<span class="str">'.ts'</span>),
+    <span class="fn">toolTrajectory</span>([<span class="str">'ls'</span>], { mode: <span class="str">'set'</span> }),
+    <span class="fn">llmJudge</span>({ provider: <span class="fn">provider</span>(), rubric: <span class="str">'Pass if it answers with real data.'</span> }),
+  ],
+})
+
+console.<span class="fn">log</span>(report.summary.passRate, report.summary.byScorer)
+<span class="com">// CI gate: if (report.summary.passRate &lt; 0.8) process.exit(1)</span></code></pre>
+
+<div class="note"><strong>Every case runs in a fresh agent.</strong> <code>createAgent(case)</code> is invoked per case so they never share history. Combine it with <code>createReplayProvider</code> for fast, network-free regression runs. <code>llmJudge</code> takes a <code>Provider</code> &mdash; point it at your own OpenAI-compatible endpoint.</div>
+<p>Example: <code>examples/28-evals</code> (<code>pnpm start 28</code>).</p>
+
+<hr/>
+
+<h2 id="wasm-runner">WASM code sandbox <span class="pill exp">experimental</span></h2>
+<p>
+  <code>CodeRunner</code> is the sibling primitive to <code>Executor</code>: instead of running shell
+  commands, it evaluates a <strong>self-contained source snippet</strong> inside a memory-safe
+  WebAssembly sandbox. Isolation is capability-based &mdash; the guest has no filesystem, no network
+  and no host syscalls unless explicitly granted. Because the engine is pure WASM it runs anywhere
+  WASM does (Node, Deno, browser, edge), which is exactly where <code>DockerExecutor</code> cannot
+  reach (no daemon, no <code>child_process</code>).
+</p>
+<p>The interfaces (<code>CodeRunner</code>, <code>RunCodeOptions</code>, <code>RunCodeResult</code>) live in the agnostic core; the concrete implementation lives under <code>astorlm/experimental/wasm-runner</code>, backed by QuickJS compiled to WebAssembly.</p>
+
+<pre><code><span class="kw">import</span> { QuickJsCodeRunner, createCodeRunnerTool } <span class="kw">from</span> <span class="str">'astorlm/experimental/wasm-runner'</span>
+
+<span class="kw">const</span> runner = <span class="kw">new</span> <span class="fn">QuickJsCodeRunner</span>({
+  timeoutMs: <span class="str">5000</span>,              <span class="com">// wall-clock budget per run</span>
+  memoryLimitBytes: <span class="str">64</span> * <span class="str">1024</span> * <span class="str">1024</span>,
+  maxOutputBytes: <span class="str">200_000</span>,
+})
+
+<span class="com">// 1) direct use</span>
+<span class="kw">const</span> res = <span class="kw">await</span> runner.<span class="fn">run</span>({
+  code: <span class="str">'const xs = [1,2,3]; console.log(xs.map(x =&gt; x * 2)); xs.length'</span>,
+  globals: { threshold: <span class="str">10</span> },   <span class="com">// JSON-serializable values copied read-only into the guest</span>
+})
+res.ok, res.value, res.stdout, res.timedOut, res.outOfMemory, res.durationMs
+
+<span class="com">// 2) as an agent tool — the model writes code, it runs with no host access</span>
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider,
+  tools: [<span class="fn">createCodeRunnerTool</span>({ runner })],   <span class="com">// tool name defaults to run_code</span>
+})
+
+<span class="kw">await</span> runner.<span class="fn">dispose</span>()</code></pre>
+
+<h4><code>RunCodeOptions</code></h4>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>code</code></td><td><code>string</code></td><td>The source to evaluate. Required.</td></tr>
+    <tr><td><code>timeoutMs</code></td><td><code>number</code></td><td>Wall-clock budget enforced by an interrupt handler. Default <code>5_000</code>.</td></tr>
+    <tr><td><code>memoryLimitBytes</code></td><td><code>number</code></td><td>Hard memory cap for the guest runtime. Default 64 MB.</td></tr>
+    <tr><td><code>maxOutputBytes</code></td><td><code>number</code></td><td>Max captured stdout/stderr before truncation. Default 200 KB.</td></tr>
+    <tr><td><code>globals</code></td><td><code>Record&lt;string, unknown&gt;</code></td><td>JSON-serializable values copied read-only into the guest scope. Host <em>functions</em> are intentionally not supported, to keep the isolation guarantee airtight.</td></tr>
+    <tr><td><code>abortSignal</code></td><td><code>AbortSignal</code></td><td>Cancels the run.</td></tr>
+  </tbody>
+</table>
+
+<h4><code>RunCodeResult</code></h4>
+<p><code>{ ok, value?, stdout, stderr, error?, truncated, timedOut, outOfMemory, durationMs }</code> &mdash; <code>ok</code> is true only if the code ran to completion without throwing, timing out or running out of memory, and the three failure flags tell the three cases apart.</p>
+
+<div class="note">
+  <strong>Opt-in, and not a replacement for Executor.</strong> <code>createCodeRunnerTool</code> is not
+  part of <code>createCodingTools()</code>; register it explicitly when you want the agent to evaluate
+  code it generated without touching the host. Each <code>run()</code> instantiates and disposes its
+  own runtime and context, so nothing leaks between calls; the WASM module itself is loaded once and
+  cached (lazily, so importing the module does not pull the binary until a run actually happens).
+  It runs snippets, not shell commands &mdash; for <code>npm</code>, <code>git</code> or
+  <code>python</code> you still want an <a href="#executors">Executor</a>.
+</div>
+<p>Example: <code>examples/32-wasm-runner</code> (<code>pnpm start 32</code>). Requires the <code>quickjs-emscripten</code> peer dependency.</p>
+
+<hr/>
+
+<h2 id="agent-contract">Agent contract <span class="pill exp">experimental</span></h2>
+<p>Establishes deterministic consumption limits (budget) and safety guardrails (sandbox) at runtime. Validation happens through hooks, before calling the LLM or executing any tool.</p>
+
+<pre><code><span class="kw">import</span> { createAgent } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { createContractHooks } <span class="kw">from</span> <span class="str">'astorlm/experimental/contract'</span>
+
+<span class="kw">const</span> contract = {
+  budget: {
+    maxTurns: <span class="str">5</span>,
+    maxTotalTokens: <span class="str">30000</span>,
+  },
+  sandbox: {
+    allowedPaths: [<span class="str">'src/**/*'</span>],
+    bash: {
+      deniedCommands: [<span class="str">'rm -rf'</span>],
+    }
+  }
+}
+
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createAgent</span>({
+  provider,
+  hooks: <span class="fn">createContractHooks</span>(contract) <span class="com">// &lt;-- hooks middleware</span>
+})</code></pre>
+
+<h3>Contract options</h3>
+<table>
+  <thead><tr><th>Section</th><th>Option</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="5"><code>budget</code></td><td><code>maxTurns</code></td><td><code>number</code></td><td>Cap on total turns allowed in the session.</td></tr>
+    <tr><td><code>maxInputTokens</code></td><td><code>number</code></td><td>Cumulative input token limit.</td></tr>
+    <tr><td><code>maxOutputTokens</code></td><td><code>number</code></td><td>Cumulative output token limit.</td></tr>
+    <tr><td><code>maxTotalTokens</code></td><td><code>number</code></td><td>Limit on input + output tokens combined.</td></tr>
+    <tr><td><code>maxDurationMs</code></td><td><code>number</code></td><td>Maximum session execution time, in milliseconds.</td></tr>
+    <tr><td rowspan="2"><code>tools</code></td><td><code>allow</code></td><td><code>string[]</code></td><td>Allowed tools (whitelist).</td></tr>
+    <tr><td><code>deny</code></td><td><code>string[]</code></td><td>Explicitly blocked tools.</td></tr>
+    <tr><td rowspan="3"><code>sandbox</code></td><td><code>allowedPaths</code></td><td><code>string[]</code></td><td>Allowed filesystem glob patterns (e.g. <code>['src/**/*']</code>).</td></tr>
+    <tr><td><code>deniedPaths</code></td><td><code>string[]</code></td><td>Blocked filesystem glob patterns.</td></tr>
+    <tr><td><code>bash</code></td><td><code>{ allowedCommands?, deniedCommands? }</code></td><td>Approved shell commands (exact match or prefix) and denied keywords (as strings, globs or regexes).</td></tr>
+  </tbody>
+</table>
+
+<p>If the session exceeds its budget or a tool violates the sandbox, the hooks throw a <code>ContractViolationError</code> and emit a <code>contract_violation</code> event on the session's event bus.</p>
+
+<hr/>
+
+<h2 id="error-registry">Error registry <span class="pill exp">experimental</span></h2>
+<p>A federated store of errors and approved resolutions. When an agent hits an error that already has a known fix, it receives it as a hint on the next <code>tool_result</code>.</p>
+<pre><code><span class="kw">import</span> { createErrorRegistry, errorRegistryHooks } <span class="kw">from</span> <span class="str">'astorlm/experimental/error-registry'</span>
+
+<span class="kw">const</span> registry = <span class="kw">await</span> <span class="fn">createErrorRegistry</span>({
+  storePath: <span class="str">'./.astor-errors.jsonl'</span>,
+})
+
+<span class="kw">const</span> session = <span class="kw">await</span> <span class="fn">createLocalAgent</span>({
+  provider, tools,
+  hooks: <span class="fn">errorRegistryHooks</span>({ registry }),
+})
+
+<span class="com">// human-in-the-loop: approve a candidate resolution</span>
+<span class="kw">await</span> registry.<span class="fn">approveResolution</span>(<span class="str">'res-123'</span>, <span class="str">'reviewer-name'</span>)</code></pre>
+<p>Matching is done by cosine similarity over embeddings (OpenAI-compatible) with a fuzzy Jaccard fallback. Paths, UUIDs, IPs and timestamps are normalized before comparison.</p>
+
+<div class="note"><strong>Unstable API.</strong> It lives under <code>astorlm/experimental/*</code> on purpose &mdash; it may change between minor versions.</div>
+
+<h2 id="edge-boost">edge-boost (weak models) <span class="pill exp">experimental</span></h2>
+<p><code>edgeBoost(options, tuning?)</code> is an <strong>options transformer</strong> (a pure function <code>CreateAgentOptions &rarr; CreateAgentOptions</code>) that hardens an agent for weak models: OpenRouter free tiers, small local models (Ollama/vLLM), heavily quantized checkpoints. It defends against the failure mode where the model, in a long multi-turn context with tools (typically the synthesis turn after several rounds), degenerates into a repetition loop or hangs without producing content until it hits a timeout.</p>
+<pre><code><span class="kw">import</span> { createLocalAgent } <span class="kw">from</span> <span class="str">'astorlm/core'</span>
+<span class="kw">import</span> { OpenAIProvider } <span class="kw">from</span> <span class="str">'astorlm'</span>
+<span class="kw">import</span> { createCodingTools } <span class="kw">from</span> <span class="str">'astorlm/tools'</span>
+<span class="kw">import</span> { edgeBoost } <span class="kw">from</span> <span class="str">'astorlm/experimental/edge-boost'</span>
+
+<span class="com">// Wrap the same options you already pass to createLocalAgent. One line, no extra layers.</span>
+<span class="kw">const</span> agent = <span class="kw">await</span> <span class="fn">createLocalAgent</span>(<span class="fn">edgeBoost</span>({
+  provider: <span class="kw">new</span> <span class="fn">OpenAIProvider</span>({
+    model: <span class="str">'myModel'</span>,
+    baseURL: <span class="str">'http://127.0.0.1:11434/v1'</span>,
+    apiKey: <span class="str">'myApiKey'</span>,
+  }),
+  tools: <span class="fn">createCodingTools</span>(),
+}))
+
+<span class="com">// Tune any section; pass `false` to turn one off. E.g. force synthesis earlier.</span>
+<span class="kw">const</span> tuned = <span class="fn">edgeBoost</span>(options, { synthesis: { forceAfterToolRounds: <span class="str">2</span> } })</code></pre>
+<p>Four opt-in defenses; none of them changes default behaviour unless you enable it:</p>
+<ul>
+  <li><strong>Degeneration guard</strong> (<code>createGuardedProvider</code>) &mdash; detects repeated identical deltas, content-free stalls and reasoning-budget blowout; aborts cheaply and retries against the same endpoint. It owns retries caused by <em>degeneration</em>; <em>network/HTTP</em> retries still belong to the loop's <code>retry</code>. Failover <em>between models</em> is deliberately out of scope (that belongs to the routing proxy &mdash; see <a href="#providers">Providers</a>).</li>
+  <li><strong>Context diet</strong> &mdash; truncates old <code>tool_result</code>s per call (idempotent, and compatible with the core optimizer's markers) plus an optional compact system prompt; it never mutates history. The optional <code>digest</code> summarizes an evicted block with an injected cheap provider instead of truncating it (cached per block, falling back to truncation on failure or timeout).</li>
+  <li><strong>Forced synthesis</strong> &mdash; after N tool rounds in the current request, it appends an instruction and forces <code>toolChoice: 'none'</code> (or strips the tools) so the model stops calling tools and answers.</li>
+  <li><strong>Sampling defaults</strong> &mdash; injects <code>max_tokens</code> and <code>frequencyPenalty</code> (repetition penalty) when the call does not carry them. Plus optional <strong>semantic tool pruning</strong> (top-K relevant tools per turn via an embedder; disabled by default, degrading gracefully when no embedder is present).</li>
+</ul>
+<p>Exports: <code>edgeBoost</code>, <code>edgeBoostHooks</code>, <code>createGuardedProvider</code>, <code>DegenerationError</code>, <code>mergeSessionHooks</code> (hook composition, useful in general), <code>buildContextDietHook</code>/<code>buildSynthesisHook</code>/<code>buildToolPruningHook</code>, <code>resolveEdgeBoostTuning</code> plus the tuning types. Runnable example: <code>34-edge-boost</code> (<code>pnpm start 34</code>, with optional <code>--prune</code> / <code>--digest</code> flags).</p>
+
+<div class="note"><strong>Unstable API.</strong> It lives under <code>astorlm/experimental/*</code> on purpose &mdash; it is not re-exported from the main barrel and may change between minor versions.</div>
+
+
+</div><!-- /.doc -->
+
+<footer>
+  <span>MIT licensed · built by <a href="https://github.com/aralde" target="_blank" rel="noopener">aralde</a></span>
+  <span class="f-sp"></span>
+  <a href="https://www.npmjs.com/package/astorlm" target="_blank" rel="noopener">npm</a>
+  <a href="https://github.com/aralde/astorLM" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://github.com/aralde/astorLM/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+  <a href="https://github.com/aralde/astorLM/issues" target="_blank" rel="noopener">Issues</a>
+  <a href="https://github.com/aralde/operatorlm" target="_blank" rel="noopener">OperatorLM</a>
+</footer>
+
+</main>
+</div><!-- /.shell -->
+
+<button class="backtop" id="backtop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-box">
+    <div class="search-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="searchInput" type="text" placeholder="Search the documentation…" autocomplete="off" spellcheck="false" />
+      <kbd>esc</kbd>
+    </div>
+    <div id="results"></div>
+    <div class="search-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var doc = document.querySelector('.doc');
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  var sun = document.getElementById('iconSun');
+  var moon = document.getElementById('iconMoon');
+
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function isDark() {
+    var t = root.getAttribute('data-theme');
+    if (t) return t === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function syncIcons() {
+    var dark = isDark();
+    sun.style.display = dark ? 'none' : '';
+    moon.style.display = dark ? '' : 'none';
+  }
+  var saved = load('astorlm-theme');
+  if (saved === 'dark' || saved === 'light') root.setAttribute('data-theme', saved);
+  syncIcons();
+
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var next = isDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    store('astorlm-theme', next);
+    syncIcons();
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if (!root.getAttribute('data-theme')) syncIcons();
+  });
+
+  /* ---------- enhance content: code copy, table scroll, anchors ---------- */
+  var COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  var OK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12.5 5 5L20 6.5"/></svg>';
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (res, rej) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta); res();
+      } catch (e) { rej(e); }
+    });
+  }
+
+  Array.prototype.forEach.call(doc.querySelectorAll('pre'), function (pre) {
+    var wrap = document.createElement('div');
+    wrap.className = 'code-wrap';
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Copy code');
+    btn.innerHTML = COPY_ICON + '<span>Copy</span>';
+    btn.addEventListener('click', function () {
+      copyText(pre.innerText).then(function () {
+        btn.classList.add('done');
+        btn.innerHTML = OK_ICON + '<span>Copied</span>';
+        setTimeout(function () {
+          btn.classList.remove('done');
+          btn.innerHTML = COPY_ICON + '<span>Copy</span>';
+        }, 1600);
+      }).catch(function () {});
+    });
+    wrap.appendChild(btn);
+  });
+
+  Array.prototype.forEach.call(doc.querySelectorAll('table'), function (t) {
+    var w = document.createElement('div');
+    w.className = 'table-wrap';
+    t.parentNode.insertBefore(w, t);
+    w.appendChild(t);
+  });
+
+  function slug(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  }
+  Array.prototype.forEach.call(doc.querySelectorAll('h2, h3'), function (h) {
+    if (!h.id) {
+      var base = slug(h.textContent) || 'section';
+      var id = base, n = 2;
+      while (document.getElementById(id)) { id = base + '-' + n++; }
+      h.id = id;
+    }
+    var a = document.createElement('a');
+    a.className = 'anchor';
+    a.href = '#' + h.id;
+    a.textContent = '#';
+    a.setAttribute('aria-label', 'Link to this section');
+    h.appendChild(a);
+  });
+
+  /* ---------- install command copy ---------- */
+  var icBtn = document.getElementById('installCopy');
+  icBtn.addEventListener('click', function () {
+    copyText(document.getElementById('installCmd').textContent).then(function () {
+      icBtn.innerHTML = OK_ICON;
+      setTimeout(function () {
+        icBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+      }, 1600);
+    }).catch(function () {});
+  });
+
+  /* ---------- sidebar: mobile drawer ---------- */
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  var menuBtn = document.getElementById('menuBtn');
+
+  function setNav(open) {
+    sidebar.classList.toggle('open', open);
+    scrim.classList.toggle('open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  menuBtn.addEventListener('click', function () { setNav(!sidebar.classList.contains('open')); });
+  scrim.addEventListener('click', function () { setNav(false); });
+  sidebar.addEventListener('click', function (e) {
+    if (e.target.closest('a')) setNav(false);
+  });
+
+  /* ---------- scrollspy ---------- */
+  var navLinks = Array.prototype.slice.call(sidebar.querySelectorAll('a[href^="#"]'));
+  var linkFor = {};
+  navLinks.forEach(function (a) { linkFor[a.getAttribute('href').slice(1)] = a; });
+
+  var sections = Array.prototype.slice.call(doc.querySelectorAll('h2[id]'))
+    .filter(function (h) { return linkFor[h.id]; });
+
+  var current = null;
+  function setActive(id) {
+    if (id === current) return;
+    current = id;
+    navLinks.forEach(function (a) { a.classList.remove('active'); });
+    var a = linkFor[id];
+    if (!a) return;
+    a.classList.add('active');
+    var aTop = a.offsetTop, aBot = aTop + a.offsetHeight;
+    if (aTop < sidebar.scrollTop || aBot > sidebar.scrollTop + sidebar.clientHeight) {
+      sidebar.scrollTop = aTop - sidebar.clientHeight / 2;
+    }
+  }
+
+  function updateSpy() {
+    var line = window.innerHeight * 0.28;
+    var active = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top <= line) active = sections[i].id;
+    }
+    if (active) setActive(active);
+    else {
+      current = null;
+      navLinks.forEach(function (a) { a.classList.remove('active'); });
+    }
+  }
+
+  /* ---------- progress + back to top ---------- */
+  var bar = document.getElementById('progress');
+  var backtop = document.getElementById('backtop');
+  backtop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+  function paint() {
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    var y = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    bar.style.width = (h > 0 ? Math.min(100, (y / h) * 100) : 0) + '%';
+    backtop.classList.toggle('show', y > 900);
+    updateSpy();
+  }
+
+  /* Time-based throttle rather than requestAnimationFrame: rAF is throttled to
+     zero in background tabs and in some embedded webviews, and a guard flag
+     waiting on a callback that never fires would wedge scrolling for good. */
+  var lastPaint = 0, queued = null;
+  function onScroll() {
+    var now = Date.now();
+    if (now - lastPaint >= 16) {
+      lastPaint = now;
+      if (queued) { clearTimeout(queued); queued = null; }
+      paint();
+    } else if (!queued) {
+      queued = setTimeout(function () { queued = null; lastPaint = Date.now(); paint(); }, 16);
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  window.addEventListener('hashchange', onScroll);
+  window.addEventListener('load', onScroll);
+  paint();
+
+  /* ---------- search ---------- */
+  var overlay = document.getElementById('overlay');
+  var input = document.getElementById('searchInput');
+  var results = document.getElementById('results');
+
+  var index = [];
+  (function buildIndex() {
+    var heads = Array.prototype.slice.call(doc.querySelectorAll('h2[id], h3[id]'));
+    heads.forEach(function (h) {
+      var level = h.tagName === 'H2' ? 2 : 3;
+      var parts = [];
+      var n = h.nextElementSibling;
+      while (n && !(n.tagName === 'H2' || (level === 3 && n.tagName === 'H3'))) {
+        parts.push(n.innerText || n.textContent || '');
+        n = n.nextElementSibling;
+      }
+      var crumb = '';
+      if (level === 3) {
+        var p = h.previousElementSibling;
+        while (p && p.tagName !== 'H2') p = p.previousElementSibling;
+        if (p) crumb = p.textContent.replace(/#$/, '').trim();
+      }
+      var title = h.textContent.replace(/#$/, '').trim();
+      index.push({
+        id: h.id, title: title, crumb: crumb, level: level,
+        body: parts.join(' ').replace(/\s+/g, ' ').trim(),
+        hay: (title + ' ' + crumb + ' ' + parts.join(' ')).toLowerCase()
+      });
+    });
+  })();
+
+  function esc(s) {
+    return s.replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function mark(text, q) {
+    var i = text.toLowerCase().indexOf(q);
+    if (i < 0) return esc(text.slice(0, 150));
+    var start = Math.max(0, i - 55);
+    var snip = (start > 0 ? '…' : '') + text.slice(start, i) + ' ' + text.slice(i, i + q.length) + '' + text.slice(i + q.length, i + q.length + 95);
+    return esc(snip).replace(' ', '<mark>').replace('', '</mark>');
+  }
+
+  var matches = [], sel = 0;
+
+  function render(q) {
+    if (!q) {
+      results.innerHTML = '<div class="empty">Type to search ' + index.length + ' sections.</div>';
+      matches = []; return;
+    }
+    matches = index.map(function (it) {
+      var pos = it.hay.indexOf(q);
+      if (pos < 0) return null;
+      var score = 0;
+      var tl = it.title.toLowerCase();
+      if (tl === q) score += 1000;
+      else if (tl.indexOf(q) === 0) score += 600;
+      else if (tl.indexOf(q) >= 0) score += 400;
+      if (it.level === 2) score += 40;
+      score -= Math.min(pos, 300) / 10;
+      return { it: it, score: score };
+    }).filter(Boolean).sort(function (a, b) { return b.score - a.score; }).slice(0, 12).map(function (m) { return m.it; });
+
+    if (!matches.length) {
+      results.innerHTML = '<div class="empty">No results for “' + esc(q) + '”.</div>';
+      return;
+    }
+    sel = 0;
+    results.innerHTML = matches.map(function (it, i) {
+      return '<a class="res' + (i === 0 ? ' sel' : '') + '" href="#' + it.id + '" data-i="' + i + '">' +
+        '<span class="t">' + esc(it.title) +
+        (it.crumb ? '<span class="crumb">' + esc(it.crumb) + '</span>' : '') + '</span>' +
+        '<span class="s">' + mark(it.body || it.title, q) + '</span></a>';
+    }).join('');
+  }
+
+  function highlight() {
+    Array.prototype.forEach.call(results.querySelectorAll('.res'), function (el, i) {
+      el.classList.toggle('sel', i === sel);
+      if (i === sel && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  function openSearch() {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    input.value = '';
+    render('');
+    input.focus();
+  }
+  function closeSearch() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function go(i) {
+    var it = matches[i];
+    if (!it) return;
+    closeSearch();
+    location.hash = '#' + it.id;
+  }
+
+  document.getElementById('searchBtn').addEventListener('click', openSearch);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeSearch(); });
+  input.addEventListener('input', function () { render(input.value.trim().toLowerCase()); });
+
+  results.addEventListener('click', function (e) {
+    var a = e.target.closest('.res');
+    if (!a) return;
+    e.preventDefault();
+    go(parseInt(a.getAttribute('data-i'), 10));
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (matches.length) { sel = (sel + 1) % matches.length; highlight(); } }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (matches.length) { sel = (sel - 1 + matches.length) % matches.length; highlight(); } }
+    else if (e.key === 'Enter') { e.preventDefault(); go(sel); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var k = (e.key || '').toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && k === 'k') { e.preventDefault(); overlay.classList.contains('open') ? closeSearch() : openSearch(); return; }
+    if (overlay.classList.contains('open')) { if (e.key === 'Escape') closeSearch(); return; }
+    var tag = (e.target && e.target.tagName) || '';
+    if (k === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') { e.preventDefault(); openSearch(); }
+  });
+
+  /* keep the ⌘/Ctrl hint honest per platform */
+  if (!/Mac|iPhone|iPad/.test(navigator.platform || '')) {
+    var hint = document.querySelector('.kbd-hint kbd');
+    if (hint) hint.textContent = 'Ctrl K';
+  }
+})();
+</script>
+
+</body>
+</html>
