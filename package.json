@@ -121,7 +121,7 @@
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.3",
     "quickjs-emscripten": "^0.32.0",
     "tsup": "^8.3.5",
     "tsx": "^4.23.13",
