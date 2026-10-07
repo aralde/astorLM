@@ -15,6 +15,7 @@
 
 <p align="center">
   <strong><a href="https://aralde.github.io/astorLM/">📖 Documentation site</a></strong> ·
+  <a href="https://harnesspatterns.dev">🎓 Learn the patterns</a> ·
   <a href="https://www.npmjs.com/package/astorlm">npm</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
@@ -73,6 +74,33 @@ That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for
 | **vs. an agent framework** (LangGraph, Mastra) | No graph DSL and no workflow engine to learn. One loop, five hooks, and interfaces you implement. The whole public surface is `src/index.ts` and `src/core.ts`. |
 | **vs. a vendor SDK** | Provider-neutral by construction. Local and weak models get first-class support through [`experimental/edge-boost`](#12-astorlmexperimentaledge-boost-experimental--hardening-for-weak-models), not a "best effort" disclaimer. |
 
+## 🎓 Learn the patterns
+
+New to agent harnesses? **[harnesspatterns.dev](https://harnesspatterns.dev)** is the companion site to this library. It teaches the patterns behind it — the loop, tools, hooks, compaction, skills, memory, subagents and more — through short interactive capsules, and every pattern ends with a runnable *"With astorlm"* example. Read the concept there, then jump to the matching section here:
+
+| Pattern | In this README |
+| --- | --- |
+| [What is an agent](https://harnesspatterns.dev/patterns/what-is-an-agent) | [Quickstart](#-quickstart) |
+| [Agent loop](https://harnesspatterns.dev/patterns/agent-loop) | [Quickstart](#-quickstart) |
+| [Streaming](https://harnesspatterns.dev/patterns/streaming) | `agent.on('text', ...)` in the [Quickstart](#-quickstart) |
+| [Designing a tool](https://harnesspatterns.dev/patterns/designing-a-tool) | [Minimal usage (custom tool)](#-1-minimal-usage-custom-tool) |
+| [Errors in the loop](https://harnesspatterns.dev/patterns/errors-in-the-loop) | [Retry policy](#-retry-policy-for-transient-provider-errors) |
+| [When to stop](https://harnesspatterns.dev/patterns/when-to-stop) | `maxTurns` and [goal loops](#-goal-loops-rungoalloop) |
+| [Hooks](https://harnesspatterns.dev/patterns/hooks) | [Control Hooks](#-control-hooks-sessionhooks) |
+| [Human in the loop](https://harnesspatterns.dev/patterns/human-in-the-loop) | [Steering](#-steering-redirect-without-aborting) |
+| [Sessions](https://harnesspatterns.dev/patterns/sessions) | [Session persistence](#-3-session--history-persistence-filesessionmanager) |
+| [Compaction](https://harnesspatterns.dev/patterns/compaction) | [Context optimizer](#-context-optimizer-auto-compaction) |
+| [Prompt caching](https://harnesspatterns.dev/patterns/prompt-caching) | [Token usage tracking](#-token-usage-tracking) |
+| [Memory](https://harnesspatterns.dev/patterns/memory) | [`astorlm/embeddings`](#4-astorlmembeddings-embeddings--semantic-search) |
+| [Skills](https://harnesspatterns.dev/patterns/skills) | [Skills](#-skills-loadable-knowledge-packs) |
+| [MCP](https://harnesspatterns.dev/patterns/mcp) | [MCP connectivity](#-mcp-connectivity-model-context-protocol) |
+| [Subagents](https://harnesspatterns.dev/patterns/subagents) | [Subagents](#-subagents-agent-as-tool) |
+| [Plan & reflect](https://harnesspatterns.dev/patterns/plan-and-reflect) | [Loop patterns](#-loop-patterns) (`'PLAN_EXECUTE'`) |
+| [Fresh laps](https://harnesspatterns.dev/patterns/fresh-laps) | [Goal loops](#-goal-loops-rungoalloop) |
+| [Security](https://harnesspatterns.dev/patterns/security) | [Executors](#-executors-sandboxing--swappable-backends) |
+| [Observability](https://harnesspatterns.dev/patterns/observability) | [`experimental/tracing`](#7-astorlmexperimentaltracing-experimental--observability) |
+| [Proactive agents](https://harnesspatterns.dev/patterns/proactive-agents) | [Heartbeat](#-heartbeat-proactive-loop) |
+
 ## 📋 What's in the box
 
 | | |
@@ -90,6 +118,7 @@ That is the whole setup. Want it to touch the filesystem? Swap `createAgent` for
 
 - [⚡ Quickstart](#-quickstart)
 - [🤔 How it compares](#-how-it-compares)
+- [🎓 Learn the patterns](#-learn-the-patterns)
 - [📋 What's in the box](#-whats-in-the-box)
 - [📦 Module Layout (Entrypoints)](#-module-layout-entrypoints)
 - [🚀 Quick Use Examples](#-quick-use-examples)
