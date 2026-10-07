@@ -868,7 +868,7 @@ This is what lets the agent launch a dev server, inspect logs, and tear it down 
 
 `createAgent` / `createLocalAgent` accept `pattern: 'REACT' | 'PLAN_EXECUTE'` (default `'REACT'`).
 
-`'PLAN_EXECUTE'` auto-registers `add_plan_item` and `update_plan_item` tools that mutate a `PlanItem[]`. Each turn the loop injects the plan state into the system prompt (same idea as a visible, mutable to-do list). The plan persists in session metadata and survives resume/fork; read it with `agent.getPlan()`.
+`'PLAN_EXECUTE'` auto-registers `add_plan_item` and `update_plan_item` tools that mutate a `PlanItem[]`. The current plan travels in history — each plan tool returns the full snapshot and every new user prompt carries an `[Active Plan State]` block — so the system prompt stays byte-stable and the provider's prefix cache survives plan updates (same idea as a visible, mutable to-do list). The plan persists in session metadata and survives resume/fork; read it with `agent.getPlan()`.
 
 ## 🔄 Goal loops (`runGoalLoop`)
 

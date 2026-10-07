@@ -12,8 +12,6 @@ import type {
   ContextOptimizerOptions,
   RetryPolicy,
   TokenUsage,
-  AgentLoopPattern,
-  PlanItem,
 } from '../types.js'
 import { optimizeContext, estimateTokens } from './optimizer.js'
 import { streamWithRetry } from './retry.js'
@@ -34,8 +32,6 @@ export interface RunLoopOptions {
   executor: Executor
   sessionUsage: TokenUsage
   previousTurns: number
-  pattern?: AgentLoopPattern
-  plan?: PlanItem[]
   /**
    * Terminal tools: if the model calls one of these and its execution does NOT
    * fail, the loop returns the assistant message immediately after recording its
@@ -98,13 +94,6 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
 
     let providerMessages = opts.messages
     let providerSystemPrompt = opts.systemPrompt
-    if (opts.pattern === 'PLAN_EXECUTE' && opts.plan) {
-      const planStr = `\n\n[Active Plan State]\n` + 
-        (opts.plan.length === 0 
-          ? '(No tasks defined yet. Use add_plan_item tool to define tasks)' 
-          : opts.plan.map(i => `- [${i.status.toUpperCase()}] ${i.description} (ID: ${i.id})`).join('\n'))
-      providerSystemPrompt += planStr
-    }
     let toolSchemas = opts.registry.toSchemas()
     let toolChoice: 'auto' | 'none' | 'required' | undefined = undefined
 

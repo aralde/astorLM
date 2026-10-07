@@ -4,7 +4,7 @@ import { createAgent } from '../src/agent/session.js'
 import { tool } from '../src/tools/define.js'
 import { MockProvider } from './mock-provider.js'
 import { InMemorySessionManager } from '../src/agent/sessionManager.js'
-import type { AgentEvent } from '../src/types.js'
+import type { AgentEvent, Message } from '../src/types.js'
 
 /**
  * Waits until `predicate` holds, polling on a short interval.
@@ -137,6 +137,7 @@ describe('loop variants & heartbeat', () => {
   })
 
   it('supports PLAN_EXECUTE and manages the plan via tools and prompt', async () => {
+    const sent: unknown[] = []
     const provider = new MockProvider([
       {
         toolCalls: [
@@ -169,7 +170,11 @@ describe('loop variants & heartbeat', () => {
             }
           }
           return { authorize: true }
-        }
+        },
+        beforeProviderCall: async ({ messages, systemPrompt }) => {
+          sent.push(structuredClone(messages))
+          return { messages, systemPrompt }
+        },
       }
     })
 
@@ -183,13 +188,55 @@ describe('loop variants & heartbeat', () => {
     expect(plan.find((i) => i.description === 'Write tests')?.status).toBe('completed')
     expect(plan.find((i) => i.description === 'Run tests')?.status).toBe('pending')
 
-    // Verify the plan was injected dynamically into the system prompt on every turn
-    expect(provider.calls[0]?.systemPrompt).toContain('[Active Plan State]')
-    expect(provider.calls[0]?.systemPrompt).toContain('(No tasks defined yet. Use add_plan_item tool to define tasks)')
-    expect(provider.calls[1]?.systemPrompt).toContain('[Active Plan State]')
-    expect(provider.calls[1]?.systemPrompt).toContain('Write tests')
-    expect(provider.calls[1]?.systemPrompt).toContain('Run tests')
-    expect(provider.calls[2]?.systemPrompt).toContain('- [COMPLETED] Write tests')
+    // The system prompt must stay byte-identical across turns so the provider's
+    // prefix cache survives plan updates; the plan lives in history instead.
+    const systemPrompts = provider.calls.map((c) => c.systemPrompt)
+    expect(new Set(systemPrompts).size).toBe(1)
+    expect(systemPrompts[0]).not.toContain('[Active Plan State]')
+
+    // MockProvider keeps references to the live messages array, so use the
+    // per-call deep copies captured by the beforeProviderCall hook.
+    const historyText = (callIndex: number) => JSON.stringify(sent[callIndex])
+    // First turn: the empty-plan hint rides along with the user prompt.
+    expect(historyText(0)).toContain('(No tasks defined yet. Use add_plan_item tool to define tasks)')
+    // Later turns: plan tool results carry the current snapshot.
+    expect(historyText(1)).toContain('- [PENDING] Write tests')
+    expect(historyText(1)).toContain('- [PENDING] Run tests')
+    expect(historyText(2)).toContain('- [COMPLETED] Write tests')
+  })
+
+  it('keeps earlier messages unchanged across turns (append-only history)', async () => {
+    const provider = new MockProvider([
+      {
+        toolCalls: [{ id: 'p1', name: 'add_plan_item', input: { description: 'Task one' } }],
+        stopReason: 'tool_use',
+      },
+      {
+        toolCalls: [{ id: 'p2', name: 'update_plan_item', input: { id: '1', status: 'completed' } }],
+        stopReason: 'tool_use',
+      },
+      { text: 'Done.', stopReason: 'end_turn' },
+    ])
+    const sent: Message[][] = []
+    const agent = await createAgent({
+      provider,
+      pattern: 'PLAN_EXECUTE',
+      hooks: {
+        beforeProviderCall: async ({ messages, systemPrompt }) => {
+          sent.push(structuredClone(messages))
+          return { messages, systemPrompt }
+        },
+      },
+    })
+    await agent.run('Go')
+
+    expect(sent).toHaveLength(3)
+    // Each call's messages must be a strict prefix of the next call's messages.
+    for (let i = 1; i < sent.length; i++) {
+      const prev = sent[i - 1]!
+      const next = sent[i]!
+      expect(JSON.stringify(next.slice(0, prev.length))).toBe(JSON.stringify(prev))
+    }
   })
 
   it('assigns sequential short ids to plan items', async () => {

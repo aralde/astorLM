@@ -206,6 +206,17 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
   // persisted state below.
   let planCounter = 0
 
+  // The plan never goes into the system prompt: mutating it every time a task
+  // changes would invalidate the provider's prefix cache (remote and local KV
+  // cache alike). Instead the current plan travels in history — as the result
+  // of each plan tool and as a block appended to each new user prompt — so the
+  // prefix stays byte-stable across turns.
+  const renderPlan = (): string =>
+    '[Active Plan State]\n' +
+    (plan.length === 0
+      ? '(No tasks defined yet. Use add_plan_item tool to define tasks)'
+      : plan.map((i) => `- [${i.status.toUpperCase()}] ${i.description} (ID: ${i.id})`).join('\n'))
+
   if (pattern === 'PLAN_EXECUTE') {
     const addPlanItemTool = tool({
       name: 'add_plan_item',
@@ -221,7 +232,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
           status: 'pending'
         })
         bus.emit({ type: 'plan_updated', plan: plan.slice() })
-        return `Task added successfully with ID: ${itemId}`
+        return `Task added successfully with ID: ${itemId}\n\n${renderPlan()}`
       }
     })
 
@@ -239,7 +250,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         }
         item.status = status
         bus.emit({ type: 'plan_updated', plan: plan.slice() })
-        return `Task ${itemId} status updated to ${status}.`
+        return `Task ${itemId} status updated to ${status}.\n\n${renderPlan()}`
       }
     })
 
@@ -531,7 +542,10 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     messages.push({
       id: crypto.randomUUID(),
       role: 'user',
-      content: [{ type: 'text', text }],
+      content: [
+        { type: 'text', text },
+        ...(pattern === 'PLAN_EXECUTE' ? [{ type: 'text' as const, text: renderPlan() }] : []),
+      ],
     })
     await saveState()
 
@@ -553,8 +567,6 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         executor,
         sessionUsage,
         previousTurns,
-        pattern,
-        plan,
         stopOnToolNames: opts.stopOnToolNames,
       })
       bus.emit({ type: 'session_end', reason: 'completed' })
