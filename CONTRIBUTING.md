@@ -115,4 +115,4 @@ issue — follow [SECURITY.md](SECURITY.md) instead.
 ## License
 
 By contributing, you agree that your contributions are licensed under the
-project's [MIT License](LICENSE).
+project's [Apache License 2.0](LICENSE).
