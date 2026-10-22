@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/aralde/astorLM/actions/workflows/ci.yml"><img src="https://github.com/aralde/astorLM/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.npmjs.com/package/astorlm"><img src="https://img.shields.io/npm/v/astorlm?color=8E1B3A" alt="npm version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8E1B3A" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-8E1B3A" alt="Apache 2.0 license"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-8E1B3A" alt="Node >= 20">
   <img src="https://img.shields.io/badge/types-TypeScript-8E1B3A" alt="TypeScript">
 </p>
