@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^0.128.0
-        version: 0.128.0(zod@3.25.76)
+        specifier: ^0.135.0
+        version: 0.135.0(zod@3.25.76)
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.32.1(zod@3.25.76)
@@ -38,7 +38,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@22.20.5)(vite@8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(vite@8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15))
     optionalDependencies:
       quickjs-emscripten:
         specifier: ^0.32.0
@@ -46,8 +46,8 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@0.128.0':
-    resolution: {integrity: sha512-tl5cBFZC1jVFrTuQyvQObA4WmuNgcYVeXfriqOumgtLAHUm4gPUj18YnszBW60v0PrjDB8nBDOC6wd9CmHQFlA==}
+  '@anthropic-ai/sdk@0.135.0':
+    resolution: {integrity: sha512-WWrdL57JhU5KoynpTjt9GXK6k7ud9nPw2uw/Trn+oBXh6s0KpjhAccWZm2Qxw08ARYG1UDQj5iC+JO42j1rt/g==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -55,8 +55,8 @@ packages:
       zod:
         optional: true
 
-  '@babel/runtime@7.29.7':
-    resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
+  '@babel/runtime@7.29.10':
+    resolution: {integrity: sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA==}
     engines: {node: '>=6.9.0'}
 
   '@esbuild/aix-ppc64@0.27.7':
@@ -414,6 +414,10 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@opentelemetry/api@1.9.1':
+    resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
+    engines: {node: '>=8.0.0'}
 
   '@oxc-project/types@0.154.0':
     resolution: {integrity: sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==}
@@ -1540,14 +1544,15 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.128.0(zod@3.25.76)':
+  '@anthropic-ai/sdk@0.135.0(zod@3.25.76)':
     dependencies:
+      '@opentelemetry/api': 1.9.1
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
     optionalDependencies:
       zod: 3.25.76
 
-  '@babel/runtime@7.29.7': {}
+  '@babel/runtime@7.29.10': {}
 
   '@esbuild/aix-ppc64@0.27.7':
     optional: true
@@ -1767,6 +1772,8 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
+
+  '@opentelemetry/api@1.9.1': {}
 
   '@oxc-project/types@0.154.0': {}
 
@@ -2281,7 +2288,7 @@ snapshots:
 
   json-schema-to-ts@3.1.1:
     dependencies:
-      '@babel/runtime': 7.29.7
+      '@babel/runtime': 7.29.10
       ts-algebra: 2.0.0
 
   json-schema-traverse@1.0.0: {}
@@ -2723,7 +2730,7 @@ snapshots:
       fsevents: 2.3.3
       tsx: 4.23.15
 
-  vitest@4.1.11(@types/node@22.20.5)(vite@8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15)):
+  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(vite@8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15))
@@ -2746,6 +2753,7 @@ snapshots:
       vite: 8.3.0(@types/node@22.20.5)(esbuild@0.27.7)(tsx@4.23.15)
       why-is-node-running: 2.3.0
     optionalDependencies:
+      '@opentelemetry/api': 1.9.1
       '@types/node': 22.20.5
     transitivePeerDependencies:
       - msw
