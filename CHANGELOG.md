@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.2.3] — 2026-10-23
+
+License and dependency release. No API changes.
+
+### Changed
+
+- **License: Apache 2.0** (was MIT), with a `NOTICE` file. Keep `LICENSE`
+  and `NOTICE` when you redistribute. Versions up to 0.2.2 stay MIT.
+- Author is now "Aralde" in `package.json` and `LICENSE`.
+- `@anthropic-ai/sdk` range raised to `^0.135.0` (was `^0.128.0`).
+
+### Docs
+
+- Public documentation site served from `/docs`, linked from the README
+  together with harnesspatterns.dev.
+
 ## [0.2.2] — 2026-09-18
 
 Documentation only. No runtime changes, no API changes — `dist/` is identical
@@ -338,7 +354,8 @@ Embeddable, runtime-agnostic agentic TypeScript SDK with:
 - Experimental federated error registry under
   `astorlm/experimental/error-registry`.
 
-[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.2...HEAD
+[unreleased]: https://github.com/aralde/astorLM/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/aralde/astorLM/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/aralde/astorLM/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/aralde/astorLM/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aralde/astorLM/releases/tag/v0.2.0

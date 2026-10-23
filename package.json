@@ -1,6 +1,6 @@
 {
   "name": "astorlm",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "The agent loop as a library: an embeddable, SDK-first agentic runtime for TypeScript.",
   "type": "module",
   "author": "Aralde <aralde.git@gmail.com> (https://github.com/aralde)",
