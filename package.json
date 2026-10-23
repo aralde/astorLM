@@ -126,7 +126,7 @@
     "quickjs-emscripten": "^0.32.0",
     "tsup": "^8.3.5",
     "tsx": "^4.23.13",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "optionalDependencies": {
