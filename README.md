@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://aralde.github.io/astorLM/">📖 Documentation site</a></strong> ·
+  <strong><a href="https://astorlm.aralde.dev/">📖 Documentation site</a></strong> ·
   <a href="https://harnesspatterns.dev">🎓 Learn the patterns</a> ·
   <a href="https://www.npmjs.com/package/astorlm">npm</a> ·
   <a href="CHANGELOG.md">Changelog</a>
