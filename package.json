@@ -29,6 +29,11 @@
       "import": "./dist/core.js",
       "require": "./dist/core.cjs"
     },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "require": "./dist/browser.cjs"
+    },
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js",
@@ -103,7 +108,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:demo": "esbuild docs/demo/src/main.ts --bundle --format=esm --platform=browser --minify --target=es2022 --outfile=docs/demo/demo.js"
   },
   "keywords": [
     "agent",
@@ -122,7 +128,9 @@
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
+    "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
     "@types/node": "^22.10.0",
+    "esbuild": "^0.28.2",
     "quickjs-emscripten": "^0.32.0",
     "tsup": "^8.3.5",
     "tsx": "^4.23.13",

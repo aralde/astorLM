@@ -1,0 +1,25 @@
+body.demo main { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+.demo form { display: grid; gap: 14px; margin: 24px 0; }
+.demo label { display: grid; gap: 4px; font-size: 14px; color: var(--fg-muted); }
+.demo input, .demo textarea {
+  font: 14px var(--mono); padding: 8px 10px; color: var(--fg);
+  background: var(--bg-raised); border: 1px solid var(--rule-strong); border-radius: 4px;
+}
+.demo .actions { display: flex; gap: 10px; }
+.demo button {
+  font: 600 14px var(--sans); padding: 8px 16px; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--bg-raised); color: var(--fg);
+}
+.demo button[type="submit"] { background: var(--signal); color: var(--signal-fg); border-color: var(--signal); }
+.demo button:disabled { opacity: .5; cursor: not-allowed; }
+.demo .note { padding: 12px 14px; background: var(--signal-soft); border: 1px solid var(--signal-line); border-radius: 4px; font-size: 14px; }
+.demo .log, .demo .files { background: var(--code-bg); border: 1px solid var(--code-bd); border-radius: 4px; padding: 8px; min-height: 48px; font: 13px var(--mono); }
+.demo .line { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--rule); }
+.demo .line:last-child { border-bottom: 0; }
+.demo .tag { color: var(--fg-faint); overflow-wrap: anywhere; }
+.demo .tool .tag { color: var(--signal); }
+.demo .error .tag, .demo .error pre { color: #e5604d; }
+.demo pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.demo .files details { padding: 4px 0; }
+.demo .files summary { cursor: pointer; }
+@media (max-width: 600px) { .demo .line { grid-template-columns: 1fr; } }

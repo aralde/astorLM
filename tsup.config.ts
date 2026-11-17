@@ -4,6 +4,7 @@ export default defineConfig({
   entry: [
     'src/index.ts',
     'src/core.ts',
+    'src/browser.ts',
     'src/tools/index.ts',
     'src/prompt/index.ts',
     'src/embeddings/index.ts',
