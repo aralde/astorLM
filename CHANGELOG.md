@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `astorlm/browser` entry point: loop, providers, tools API and the QuickJS
+  runner, with no `node:*` import (enforced by a test).
+- In-browser demo at `/demo/` (docs site): the agent loop, in-memory file tools
+  and the WASM sandbox against a user-supplied OpenAI-compatible endpoint.
+- `QuickJsCodeRunner` accepts a preloaded `module` (experimental), e.g. a
+  single-file QuickJS variant for browsers.
+
+### Changed
+
+- `createAgent` imports `tool` from `tools/define` instead of the tools barrel,
+  so it no longer pulls the Node-only built-in tools.
 
 ## [0.2.3] — 2026-10-23
 
