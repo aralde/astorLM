@@ -44,7 +44,7 @@ function scan(): { files: string[]; offenders: string[] } {
 describe('browser entry point', () => {
   it('reaches the loop, providers and runner', () => {
     const { files } = scan()
-    const rel = files.map((f) => f.slice(root.length + 1))
+    const rel = files.map((f) => f.slice(root.length + 1).replaceAll('\\', '/'))
     expect(rel).toContain('src/agent/loop.ts')
     expect(rel).toContain('src/provider/openai.ts')
     expect(rel).toContain('src/experimental/wasm-runner/quickjs.ts')
