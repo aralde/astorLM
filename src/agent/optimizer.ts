@@ -1,4 +1,11 @@
-import type { Message, ContextOptimizerOptions, ToolUseBlock } from '../types.js'
+import type {
+  Message,
+  ContextOptimizerOptions,
+  ToolUseBlock,
+  CompactionReport,
+} from '../types.js'
+
+export const INVARIANTS_HEADER = '[Pinned invariants - these remain in force for the whole session]'
 
 /**
  * Simple heuristic to estimate the number of tokens based on character length.
@@ -54,14 +61,38 @@ function defaultSummarizeToolResult(content: string, toolUse: ToolUseBlock | nul
   return `[Tool '${toolName}' execution result truncated to save context. Original output length: ${originalLength} characters. Preview: "${preview}"]`
 }
 
+function isInvariantsBlock(b: Message['content'][number]): boolean {
+  return b.type === 'text' && b.text.startsWith(INVARIANTS_HEADER)
+}
+
+function pinInvariants(messages: Message[], invariants: string[]): void {
+  const first = messages[0]
+  if (!first || first.role !== 'user') return
+  first.content = first.content.filter((b) => !isInvariantsBlock(b))
+  if (invariants.length === 0) return
+  first.content.push({
+    type: 'text',
+    text: `${INVARIANTS_HEADER}\n${invariants.map((i) => `- ${i}`).join('\n')}`,
+  })
+}
+
+function hasOrphanToolResult(messages: Message[], index: number): boolean {
+  const m = messages[index]
+  if (!m || m.role !== 'user') return false
+  return m.content.some(
+    (b) => b.type === 'tool_result' && !findToolUse(messages.slice(0, index), b.tool_use_id)
+  )
+}
+
 /**
  * Optimizes the current context (messages) if it exceeds the token threshold.
  */
 export function optimizeContext(
   messages: Message[],
   systemPrompt: string,
-  options: Required<ContextOptimizerOptions>
-): { messages: Message[]; optimized: boolean } {
+  options: Required<ContextOptimizerOptions>,
+  invariants: readonly string[] = []
+): { messages: Message[]; optimized: boolean; report?: CompactionReport } {
   let currentTokens = options.tokenCounter(messages, systemPrompt)
   const threshold = options.maxTokens * (options.compressThreshold ?? 0.8)
 
@@ -94,6 +125,16 @@ export function optimizeContext(
   }
 
   let optimized = false
+  const report: CompactionReport = {
+    truncatedToolResults: [],
+    droppedMessages: [],
+    invariants: [...invariants],
+  }
+  const finish = (): { messages: Message[]; optimized: boolean; report?: CompactionReport } => {
+    if (!optimized) return { messages: cloned, optimized: false }
+    pinInvariants(cloned, report.invariants)
+    return { messages: cloned, optimized: true, report }
+  }
 
   // --- Level 1: Compact old tool_result blocks ---
   for (let i = 0; i < boundaryIndex; i++) {
@@ -106,13 +147,18 @@ export function optimizeContext(
           const toolUse = findToolUse(cloned, b.tool_use_id)
           const newContent = defaultSummarizeToolResult(b.content, toolUse)
           if (newContent.length < b.content.length) {
+            report.truncatedToolResults.push({
+              toolUseId: b.tool_use_id,
+              toolName: toolUse ? toolUse.name : 'unknown',
+              originalLength: b.content.length,
+            })
             b.content = newContent
             optimized = true
 
             // Re-evaluate tokens after each compression to stop as early as possible
             currentTokens = options.tokenCounter(cloned, systemPrompt)
             if (currentTokens <= threshold) {
-              return { messages: cloned, optimized: true }
+              return finish()
             }
           }
         }
@@ -142,12 +188,15 @@ export function optimizeContext(
       break
     }
 
-    cloned.splice(1, 1)
+    report.droppedMessages.push(...cloned.splice(1, 1))
+    while (cloned.length > 2 && hasOrphanToolResult(cloned, 1)) {
+      report.droppedMessages.push(...cloned.splice(1, 1))
+    }
     optimized = true
 
     // Re-evaluate tokens
     currentTokens = options.tokenCounter(cloned, systemPrompt)
   }
 
-  return { messages: cloned, optimized }
+  return finish()
 }

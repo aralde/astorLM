@@ -83,6 +83,7 @@ export type {
   Role,
   SessionHooks,
   ContextOptimizerOptions,
+  CompactionReport,
   RetryPolicy,
   TokenUsage,
   AgentLoopPattern,

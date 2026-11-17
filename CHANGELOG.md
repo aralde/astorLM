@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `agent.pinInvariant(text)` / `agent.getInvariants()`: pinned constraints are
+  re-injected verbatim after every context compaction.
+- `context_compacted` event (`'context-compacted'` on `agent.on`) listing the
+  tool results truncated and the messages dropped by each compaction.
+- `optimizeContext` takes an optional `invariants` argument and returns a `report`.
+
+### Fixed
+
+- Context compaction no longer drops an assistant `tool_use` while keeping its
+  `tool_result` (invalid request on some providers).
 
 ## [0.2.3] — 2026-10-23
 
