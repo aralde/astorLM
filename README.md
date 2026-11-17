@@ -179,7 +179,13 @@ astorlm/experimental/*     varies    error-registry · tracing · metrics · rep
   - `parseAllowedTools`, `restrictToolsHook` (per-skill tool gating)
   - Base types: `Agent`, `CreateAgentOptions`, `SessionHooks`, `Message`, `ContentBlock`, `AgentEvent`, `Skill`, `SkillMetadata`, `SkillSource`, `SkillMode`, etc.
 
-> ⚠️ Because the main barrel re-exports `./core`, importing from `astorlm` pulls in Node-only dependencies. If you target Edge / Workers / browser, import from the agnostic modules directly (the loop, providers and abstractions don't import Node) and avoid the Node runner.
+> ⚠️ Because the main barrel re-exports `./core`, importing from `astorlm` pulls in Node-only dependencies. If you target Edge / Workers / browser, import from `astorlm/browser` (see below) and avoid the Node runner.
+
+### `astorlm/browser` (browser-safe)
+
+`createAgent`, `tool`, `ToolRegistry`, `InMemorySessionManager`, `EventBus`, `OpenAIProvider`, `AnthropicProvider`, `QuickJsCodeRunner`, `createCodeRunnerTool` and the base types. No `node:*` import, directly or transitively (a test enforces it). The built-in file and shell tools are Node-only, so bring your own tools. `OpenAIProvider` needs `dangerouslyAllowBrowser: true` in a browser, and the endpoint must allow CORS.
+
+Try it in a tab: the [in-browser demo](https://astorlm.aralde.dev/demo/) runs the loop, in-memory file tools and the WASM sandbox against your own OpenAI-compatible endpoint. The key stays in the browser.
 
 ### 2. `astorlm/core` (Node.js runner)
 * **Description**: Extensions that require Node.js OS-native APIs (`node:fs`, `node:path`, `node:child_process`).

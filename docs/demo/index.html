@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>astorlm — in-tab agent demo</title>
+<meta name="description" content="Run the astorlm agent loop entirely in your browser tab against your own OpenAI-compatible endpoint, with in-memory file tools and a WASM sandbox." />
+<link rel="canonical" href="https://astorlm.aralde.dev/demo/" />
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="../assets/styles.css" />
+<link rel="stylesheet" href="demo.css" />
+</head>
+<body class="demo">
+<main>
+  <p><a href="../">← astorlm docs</a></p>
+  <h1>In-tab agent demo</h1>
+  <p>
+    The agent loop, the tool calls and the sandboxed execution all run in this tab, using the
+    <code>astorlm/browser</code> entry point. Files live in memory and code runs in QuickJS compiled
+    to WASM, with no filesystem, network or imports.
+  </p>
+  <p class="note">
+    <strong>Your key never leaves the browser.</strong> It is sent only to the endpoint you enter,
+    straight from this page, and is not stored. There is no backend. The endpoint must
+    <strong>allow cross-origin requests (CORS)</strong> from this origin; otherwise the browser
+    blocks the call. Many hosted APIs do not, so enable CORS on your side, or use a local server such as
+    Ollama with <code>OLLAMA_ORIGINS</code> set. The model must support tool calling.
+  </p>
+
+  <form id="form" autocomplete="off">
+    <label>Endpoint (base URL)
+      <input name="baseURL" type="url" required placeholder="http://localhost:11434/v1" value="http://localhost:11434/v1" />
+    </label>
+    <label>API key
+      <input name="apiKey" type="password" placeholder="sk-… (optional for local servers)" />
+    </label>
+    <label>Model
+      <input name="model" type="text" required placeholder="qwen2.5-coder" />
+    </label>
+    <label>Task
+      <textarea name="task" rows="3" required>Write a script that prints the first 15 Fibonacci numbers, run it, and tell me the output.</textarea>
+    </label>
+    <div class="actions">
+      <button id="run" type="submit">Run agent</button>
+      <button id="stop" type="button" disabled>Stop</button>
+    </div>
+  </form>
+
+  <h2>Steps</h2>
+  <div id="log" class="log" aria-live="polite"></div>
+  <h2>Workspace (in memory)</h2>
+  <div id="files" class="files"></div>
+</main>
+<script type="module" src="demo.js"></script>
+</body>
+</html>

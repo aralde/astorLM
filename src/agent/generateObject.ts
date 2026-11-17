@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { createAgent } from './session.js'
-import { tool } from '../tools/index.js'
+import { tool } from '../tools/define.js'
 import type { AgentEvent, Message, Provider, Tool } from '../types.js'
 import type { Executor } from '../executor/types.js'
 

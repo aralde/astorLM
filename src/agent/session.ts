@@ -1,5 +1,5 @@
 import { ToolRegistry } from '../tools/registry.js'
-import { tool } from '../tools/index.js'
+import { tool } from '../tools/define.js'
 import { z } from 'zod'
 import { buildSystemPrompt } from '../prompt/system.js'
 import { compilePrompts } from '../prompt/compiler.js'
