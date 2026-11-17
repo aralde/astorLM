@@ -12,6 +12,12 @@ export interface QuickJsCodeRunnerOptions {
   memoryLimitBytes?: number
   /** Default output cap per run. Overridable per `run()`. Default 200 KB. */
   maxOutputBytes?: number
+  /**
+   * Preloaded QuickJS WASM module (e.g. from `newQuickJSWASMModule(variant)`).
+   * Lets bundlers pick a variant, such as a single-file build for browsers.
+   * Defaults to `getQuickJS()` from `quickjs-emscripten`.
+   */
+  module?: QuickJSWASMModule | Promise<QuickJSWASMModule>
 }
 
 /**
@@ -35,11 +41,13 @@ export class QuickJsCodeRunner implements CodeRunner {
   private readonly defaultMemoryLimitBytes: number
   private readonly defaultMaxOutputBytes: number
   private modulePromise: Promise<QuickJSWASMModule> | undefined
+  private readonly providedModule: QuickJsCodeRunnerOptions['module']
 
   constructor(opts: QuickJsCodeRunnerOptions = {}) {
     this.defaultTimeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
     this.defaultMemoryLimitBytes = opts.memoryLimitBytes ?? DEFAULT_MEMORY_LIMIT_BYTES
     this.defaultMaxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES
+    this.providedModule = opts.module
   }
 
   /**
@@ -48,7 +56,9 @@ export class QuickJsCodeRunner implements CodeRunner {
    */
   private async getModule(): Promise<QuickJSWASMModule> {
     if (!this.modulePromise) {
-      this.modulePromise = import('quickjs-emscripten').then((m) => m.getQuickJS())
+      this.modulePromise = this.providedModule
+        ? Promise.resolve(this.providedModule)
+        : import('quickjs-emscripten').then((m) => m.getQuickJS())
     }
     return this.modulePromise
   }
