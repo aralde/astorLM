@@ -256,7 +256,10 @@ describe('Context Optimizer & Token Estimator', () => {
         text('assistant', 'done'),
         text('user', 'latest prompt ' + 'z'.repeat(300)),
       ]
-      const { messages: out, report } = optimizeContext(messages, '', opts)
+      const hasToolUse = (msgs: Message[], id: string) =>
+        msgs.some((m) => m.content.some((b) => b.type === 'tool_use' && b.id === id))
+      const tokenCounter = (msgs: Message[]) => (hasToolUse(msgs, 't1') ? 1000 : 1)
+      const { messages: out, report } = optimizeContext(messages, '', { ...opts, tokenCounter })
       const uses = new Set<string>()
       for (const m of out) {
         for (const b of m.content) {
@@ -264,7 +267,10 @@ describe('Context Optimizer & Token Estimator', () => {
           if (b.type === 'tool_result') expect(uses.has(b.tool_use_id)).toBe(true)
         }
       }
-      expect(report!.droppedMessages.length).toBeGreaterThan(0)
+      const hasResult = (msgs: Message[], id: string) =>
+        msgs.some((m) => m.content.some((b) => b.type === 'tool_result' && b.tool_use_id === id))
+      expect(hasResult(out, 't1')).toBe(false)
+      expect(hasResult(report!.droppedMessages, 't1')).toBe(true)
     })
   })
 
