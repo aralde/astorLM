@@ -172,6 +172,15 @@ export interface ContextOptimizerOptions {
   tokenCounter?: (messages: Message[], systemPrompt: string) => number
 }
 
+export interface CompactionReport {
+  /** Tool results shortened to a preview. */
+  truncatedToolResults: Array<{ toolUseId: string; toolName: string; originalLength: number }>
+  /** Messages removed from the history, verbatim and oldest first. */
+  droppedMessages: Message[]
+  /** Invariants re-injected after this compaction. */
+  invariants: string[]
+}
+
 // ---------- Provider ----------
 
 /**
@@ -305,6 +314,7 @@ export type AgentEvent =
   | { type: 'contract_violation'; rule: string; details: string }
   | { type: 'heartbeat_tick'; checkPrompt: string }
   | { type: 'plan_updated'; plan: PlanItem[] }
+  | ({ type: 'context_compacted' } & CompactionReport)
 
 export type AgentEventListener = (event: AgentEvent) => void
 

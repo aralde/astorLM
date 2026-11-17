@@ -233,4 +233,78 @@ describe('Context Optimizer & Token Estimator', () => {
       expect(compactMsg.content[0]?.content).toContain("[Tool 'grep' execution result truncated")
     })
   })
+
+  describe('tool pair integrity', () => {
+    const opts: Required<ContextOptimizerOptions> = {
+      maxTokens: 100,
+      compressThreshold: 0.1,
+      keepRecentTurns: 1,
+      tokenCounter: (msgs, sys) => estimateTokens(msgs, sys),
+    }
+    const text = (role: 'user' | 'assistant', t: string): Message => ({
+      role,
+      content: [{ type: 'text', text: t }],
+    })
+
+    it('never leaves a tool_result without its tool_use', () => {
+      const messages: Message[] = [
+        text('user', 'start'),
+        { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'x', input: {} }] },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] },
+        { role: 'assistant', content: [{ type: 'tool_use', id: 't2', name: 'x', input: {} }] },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't2', content: 'ok' }] },
+        text('assistant', 'done'),
+        text('user', 'latest prompt ' + 'z'.repeat(300)),
+      ]
+      const hasToolUse = (msgs: Message[], id: string) =>
+        msgs.some((m) => m.content.some((b) => b.type === 'tool_use' && b.id === id))
+      const tokenCounter = (msgs: Message[]) => (hasToolUse(msgs, 't1') ? 1000 : 1)
+      const { messages: out, report } = optimizeContext(messages, '', { ...opts, tokenCounter })
+      const uses = new Set<string>()
+      for (const m of out) {
+        for (const b of m.content) {
+          if (b.type === 'tool_use') uses.add(b.id)
+          if (b.type === 'tool_result') expect(uses.has(b.tool_use_id)).toBe(true)
+        }
+      }
+      const hasResult = (msgs: Message[], id: string) =>
+        msgs.some((m) => m.content.some((b) => b.type === 'tool_result' && b.tool_use_id === id))
+      expect(hasResult(out, 't1')).toBe(false)
+      expect(hasResult(report!.droppedMessages, 't1')).toBe(true)
+    })
+  })
+
+  describe('invariants', () => {
+    it('re-injects pinned invariants verbatim after every compaction and reports what was dropped', async () => {
+      const rule = 'Never touch the migrations folder'
+      const turns = Array.from({ length: 6 }, (_, i) => ({ text: `answer ${i} ` + 'a'.repeat(200) }))
+      const provider = new MockProvider(turns)
+      const session = await createAgent({
+        provider,
+        contextOptimizer: { maxTokens: 400, compressThreshold: 0.5, keepRecentTurns: 1 },
+      })
+      session.pinInvariant(rule)
+      session.pinInvariant(rule)
+      expect(session.getInvariants()).toEqual([rule])
+
+      const events: any[] = []
+      session.on('context-compacted', (e) => events.push(e))
+
+      for (let i = 0; i < 6; i++) {
+        await session.run(`question ${i} ` + 'q'.repeat(200))
+        if (events.length >= 3) break
+      }
+
+      expect(events.length).toBeGreaterThanOrEqual(3)
+      const flat = (msgs: Message[]) =>
+        msgs.flatMap((m) => m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])))
+      for (const call of provider.calls.slice(1)) {
+        const texts = flat(call.messages)
+        const copies = texts.filter((t) => t.includes(rule))
+        expect(copies.length).toBe(1)
+      }
+      expect(events.every((e) => e.invariants.includes(rule))).toBe(true)
+      expect(events.some((e) => e.droppedMessages.length > 0)).toBe(true)
+    })
+  })
 })

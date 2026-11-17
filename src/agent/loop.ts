@@ -30,6 +30,8 @@ export interface RunLoopOptions {
   logger: ToolContext['logger']
   hooks?: SessionHooks
   contextOptimizer?: ContextOptimizerOptions
+  /** Live list of invariants re-injected after every context compaction. */
+  invariants?: readonly string[]
   retry?: RetryPolicy
   executor: Executor
   sessionUsage: TokenUsage
@@ -62,7 +64,7 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
     if (opts.abortSignal.aborted) throw new DOMException('Aborted', 'AbortError')
 
     if (opts.contextOptimizer) {
-      const { messages: optimizedMessages, optimized } = optimizeContext(
+      const { messages: optimizedMessages, optimized, report } = optimizeContext(
         opts.messages,
         opts.systemPrompt,
         {
@@ -70,12 +72,14 @@ export async function runLoop(opts: RunLoopOptions): Promise<Message> {
           compressThreshold: opts.contextOptimizer.compressThreshold ?? 0.8,
           keepRecentTurns: opts.contextOptimizer.keepRecentTurns ?? 3,
           tokenCounter: opts.contextOptimizer.tokenCounter ?? estimateTokens,
-        }
+        },
+        opts.invariants
       )
       if (optimized) {
         opts.logger.info('Context optimized. Pruned/condensed messages to save tokens.')
         opts.messages.length = 0
         opts.messages.push(...optimizedMessages)
+        if (report) opts.bus.emit({ type: 'context_compacted', ...report })
       }
     }
 

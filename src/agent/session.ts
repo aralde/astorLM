@@ -139,6 +139,13 @@ export interface Agent {
    */
   registerTool(tool: Tool): void
   /**
+   * Pins a constraint, decision or approval. It is re-injected verbatim into the
+   * context after every compaction. Duplicates are ignored.
+   */
+  pinInvariant(text: string): void
+  /** Currently pinned invariants. */
+  getInvariants(): string[]
+  /**
    * Runs the agent with the given user input, starting the agent loop.
    * @param input - The text input or an object containing the input string.
    * @param opts - Execution options such as an abort signal.
@@ -259,6 +266,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     }
   }
 
+  const invariants: string[] = []
   const bus = new EventBus()
   const messages: Message[] = []
   const logger = opts.logger ?? noopLogger
@@ -549,6 +557,7 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
         logger,
         hooks: opts.hooks,
         contextOptimizer,
+        invariants,
         retry: opts.retry,
         executor,
         sessionUsage,
@@ -585,6 +594,10 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
     getMessages: () => messages.slice(),
     getUsage: () => ({ ...sessionUsage }),
     registerTool: (t) => registry.register(t),
+    pinInvariant(text) {
+      if (!invariants.includes(text)) invariants.push(text)
+    },
+    getInvariants: () => invariants.slice(),
     abort(reason) {
       activeCtrl?.abort(reason)
     },
@@ -612,6 +625,8 @@ export async function createAgent(opts: CreateAgentOptions): Promise<Agent> {
           listener({ name: e.name, input: e.input })
         } else if (event === 'tool-end' && e.type === 'tool_execution_end') {
           listener({ name: e.name, output: e.output, isError: e.isError })
+        } else if (event === 'context-compacted' && e.type === 'context_compacted') {
+          listener(e)
         } else if (event === 'error' && e.type === 'session_end' && e.reason === 'error') {
           listener(e.error)
         }
